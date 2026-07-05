@@ -138,10 +138,21 @@ export function parseNumber(raw: string): number | null {
 
 export function parseLabels(raw: string): string[] {
   if (!raw) return []
-  return raw
-    .split(/[,;]|\s+/)
-    .map((t) => t.replace(/^#/, '').trim())
-    .filter(Boolean)
+  const s = raw.trim()
+  if (!s) return []
+  let parts: string[]
+  if (s.includes(',') || s.includes(';')) {
+    // Comma/semicolon separated (Spendee, most exporters). Multi-word labels
+    // like "RC Cars" are already a single cell, so only these split them.
+    parts = s.split(/[,;]/)
+  } else if (/^#\S+(\s+#\S+)+$/.test(s)) {
+    // Space-separated hashtags from other apps, e.g. "#food #home".
+    parts = s.split(/\s+/)
+  } else {
+    // A single label, which may legitimately contain spaces ("RC Cars").
+    parts = [s]
+  }
+  return parts.map((t) => t.replace(/^#/, '').trim()).filter(Boolean)
 }
 
 export interface PreviewRow {
@@ -281,12 +292,15 @@ export async function runImport(
     }
 
     if (existing) {
+      // Only skip rows that already exist in the database (re-importing the same
+      // file). We deliberately do NOT dedupe within the file itself: two entries
+      // on the same day with the same amount/category/note are distinct
+      // transactions (Spendee keeps the time), and dropping one loses real data.
       const k = dedupeKey(r)
       if (existing.has(k)) {
         skipped++
         continue
       }
-      existing.add(k)
     }
 
     newTxs.push({
