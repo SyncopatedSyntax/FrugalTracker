@@ -12,8 +12,6 @@ interface SegmentedProps<T extends string> {
   className?: string
   /** Optional accent for the active pill (defaults to primary). */
   activeClass?: string
-  /** 'sm' shrinks padding/font for tight spaces (defaults to the normal size). */
-  size?: 'md' | 'sm'
 }
 
 export default function Segmented<T extends string>({
@@ -22,7 +20,6 @@ export default function Segmented<T extends string>({
   onChange,
   className,
   activeClass,
-  size = 'md',
 }: SegmentedProps<T>) {
   return (
     <div className={cn('inline-flex rounded-full bg-surface2 p-1', className)}>
@@ -34,8 +31,7 @@ export default function Segmented<T extends string>({
             type="button"
             onClick={() => onChange(opt.value)}
             className={cn(
-              'rounded-full font-semibold transition-colors',
-              size === 'sm' ? 'px-3 py-1 text-xs' : 'px-4 py-1.5 text-sm',
+              'rounded-full px-4 py-1.5 text-sm font-semibold transition-colors',
               active
                 ? activeClass ?? 'bg-primary text-primary-fg shadow'
                 : 'text-muted hover:text-content',

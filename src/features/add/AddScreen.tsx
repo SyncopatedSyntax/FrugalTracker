@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import Segmented from '@/components/Segmented'
 import CurrencyPickerSheet from '@/components/CurrencyPickerSheet'
 import TagInput, { addTag } from '@/components/TagInput'
 import Sheet from '@/components/Sheet'
@@ -15,6 +14,7 @@ import {
 import CategoryGrid from './CategoryGrid'
 import AmountKeypad from './AmountKeypad'
 import BudgetPanel from './BudgetPanel'
+import TypeSwitch, { TYPE_SWITCH_WIDTH } from './TypeSwitch'
 import CategoryFormSheet from '@/features/categories/CategoryFormSheet'
 import { useCategoriesByType, useSettings, useTags } from '@/hooks'
 import { addTransaction } from '@/db/repo'
@@ -202,31 +202,25 @@ export default function AddScreen() {
         <BudgetPanel type={type} categoryId={categoryId} />
       </div>
 
-      {/* Middle band: type toggle + currency stacked to one side, sharing a
+      {/* Middle band: type switch + currency stacked to one side, sharing a
           single row with the live amount instead of three stacked rows —
           frees up more height for the step track below. The left column is
           flex-shrink-0 so typing longer amounts can never nudge it — only the
-          amount's own region (and its font size) responds to length. */}
+          amount's own region (and its font size) responds to length. The
+          currency chip's width is pinned to the switch's own width so the
+          two read as a matched pair. */}
       <div className="flex items-center gap-3 px-4 pt-3">
         <div className="flex flex-shrink-0 flex-col items-start gap-1">
-          <Segmented
-            options={[
-              { value: 'expense', label: 'Expense' },
-              { value: 'income', label: 'Income' },
-            ]}
-            value={type}
-            onChange={setType}
-            size="sm"
-            activeClass={cn('text-white shadow', type === 'expense' ? 'bg-expense' : 'bg-income')}
-          />
+          <TypeSwitch value={type} onChange={setType} />
           <button
             onClick={() => setCurrencyOpen(true)}
-            className="rounded-full bg-surface2 px-3 py-1 text-xs font-semibold text-muted active:scale-95"
+            style={{ width: TYPE_SWITCH_WIDTH }}
+            className="h-[27px] rounded-full bg-surface2 text-center text-xs font-semibold text-muted active:scale-95"
           >
             {activeCurrency}
           </button>
         </div>
-        <div className="flex min-w-0 flex-1 items-baseline justify-center gap-1">
+        <div className="flex min-w-0 flex-1 items-baseline justify-end gap-1">
           <span className={cn('flex-shrink-0 font-medium text-muted', amountFont.symbol)}>
             {symbol}
           </span>
