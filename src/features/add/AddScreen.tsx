@@ -3,7 +3,14 @@ import Segmented from '@/components/Segmented'
 import CurrencyPickerSheet from '@/components/CurrencyPickerSheet'
 import TagInput from '@/components/TagInput'
 import { Toast, useToast } from '@/components/Toast'
-import { CheckIcon, ChevronLeftIcon, ChevronRightIcon, PencilIcon } from '@/components/icons'
+import {
+  CalendarIcon,
+  CheckIcon,
+  ChevronLeftIcon,
+  ChevronRightIcon,
+  PencilIcon,
+  TagIcon,
+} from '@/components/icons'
 import CategoryGrid from './CategoryGrid'
 import AmountKeypad from './AmountKeypad'
 import BudgetPanel from './BudgetPanel'
@@ -59,7 +66,6 @@ export default function AddScreen() {
     () => [...cats].sort((a, b) => b.usageCount - a.usageCount || a.sortOrder - b.sortOrder),
     [cats],
   )
-  const selectedCategory = cats.find((c) => c.id === categoryId)
 
   // Clear selection if the chosen category isn't in the current type list.
   useEffect(() => {
@@ -168,10 +174,10 @@ export default function AddScreen() {
         </div>
       </div>
 
-      <div className="flex flex-col items-center px-4 pt-3">
+      <div className="flex flex-col items-center px-4 pt-2">
         <button
           onClick={() => setCurrencyOpen(true)}
-          className="mb-1 rounded-full bg-surface2 px-3 py-1 text-xs font-semibold text-muted active:scale-95"
+          className="mb-0.5 rounded-full bg-surface2 px-3 py-1 text-xs font-semibold text-muted active:scale-95"
         >
           {activeCurrency}
         </button>
@@ -189,7 +195,7 @@ export default function AddScreen() {
       </div>
 
       {/* Purely visual step progress — navigation is by swipe, not tapping */}
-      <div className="flex justify-center gap-1.5 py-3">
+      <div className="flex justify-center gap-1.5 py-2.5">
         {([0, 1, 2] as const).map((i) => (
           <span
             key={i}
@@ -206,9 +212,10 @@ export default function AddScreen() {
         ref={trackRef}
         className="no-scrollbar flex min-h-0 flex-1 snap-x snap-mandatory overflow-x-auto overscroll-x-contain"
       >
-        {/* Step 0: amount keypad, anchored to the bottom (thumb zone) */}
-        <div className="flex h-full w-full flex-shrink-0 snap-start flex-col justify-center">
+        {/* Step 0: amount keypad — fills the thumb zone exactly (no gap, no clip) */}
+        <div className="h-full w-full flex-shrink-0 snap-start">
           <AmountKeypad
+            fill
             value={amount}
             onChange={setAmount}
             decimals={decimals}
@@ -238,41 +245,35 @@ export default function AddScreen() {
           </div>
         )}
 
-        {/* Step 2: tags, date, note + save — compact, since this step has
-            less room now that the budget panel sits above */}
+        {/* Step 2: tags, date, note + save. Fields are vertically centred so the
+            whitespace stays balanced instead of pooling above the Save button. */}
         {unlocked >= 2 && (
           <div className="relative flex h-full w-full flex-shrink-0 snap-start flex-col">
             <ChevronLeftIcon size={16} className="absolute left-1.5 top-1.5 text-muted/40" />
-            <div className="no-scrollbar min-h-0 flex-1 space-y-3 overflow-y-auto px-4 pt-2">
-              <div className="flex items-center gap-2">
-                {selectedCategory && (
-                  <span className="flex flex-shrink-0 items-center gap-1 rounded-full bg-surface2 px-2.5 py-1.5 text-xs font-medium">
-                    <span>{selectedCategory.icon}</span>
-                    {selectedCategory.name}
-                  </span>
-                )}
-                <div className="min-w-0 flex-1">
-                  <TagInput compact tags={tags} onChange={setTags} suggestions={tagSuggestions} />
-                </div>
+            <div className="no-scrollbar flex min-h-0 flex-1 flex-col justify-center gap-4 overflow-y-auto px-5 py-2">
+              <div>
+                <FieldLabel icon={<TagIcon size={13} />}>Tags</FieldLabel>
+                <TagInput compact tags={tags} onChange={setTags} suggestions={tagSuggestions} />
               </div>
-              <div className="flex items-center gap-2">
+              <div>
+                <FieldLabel icon={<PencilIcon size={13} />}>Note</FieldLabel>
+                <input
+                  type="text"
+                  value={note}
+                  onChange={(e) => setNote(e.target.value)}
+                  placeholder="What was it for?"
+                  className="w-full rounded-xl border border-border bg-surface2 px-3.5 py-3 text-sm outline-none focus:border-primary"
+                />
+              </div>
+              <div>
+                <FieldLabel icon={<CalendarIcon size={13} />}>Date</FieldLabel>
                 <input
                   type="date"
                   value={date}
                   max={todayISO()}
                   onChange={(e) => setDate(e.target.value || todayISO())}
-                  className="w-[126px] flex-shrink-0 rounded-xl border border-border bg-surface2 px-2.5 py-2 text-sm outline-none focus:border-primary"
+                  className="w-full rounded-xl border border-border bg-surface2 px-3.5 py-3 text-sm outline-none focus:border-primary"
                 />
-                <label className="flex min-w-0 flex-1 items-center gap-1.5 rounded-xl border border-border bg-surface2 px-2.5 py-2">
-                  <PencilIcon size={15} className="flex-shrink-0 text-muted" />
-                  <input
-                    type="text"
-                    value={note}
-                    onChange={(e) => setNote(e.target.value)}
-                    placeholder="What was it for?"
-                    className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-muted"
-                  />
-                </label>
               </div>
             </div>
             <div className="px-4 pb-2 pt-2">
@@ -308,6 +309,15 @@ export default function AddScreen() {
         defaultType={type}
         onSaved={(id) => selectCategory(id)}
       />
+    </div>
+  )
+}
+
+function FieldLabel({ icon, children }: { icon: React.ReactNode; children: React.ReactNode }) {
+  return (
+    <div className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-muted">
+      <span className="text-muted/70">{icon}</span>
+      {children}
     </div>
   )
 }

@@ -230,54 +230,53 @@ function RingStat({
   pct: number | null
 }) {
   return (
-    <div className="flex flex-col items-center">
-      <ProgressRing ratio={ratio} color={color} size={116} stroke={10}>
-        <span className={cn('text-xl font-bold tabular-nums', over && overClass)}>
+    <div className="flex min-w-0 flex-col items-center">
+      <ProgressRing ratio={ratio} color={color}>
+        <span className={cn('text-lg font-bold tabular-nums sm:text-xl', over && overClass)}>
           {pct === null ? '–' : `${pct}%`}
         </span>
       </ProgressRing>
       <span className="mt-2 text-xs font-semibold text-muted">{label}</span>
-      <span className="mt-0.5 text-xs tabular-nums text-muted">{caption}</span>
+      <span className="mt-0.5 max-w-full truncate text-xs tabular-nums text-muted">{caption}</span>
     </div>
   )
 }
 
 /**
- * A circular meter. Ratios beyond 1 still render as a full, capped ring in
- * the "over" status color — it never wraps into a confusing second lap at
- * this size — while the center label (passed in as `children`, showing the
- * true, uncapped percentage) is what actually communicates how far over.
+ * A circular meter that scales to its cell (with a max cap so it never gets
+ * oversized on wide layouts). Ratios beyond 1 still render as a full, capped
+ * ring in the "over" status color — it never wraps into a confusing second
+ * lap — while the center label (the true, uncapped percentage) is what
+ * communicates how far over.
  */
 function ProgressRing({
   ratio,
   color,
-  size,
-  stroke,
   children,
 }: {
   ratio: number
   color: string
-  size: number
-  stroke: number
   children: ReactNode
 }) {
-  const r = (size - stroke) / 2
+  const S = 100
+  const stroke = 8
+  const r = (S - stroke) / 2
   const c = 2 * Math.PI * r
   const filled = Math.min(Math.max(ratio, 0), 1) * c
   return (
-    <div className="relative" style={{ width: size, height: size }}>
-      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
-        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="rgb(var(--c-surface2))" strokeWidth={stroke} />
+    <div className="relative aspect-square w-full max-w-[116px]">
+      <svg viewBox={`0 0 ${S} ${S}`} className="h-full w-full">
+        <circle cx={S / 2} cy={S / 2} r={r} fill="none" stroke="rgb(var(--c-surface2))" strokeWidth={stroke} />
         <circle
-          cx={size / 2}
-          cy={size / 2}
+          cx={S / 2}
+          cy={S / 2}
           r={r}
           fill="none"
           stroke={color}
           strokeWidth={stroke}
           strokeLinecap="round"
           strokeDasharray={`${filled} ${c - filled}`}
-          transform={`rotate(-90 ${size / 2} ${size / 2})`}
+          transform={`rotate(-90 ${S / 2} ${S / 2})`}
           className="transition-all"
         />
       </svg>
