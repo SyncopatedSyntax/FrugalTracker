@@ -91,10 +91,13 @@ async function bumpTags(tags: string[], delta: number): Promise<void> {
       if (count === 0 && delta < 0) {
         await db.tags.delete(existing.id)
       } else {
-        await db.tags.update(existing.id, { usageCount: count })
+        await db.tags.update(existing.id, {
+          usageCount: count,
+          ...(delta > 0 ? { lastUsedAt: Date.now() } : {}),
+        })
       }
     } else if (delta > 0) {
-      await db.tags.add({ id: uid(), name: key, usageCount: delta })
+      await db.tags.add({ id: uid(), name: key, usageCount: delta, lastUsedAt: Date.now() })
     }
   }
 }

@@ -26,15 +26,14 @@ export default function TagInput({ tags, onChange, suggestions = [], placeholder
   const remove = (t: string) => onChange(tags.filter((x) => x !== t))
 
   const lower = text.trim().toLowerCase()
+  const unused = suggestions.filter(
+    (s) => !tags.some((t) => t.toLowerCase() === s.toLowerCase()),
+  )
+  // With no text typed yet, offer the most recently-used tags as one-tap
+  // candidates; once typing starts, narrow to matches.
   const matches = lower
-    ? suggestions
-        .filter(
-          (s) =>
-            s.toLowerCase().includes(lower) &&
-            !tags.some((t) => t.toLowerCase() === s.toLowerCase()),
-        )
-        .slice(0, 6)
-    : []
+    ? unused.filter((s) => s.toLowerCase().includes(lower)).slice(0, 6)
+    : unused.slice(0, 8)
 
   return (
     <div>
@@ -66,19 +65,26 @@ export default function TagInput({ tags, onChange, suggestions = [], placeholder
         />
       </div>
       {matches.length > 0 && (
-        <div className="mt-2 flex flex-wrap gap-1.5">
-          {matches.map((s) => (
-            <button
-              key={s}
-              onClick={() => add(s)}
-              className={cn(
-                'rounded-full border border-border px-2.5 py-1 text-xs text-muted',
-                'hover:border-primary hover:text-primary',
-              )}
-            >
-              #{s}
-            </button>
-          ))}
+        <div className="mt-2">
+          {!lower && (
+            <p className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-muted">
+              Recent
+            </p>
+          )}
+          <div className="flex flex-wrap gap-1.5">
+            {matches.map((s) => (
+              <button
+                key={s}
+                onClick={() => add(s)}
+                className={cn(
+                  'rounded-full border border-border px-2.5 py-1 text-xs text-muted',
+                  'hover:border-primary hover:text-primary',
+                )}
+              >
+                #{s}
+              </button>
+            ))}
+          </div>
         </div>
       )}
     </div>

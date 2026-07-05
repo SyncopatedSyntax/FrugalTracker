@@ -49,7 +49,10 @@ export function useRates() {
 
 export function useTags() {
   return (
-    useLiveQuery(() => db.tags.orderBy('usageCount').reverse().toArray(), []) ?? []
+    useLiveQuery(async () => {
+      const all = await db.tags.toArray()
+      return all.sort((a, b) => (b.lastUsedAt ?? 0) - (a.lastUsedAt ?? 0))
+    }, []) ?? []
   )
 }
 

@@ -1,3 +1,4 @@
+import type { ComponentType } from 'react'
 import { cn } from '@/lib/cn'
 import { BackspaceIcon, CheckIcon } from '@/components/icons'
 
@@ -28,6 +29,8 @@ interface Props {
   submitLabel?: string
   submitDisabled?: boolean
   accent?: 'expense' | 'income' | 'primary'
+  /** Defaults to a checkmark; pass a different icon for non-final steps (e.g. "Next"). */
+  submitIcon?: ComponentType<{ size?: number }>
 }
 
 export default function AmountKeypad({
@@ -38,6 +41,7 @@ export default function AmountKeypad({
   submitLabel = 'Save',
   submitDisabled,
   accent = 'primary',
+  submitIcon: SubmitIcon = CheckIcon,
 }: Props) {
   const accentBg =
     accent === 'expense' ? 'bg-expense' : accent === 'income' ? 'bg-income' : 'bg-primary'
@@ -69,7 +73,7 @@ export default function AmountKeypad({
           accentBg,
         )}
       >
-        <CheckIcon size={22} />
+        <SubmitIcon size={22} />
         {submitLabel}
       </button>
     </div>

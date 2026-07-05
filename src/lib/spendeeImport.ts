@@ -329,8 +329,11 @@ export async function runImport(
     }
     for (const [name, delta] of tagUsage) {
       const ex = await db.tags.where('name').equals(name).first()
-      if (ex) await db.tags.update(ex.id, { usageCount: ex.usageCount + delta })
-      else await db.tags.add({ id: uid(), name, usageCount: delta })
+      if (ex) {
+        await db.tags.update(ex.id, { usageCount: ex.usageCount + delta, lastUsedAt: now })
+      } else {
+        await db.tags.add({ id: uid(), name, usageCount: delta, lastUsedAt: now })
+      }
     }
     if (newTxs.length) await db.transactions.bulkAdd(newTxs)
   })

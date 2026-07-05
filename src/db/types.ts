@@ -35,6 +35,8 @@ export interface Tag {
   id: string
   name: string
   usageCount: number
+  /** Timestamp of the most recent time this tag was added to a transaction. */
+  lastUsedAt: number
 }
 
 export interface Budget {
