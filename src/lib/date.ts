@@ -40,6 +40,24 @@ export function addYears(d: Date, n: number): Date {
   return new Date(d.getFullYear() + n, d.getMonth(), 1)
 }
 
+export function addDays(d: Date, n: number): Date {
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate() + n)
+}
+
+/** Start of the week containing d, honouring firstDayOfWeek (0=Sun, 1=Mon). */
+export function startOfWeek(d: Date, firstDay: 0 | 1 = 1): Date {
+  const day = d.getDay()
+  const diff = (day - firstDay + 7) % 7
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate() - diff)
+}
+
+/** Whole days between two ISO dates (b - a). */
+export function daysBetween(aISO: string, bISO: string): number {
+  const a = parseISO(aISO).getTime()
+  const b = parseISO(bISO).getTime()
+  return Math.round((b - a) / 86_400_000)
+}
+
 export function daysInMonth(d: Date): number {
   return endOfMonth(d).getDate()
 }

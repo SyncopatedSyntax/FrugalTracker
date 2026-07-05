@@ -9,7 +9,8 @@ import type { RateMap } from '@/lib/convert'
 
 export function useSettings(): Settings {
   const s = useLiveQuery(() => db.settings.get('app'), [])
-  return s ?? DEFAULT_SETTINGS
+  // Merge defaults so settings saved before newer fields existed still resolve.
+  return s ? { ...DEFAULT_SETTINGS, ...s } : DEFAULT_SETTINGS
 }
 
 /* ------------------------------- Categories ------------------------------ */

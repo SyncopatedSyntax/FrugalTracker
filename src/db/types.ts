@@ -57,6 +57,10 @@ export interface Settings {
   firstDayOfWeek: 0 | 1
   /** Whether the Quick-Add keypad decimal step is enabled (reserved). */
   seededDefaults: 0 | 1
+  /** Net-worth starting balance, in base currency, as of `openingBalanceDate`. */
+  openingBalance: number
+  /** ISO date the opening balance applies from; '' = use earliest transaction. */
+  openingBalanceDate: string
 }
 
 export interface Rate {

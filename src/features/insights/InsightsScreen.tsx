@@ -1,16 +1,33 @@
 import { useMemo, useState } from 'react'
 import Segmented from '@/components/Segmented'
-import { ChevronLeftIcon, ChevronRightIcon } from '@/components/icons'
+import { PencilIcon, TagIcon } from '@/components/icons'
 import { useAllTransactions, useCategoryMap, useRateMap, useSettings } from '@/hooks'
 import type { TxType } from '@/db/types'
-import { toBase } from '@/lib/convert'
 import { formatMoney, formatMoneyCompact } from '@/lib/currency'
-import { addMonths, addYears, daysInMonth, monthLabel, monthShort, parseISO } from '@/lib/date'
+import { addDays, todayISO, toISO } from '@/lib/date'
 import { cn } from '@/lib/cn'
-import DonutChart, { type DonutSlice } from './DonutChart'
-import BarTimeline, { type TimelineBar } from './BarTimeline'
+import PeriodBar from './PeriodBar'
+import LineChart, { type LineSeries } from './LineChart'
+import DonutChart from './DonutChart'
+import OpeningBalanceSheet from './OpeningBalanceSheet'
+import { resolvePeriod, stepAnchor, type CustomRange, type Granularity } from './period'
+import {
+  balanceSeries,
+  cashflowSeries,
+  categoryBreakdown,
+  earliestDate,
+  labelBreakdown,
+  lastStartedIndex,
+  sumFlow,
+  type Slice,
+} from './compute'
 
-type PeriodType = 'month' | 'year' | 'all'
+type View = 'overview' | 'categories' | 'labels'
+
+function alignLen(arr: number[], len: number): Array<number | null> {
+  if (arr.length >= len) return arr.slice(0, len)
+  return [...arr, ...Array(len - arr.length).fill(null)]
+}
 
 export default function InsightsScreen() {
   const all = useAllTransactions()
@@ -19,114 +36,96 @@ export default function InsightsScreen() {
   const settings = useSettings()
   const base = settings.baseCurrency
 
-  const [periodType, setPeriodType] = useState<PeriodType>('month')
+  const [view, setView] = useState<View>('overview')
+  const [granularity, setGranularity] = useState<Granularity>('year')
   const [anchor, setAnchor] = useState(() => new Date())
+  const [custom, setCustom] = useState<CustomRange>(() => ({
+    from: toISO(addDays(new Date(), -29)),
+    to: todayISO(),
+  }))
   const [flow, setFlow] = useState<TxType>('expense')
+  const [metric, setMetric] = useState<'wealth' | 'cashflow'>('wealth')
   const [selectedCat, setSelectedCat] = useState<string | null>(null)
+  const [obOpen, setObOpen] = useState(false)
 
-  const now = new Date()
-  const anchorMonthKey = `${anchor.getFullYear()}-${String(anchor.getMonth() + 1).padStart(2, '0')}`
-  const nowMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
-  const canGoNext =
-    periodType === 'month'
-      ? anchorMonthKey < nowMonthKey
-      : periodType === 'year'
-        ? anchor.getFullYear() < now.getFullYear()
-        : false
+  const allStart = useMemo(() => earliestDate(all), [all])
+  const period = useMemo(
+    () => resolvePeriod(granularity, anchor, custom, settings.firstDayOfWeek, allStart),
+    [granularity, anchor, custom, settings.firstDayOfWeek, allStart],
+  )
 
-  const inPeriod = useMemo(() => {
-    return (d: string) => {
-      if (periodType === 'all') return true
-      if (periodType === 'year') return d.slice(0, 4) === String(anchor.getFullYear())
-      return d.slice(0, 7) === anchorMonthKey
-    }
-  }, [periodType, anchor, anchorMonthKey])
+  const periodTxs = useMemo(
+    () => all.filter((t) => t.date >= period.startISO && t.date <= period.endISO),
+    [all, period],
+  )
+  const prevTxs = useMemo(
+    () =>
+      period.prev
+        ? all.filter((t) => t.date >= period.prev!.startISO && t.date <= period.prev!.endISO)
+        : [],
+    [all, period],
+  )
 
-  const periodTxs = useMemo(() => all.filter((t) => inPeriod(t.date)), [all, inPeriod])
+  const totalExpense = useMemo(() => sumFlow(periodTxs, 'expense', rates), [periodTxs, rates])
+  const totalIncome = useMemo(() => sumFlow(periodTxs, 'income', rates), [periodTxs, rates])
+  const net = totalIncome - totalExpense
 
-  const totals = useMemo(() => {
-    let expense = 0
-    let income = 0
-    for (const t of periodTxs) {
-      const v = toBase(t.amount, t.currency, rates)
-      if (t.type === 'expense') expense += v
-      else income += v
-    }
-    return { expense, income, net: income - expense }
-  }, [periodTxs, rates])
+  /* --------------------------- Overview series --------------------------- */
+  const today = todayISO()
+  const lastIdx = lastStartedIndex(period.buckets, today)
+  const nBuckets = period.buckets.length
+  const hasOpening = settings.openingBalance !== 0 || settings.openingBalanceDate !== ''
 
-  const flowTxs = useMemo(() => periodTxs.filter((t) => t.type === flow), [periodTxs, flow])
-  const flowTotal = flow === 'expense' ? totals.expense : totals.income
+  const overview = useMemo(() => {
+    const isWealth = metric === 'wealth'
+    const curRaw = isWealth
+      ? balanceSeries(all, period.buckets, settings.openingBalance, settings.openingBalanceDate, rates)
+      : cashflowSeries(periodTxs, period.buckets, rates)
+    const cur = curRaw.map((v, i) => (i <= lastIdx ? v : null))
+    const prev = period.prev
+      ? alignLen(
+          isWealth
+            ? balanceSeries(all, period.prev.buckets, settings.openingBalance, settings.openingBalanceDate, rates)
+            : cashflowSeries(prevTxs, period.prev.buckets, rates),
+          nBuckets,
+        )
+      : null
+    const wealthNow = lastIdx >= 0 ? curRaw[lastIdx] : (curRaw[curRaw.length - 1] ?? settings.openingBalance)
+    return { cur, prev, wealthNow }
+  }, [metric, all, periodTxs, prevTxs, period, rates, settings.openingBalance, settings.openingBalanceDate, lastIdx, nBuckets])
 
-  // Category breakdown
-  const slices: DonutSlice[] = useMemo(() => {
-    const byCat = new Map<string, number>()
-    for (const t of flowTxs) {
-      byCat.set(t.categoryId, (byCat.get(t.categoryId) ?? 0) + toBase(t.amount, t.currency, rates))
-    }
-    return [...byCat.entries()]
-      .map(([id, value]) => {
-        const c = categoryMap.get(id)
-        return { key: id, label: c?.name ?? 'Uncategorized', value, color: c?.color ?? '#64748b' }
+  const series: LineSeries[] = useMemo(() => {
+    const color = metric === 'wealth' ? 'rgb(var(--c-income))' : 'rgb(var(--c-primary))'
+    const nameCur =
+      granularity === 'year' ? period.label : granularity === 'all' ? 'All time' : 'Current'
+    const out: LineSeries[] = [
+      { name: nameCur, points: overview.cur, color, fill: true, dot: true },
+    ]
+    if (overview.prev) {
+      out.push({
+        name: granularity === 'year' && period.prev ? period.prev.label : 'Previous',
+        points: overview.prev,
+        color: 'rgb(var(--c-muted))',
+        dashed: true,
       })
-      .sort((a, b) => b.value - a.value)
-  }, [flowTxs, rates, categoryMap])
+    }
+    return out
+  }, [overview, metric, granularity, period])
 
-  // Timeline buckets
-  const bars: TimelineBar[] = useMemo(() => {
-    const add = (arr: TimelineBar[], idx: number, v: number) => {
-      if (idx >= 0 && idx < arr.length) arr[idx].value += v
-    }
-    if (periodType === 'month') {
-      const n = daysInMonth(anchor)
-      const mShort = monthShort(anchor.getMonth())
-      const arr: TimelineBar[] = Array.from({ length: n }, (_, i) => ({
-        key: String(i + 1),
-        label: String(i + 1),
-        fullLabel: `${i + 1} ${mShort}`,
-        value: 0,
-      }))
-      flowTxs.forEach((t) => add(arr, parseISO(t.date).getDate() - 1, toBase(t.amount, t.currency, rates)))
-      return arr
-    }
-    if (periodType === 'year') {
-      const letters = 'JFMAMJJASOND'
-      const arr: TimelineBar[] = Array.from({ length: 12 }, (_, m) => ({
-        key: String(m),
-        label: letters[m],
-        fullLabel: monthLabel(new Date(anchor.getFullYear(), m, 1)),
-        value: 0,
-      }))
-      flowTxs.forEach((t) => add(arr, parseISO(t.date).getMonth(), toBase(t.amount, t.currency, rates)))
-      return arr
-    }
-    // all-time: bucket by year
-    const years = all.map((t) => Number(t.date.slice(0, 4)))
-    const minY = years.length ? Math.min(...years) : now.getFullYear()
-    const maxY = years.length ? Math.max(...years) : now.getFullYear()
-    const list: TimelineBar[] = []
-    const index = new Map<number, number>()
-    for (let y = minY; y <= maxY; y++) {
-      index.set(y, list.length)
-      list.push({ key: String(y), label: `'${String(y).slice(2)}`, fullLabel: String(y), value: 0 })
-    }
-    flowTxs.forEach((t) => {
-      const idx = index.get(Number(t.date.slice(0, 4)))
-      if (idx !== undefined) list[idx].value += toBase(t.amount, t.currency, rates)
-    })
-    return list
-  }, [periodType, anchor, flowTxs, rates, all, now])
+  /* ----------------------------- Breakdowns ------------------------------ */
+  const catSlices = useMemo(
+    () => categoryBreakdown(periodTxs, flow, rates, categoryMap),
+    [periodTxs, flow, rates, categoryMap],
+  )
+  const labelSlices = useMemo(() => labelBreakdown(periodTxs, flow, rates), [periodTxs, flow, rates])
+  const flowTotal = flow === 'expense' ? totalExpense : totalIncome
+  const selected = selectedCat ? catSlices.find((s) => s.key === selectedCat) : undefined
 
-  const maxCat = slices.length ? slices[0].value : 0
-  const selected = selectedCat ? slices.find((s) => s.key === selectedCat) : undefined
-  const flowColor = flow === 'expense' ? 'rgb(var(--c-expense))' : 'rgb(var(--c-income))'
-
-  const periodLabel =
-    periodType === 'month' ? monthLabel(anchor) : periodType === 'year' ? String(anchor.getFullYear()) : 'All time'
+  const step = (dir: -1 | 1) => setAnchor((a) => stepAnchor(granularity, a, dir))
 
   return (
     <div className="flex h-full flex-col">
-      <header className="safe-top border-b border-border bg-surface/95 px-4 pt-2 pb-3 backdrop-blur">
+      <header className="safe-top border-b border-border bg-surface/95 px-4 pt-2 backdrop-blur">
         <div className="mb-2 flex items-center justify-between">
           <h1 className="text-xl font-bold">Insights</h1>
           <span className="text-xs text-muted">in {base}</span>
@@ -134,172 +133,332 @@ export default function InsightsScreen() {
         <Segmented
           className="w-full [&>button]:flex-1"
           options={[
-            { value: 'month', label: 'Month' },
-            { value: 'year', label: 'Year' },
-            { value: 'all', label: 'All time' },
+            { value: 'overview', label: 'Overview' },
+            { value: 'categories', label: 'Categories' },
+            { value: 'labels', label: 'Labels' },
           ]}
-          value={periodType}
+          value={view}
           onChange={(v) => {
-            setPeriodType(v)
+            setView(v)
             setSelectedCat(null)
           }}
         />
+        <PeriodBar
+          granularity={granularity}
+          onGranularity={(g) => {
+            setGranularity(g)
+            setAnchor(new Date())
+          }}
+          label={period.label}
+          canGoNext={period.canGoNext}
+          onStep={step}
+          custom={custom}
+          onCustom={setCustom}
+        />
+        <div className="h-2" />
       </header>
 
-      <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-8">
-        {/* Period nav */}
-        {periodType !== 'all' && (
-          <div className="flex items-center justify-between py-3">
-            <button
-              onClick={() =>
-                setAnchor((a) => (periodType === 'month' ? addMonths(a, -1) : addYears(a, -1)))
-              }
-              className="grid h-9 w-9 place-items-center rounded-full hover:bg-surface2"
-              aria-label="Previous period"
-            >
-              <ChevronLeftIcon size={20} />
-            </button>
-            <span className="text-base font-semibold">{periodLabel}</span>
-            <button
-              disabled={!canGoNext}
-              onClick={() =>
-                setAnchor((a) => (periodType === 'month' ? addMonths(a, 1) : addYears(a, 1)))
-              }
-              className="grid h-9 w-9 place-items-center rounded-full hover:bg-surface2 disabled:opacity-30"
-              aria-label="Next period"
-            >
-              <ChevronRightIcon size={20} />
-            </button>
-          </div>
-        )}
-
-        {/* Summary cards */}
-        <div className="grid grid-cols-3 gap-2 py-2">
-          <SummaryCard label="Spent" value={formatMoneyCompact(totals.expense, base)} tone="expense" />
-          <SummaryCard label="Earned" value={formatMoneyCompact(totals.income, base)} tone="income" />
-          <SummaryCard
-            label="Net"
-            value={formatMoneyCompact(totals.net, base)}
-            tone={totals.net < 0 ? 'expense' : 'income'}
+      <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-8 pt-3">
+        {periodTxs.length === 0 && view !== 'overview' ? (
+          <EmptyState />
+        ) : view === 'overview' ? (
+          <OverviewView
+            metric={metric}
+            setMetric={setMetric}
+            wealthNow={overview.wealthNow}
+            net={net}
+            income={totalIncome}
+            expense={totalExpense}
+            base={base}
+            series={series}
+            labels={period.buckets.map((b) => b.label)}
+            hasOpening={hasOpening}
+            onEditOpening={() => setObOpen(true)}
+            empty={periodTxs.length === 0}
           />
-        </div>
-
-        {periodTxs.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-16 text-center">
-            <p className="text-4xl">📊</p>
-            <p className="mt-3 text-sm text-muted">No transactions in this period.</p>
-          </div>
+        ) : view === 'categories' ? (
+          <BreakdownView
+            kind="category"
+            flow={flow}
+            setFlow={setFlow}
+            slices={catSlices}
+            total={flowTotal}
+            base={base}
+            selectedKey={selectedCat}
+            onSelect={setSelectedCat}
+            selected={selected}
+          />
         ) : (
-          <>
-            {/* Flow toggle */}
-            <div className="flex justify-center py-3">
-              <Segmented
-                options={[
-                  { value: 'expense', label: 'Expenses' },
-                  { value: 'income', label: 'Income' },
-                ]}
-                value={flow}
-                onChange={(v) => {
-                  setFlow(v)
-                  setSelectedCat(null)
-                }}
-                activeClass={cn('text-white shadow', flow === 'expense' ? 'bg-expense' : 'bg-income')}
-              />
-            </div>
-
-            {/* Timeline */}
-            <section className="rounded-2xl bg-surface p-4">
-              <h2 className="mb-1 text-sm font-semibold text-muted">
-                {flow === 'expense' ? 'Spending' : 'Income'} over time
-              </h2>
-              <BarTimeline
-                bars={bars}
-                color={flowColor}
-                formatValue={(n) => formatMoney(n, base)}
-              />
-            </section>
-
-            {/* Category breakdown */}
-            {slices.length > 0 && (
-              <section className="mt-4 rounded-2xl bg-surface p-4">
-                <h2 className="mb-2 text-sm font-semibold text-muted">By category</h2>
-                <DonutChart
-                  slices={slices}
-                  total={flowTotal}
-                  centerLabel={selected ? selected.label : 'Total'}
-                  centerValue={formatMoneyCompact(selected ? selected.value : flowTotal, base)}
-                  selectedKey={selectedCat}
-                  onSelect={setSelectedCat}
-                />
-                <div className="mt-4 space-y-1">
-                  {slices.map((s) => {
-                    const pct = flowTotal > 0 ? (s.value / flowTotal) * 100 : 0
-                    const on = selectedCat === s.key
-                    return (
-                      <button
-                        key={s.key}
-                        onClick={() => setSelectedCat(on ? null : s.key)}
-                        className={cn(
-                          'flex w-full items-center gap-3 rounded-xl px-2 py-2 text-left',
-                          on ? 'bg-surface2' : 'hover:bg-surface2/60',
-                        )}
-                      >
-                        <span
-                          className="h-3 w-3 flex-shrink-0 rounded-full"
-                          style={{ backgroundColor: s.color }}
-                        />
-                        <span className="min-w-0 flex-1">
-                          <span className="mb-1 flex items-center justify-between">
-                            <span className="truncate text-sm font-medium">{s.label}</span>
-                            <span className="ml-2 flex-shrink-0 text-sm font-semibold tabular-nums">
-                              {formatMoney(s.value, base)}
-                            </span>
-                          </span>
-                          <span className="flex items-center gap-2">
-                            <span className="h-1.5 flex-1 overflow-hidden rounded-full bg-surface2">
-                              <span
-                                className="block h-full rounded-full"
-                                style={{ width: `${maxCat > 0 ? (s.value / maxCat) * 100 : 0}%`, backgroundColor: s.color }}
-                              />
-                            </span>
-                            <span className="w-9 flex-shrink-0 text-right text-[11px] text-muted tabular-nums">
-                              {pct.toFixed(0)}%
-                            </span>
-                          </span>
-                        </span>
-                      </button>
-                    )
-                  })}
-                </div>
-              </section>
-            )}
-          </>
+          <BreakdownView
+            kind="label"
+            flow={flow}
+            setFlow={setFlow}
+            slices={labelSlices}
+            total={flowTotal}
+            base={base}
+            selectedKey={null}
+            onSelect={() => {}}
+          />
         )}
       </div>
+
+      <OpeningBalanceSheet
+        open={obOpen}
+        onClose={() => setObOpen(false)}
+        baseCurrency={base}
+        openingBalance={settings.openingBalance}
+        openingBalanceDate={settings.openingBalanceDate}
+        earliestDate={allStart}
+      />
     </div>
   )
 }
 
-function SummaryCard({
-  label,
-  value,
-  tone,
+/* -------------------------------- Overview ------------------------------- */
+
+function OverviewView({
+  metric,
+  setMetric,
+  wealthNow,
+  net,
+  income,
+  expense,
+  base,
+  series,
+  labels,
+  hasOpening,
+  onEditOpening,
+  empty,
 }: {
-  label: string
-  value: string
-  tone: 'expense' | 'income'
+  metric: 'wealth' | 'cashflow'
+  setMetric: (m: 'wealth' | 'cashflow') => void
+  wealthNow: number
+  net: number
+  income: number
+  expense: number
+  base: string
+  series: LineSeries[]
+  labels: string[]
+  hasOpening: boolean
+  onEditOpening: () => void
+  empty: boolean
 }) {
+  return (
+    <>
+      <div className="grid grid-cols-2 overflow-hidden rounded-2xl border border-border">
+        <button
+          onClick={() => setMetric('wealth')}
+          className={cn('p-3 text-left', metric === 'wealth' ? 'bg-surface' : 'bg-transparent')}
+        >
+          <span className="flex items-center gap-1 text-xs text-muted">
+            Total Wealth
+            <PencilIcon
+              size={12}
+              className="text-muted"
+              onClick={(e) => {
+                e.stopPropagation()
+                onEditOpening()
+              }}
+            />
+          </span>
+          <span className="mt-0.5 block truncate text-lg font-bold text-income">
+            {formatMoneyCompact(wealthNow, base)}
+          </span>
+        </button>
+        <button
+          onClick={() => setMetric('cashflow')}
+          className={cn(
+            'border-l border-border p-3 text-left',
+            metric === 'cashflow' ? 'bg-surface' : 'bg-transparent',
+          )}
+        >
+          <span className="text-xs text-muted">Cash flow</span>
+          <span
+            className={cn(
+              'mt-0.5 block truncate text-lg font-bold',
+              net < 0 ? 'text-expense' : 'text-income',
+            )}
+          >
+            {formatMoneyCompact(net, base)}
+          </span>
+        </button>
+      </div>
+
+      {metric === 'wealth' && !hasOpening && (
+        <button
+          onClick={onEditOpening}
+          className="mt-3 w-full rounded-xl border border-dashed border-border px-3 py-2 text-left text-xs text-muted"
+        >
+          Set an <span className="font-semibold text-content">opening balance</span> to track real
+          net worth. Right now this shows cumulative income minus expenses.
+        </button>
+      )}
+
+      <div className="mt-4 rounded-2xl bg-surface p-4">
+        {empty ? (
+          <p className="py-12 text-center text-sm text-muted">No activity in this period.</p>
+        ) : (
+          <LineChart
+            series={series}
+            labels={labels}
+            formatY={(n) => formatMoneyCompact(n, base)}
+          />
+        )}
+      </div>
+
+      <div className="mt-3 grid grid-cols-2 gap-3">
+        <MiniStat label="Income" value={formatMoney(income, base)} tone="income" />
+        <MiniStat label="Expenses" value={formatMoney(expense, base)} tone="expense" />
+      </div>
+    </>
+  )
+}
+
+function MiniStat({ label, value, tone }: { label: string; value: string; tone: 'income' | 'expense' }) {
   return (
     <div className="rounded-2xl bg-surface p-3">
       <p className="text-[11px] font-medium uppercase tracking-wide text-muted">{label}</p>
-      <p
-        className={cn(
-          'mt-0.5 truncate text-base font-bold tabular-nums',
-          tone === 'expense' ? 'text-expense' : 'text-income',
-        )}
-      >
+      <p className={cn('mt-0.5 truncate text-base font-bold tabular-nums', tone === 'income' ? 'text-income' : 'text-expense')}>
         {value}
       </p>
+    </div>
+  )
+}
+
+/* ------------------------- Categories / Labels -------------------------- */
+
+function BreakdownView({
+  kind,
+  flow,
+  setFlow,
+  slices,
+  total,
+  base,
+  selectedKey,
+  onSelect,
+  selected,
+}: {
+  kind: 'category' | 'label'
+  flow: TxType
+  setFlow: (f: TxType) => void
+  slices: Slice[]
+  total: number
+  base: string
+  selectedKey: string | null
+  onSelect: (k: string | null) => void
+  selected?: Slice
+}) {
+  const maxVal = slices.length ? slices[0].value : 0
+  const sign = flow === 'expense' ? '-' : ''
+
+  return (
+    <>
+      <div className="flex justify-center">
+        <Segmented
+          options={[
+            { value: 'expense', label: 'Expenses' },
+            { value: 'income', label: 'Income' },
+          ]}
+          value={flow}
+          onChange={(v) => {
+            setFlow(v)
+            onSelect(null)
+          }}
+          activeClass={cn('text-white shadow', flow === 'expense' ? 'bg-expense' : 'bg-income')}
+        />
+      </div>
+
+      {slices.length === 0 ? (
+        <p className="py-16 text-center text-sm text-muted">
+          No {flow === 'expense' ? 'expenses' : 'income'} {kind === 'label' ? 'with tags ' : ''}in
+          this period.
+        </p>
+      ) : (
+        <>
+          {kind === 'category' && (
+            <div className="mt-4">
+              <DonutChart
+                slices={slices.map((s) => ({
+                  key: s.key,
+                  label: s.name,
+                  value: s.value,
+                  color: s.color,
+                  icon: s.icon,
+                }))}
+                total={total}
+                centerLabel={selected ? selected.name : 'Total'}
+                centerValue={formatMoneyCompact(selected ? selected.value : total, base)}
+                selectedKey={selectedKey}
+                onSelect={onSelect}
+              />
+            </div>
+          )}
+
+          <div className="mt-4 space-y-1">
+            {slices.map((s) => {
+              const pct = total > 0 ? (s.value / total) * 100 : 0
+              const on = selectedKey === s.key
+              return (
+                <button
+                  key={s.key}
+                  onClick={() => onSelect(on ? null : s.key)}
+                  className={cn(
+                    'flex w-full items-center gap-3 rounded-xl px-2 py-2 text-left',
+                    on ? 'bg-surface2' : 'hover:bg-surface2/60',
+                  )}
+                >
+                  <span
+                    className="grid h-9 w-9 flex-shrink-0 place-items-center rounded-full text-base"
+                    style={{ backgroundColor: kind === 'category' ? s.color + '22' : s.color + '22' }}
+                  >
+                    {kind === 'category' ? (
+                      s.icon
+                    ) : (
+                      <TagIcon size={16} style={{ color: s.color }} />
+                    )}
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="mb-1 flex items-center justify-between gap-2">
+                      <span className="truncate text-sm font-medium">
+                        {kind === 'label' ? '#' + s.name : s.name}
+                      </span>
+                      <span
+                        className={cn(
+                          'flex-shrink-0 text-sm font-semibold tabular-nums',
+                          flow === 'expense' ? 'text-expense' : 'text-income',
+                        )}
+                      >
+                        {sign}
+                        {formatMoney(s.value, base)}
+                      </span>
+                    </span>
+                    <span className="flex items-center gap-2">
+                      <span className="h-1.5 flex-1 overflow-hidden rounded-full bg-surface2">
+                        <span
+                          className="block h-full rounded-full"
+                          style={{ width: `${maxVal > 0 ? (s.value / maxVal) * 100 : 0}%`, backgroundColor: s.color }}
+                        />
+                      </span>
+                      <span className="w-16 flex-shrink-0 text-right text-[11px] text-muted">
+                        {s.count} tx · {pct.toFixed(0)}%
+                      </span>
+                    </span>
+                  </span>
+                </button>
+              )
+            })}
+          </div>
+        </>
+      )}
+    </>
+  )
+}
+
+function EmptyState() {
+  return (
+    <div className="flex flex-col items-center justify-center py-20 text-center">
+      <p className="text-4xl">📊</p>
+      <p className="mt-3 text-sm text-muted">No transactions in this period.</p>
     </div>
   )
 }
