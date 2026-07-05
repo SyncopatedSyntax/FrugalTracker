@@ -134,8 +134,8 @@ export default function LineChart({ series, labels, formatY, height = 190 }: Pro
           >
             <defs>
               <linearGradient id={`fill-${gid}`} x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor={primary?.color ?? '#22c55e'} stopOpacity="0.28" />
-                <stop offset="100%" stopColor={primary?.color ?? '#22c55e'} stopOpacity="0" />
+                <stop offset="0%" stopColor={primary?.color ?? 'rgb(var(--c-income))'} stopOpacity="0.28" />
+                <stop offset="100%" stopColor={primary?.color ?? 'rgb(var(--c-income))'} stopOpacity="0" />
               </linearGradient>
             </defs>
 

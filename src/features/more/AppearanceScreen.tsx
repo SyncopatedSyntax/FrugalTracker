@@ -16,7 +16,7 @@ export default function AppearanceScreen() {
   return (
     <SubScreen title="Appearance">
       <div className="px-4 py-4">
-        <div className="overflow-hidden rounded-2xl bg-surface">
+        <div className="overflow-hidden rounded-[22px] bg-surface">
           {options.map(({ value, label, Icon }, i) => (
             <button
               key={value}

@@ -98,7 +98,7 @@ export default function BudgetsScreen() {
         <p className="mb-3 text-sm text-muted">{monthLabel(now)} · limits in {base}</p>
 
         {sorted.length === 0 ? (
-          <div className="rounded-2xl bg-surface p-8 text-center">
+          <div className="rounded-[22px] bg-surface p-8 text-center">
             <p className="text-4xl">🎯</p>
             <p className="mt-3 text-sm text-muted">
               No budgets yet. Tap + to set a monthly spending limit.
@@ -112,7 +112,7 @@ export default function BudgetsScreen() {
               const ratio = b.amount > 0 ? spent / b.amount : 0
               const over = ratio > 1
               const near = ratio >= 0.8 && !over
-              const barColor = over ? 'rgb(var(--c-expense))' : near ? '#f59e0b' : (cat?.color ?? 'rgb(var(--c-primary))')
+              const barColor = over ? 'rgb(var(--c-expense))' : near ? '#D1A54E' : (cat?.color ?? 'rgb(var(--c-primary))')
               return (
                 <button
                   key={b.id}
@@ -120,7 +120,7 @@ export default function BudgetsScreen() {
                     setEditing(b)
                     setOpen(true)
                   }}
-                  className="block w-full rounded-2xl bg-surface p-4 text-left"
+                  className="block w-full rounded-[22px] bg-surface p-4 text-left"
                 >
                   <div className="mb-2 flex items-center gap-2">
                     <span
@@ -213,7 +213,7 @@ export default function BudgetsScreen() {
                   await deleteBudget(editing.id)
                   setOpen(false)
                 }}
-                className="grid w-12 place-items-center rounded-2xl border border-border text-expense"
+                className="grid w-12 place-items-center rounded-[22px] border border-border text-expense"
                 aria-label="Delete budget"
               >
                 <TrashIcon size={20} />
@@ -222,7 +222,7 @@ export default function BudgetsScreen() {
             <button
               onClick={save}
               disabled={!(parseFloat(amount) > 0)}
-              className="flex-1 rounded-2xl bg-primary py-3 text-base font-semibold text-primary-fg disabled:opacity-40"
+              className="flex-1 rounded-[22px] bg-primary py-3 text-base font-semibold text-primary-fg disabled:opacity-40"
             >
               {editing ? 'Save' : 'Create budget'}
             </button>

@@ -2,6 +2,7 @@ import Papa from 'papaparse'
 import { db } from '@/db/db'
 import type { Category, Transaction, TxType } from '@/db/types'
 import { uid } from './id'
+import { CATEGORY_PALETTE } from './palette'
 
 export type FieldKey = 'date' | 'amount' | 'category' | 'currency' | 'note' | 'labels' | 'type'
 
@@ -22,10 +23,7 @@ export interface ParsedCsv {
   rows: Record<string, string>[]
 }
 
-const CAT_COLORS = [
-  '#ef4444', '#f97316', '#f59e0b', '#84cc16', '#22c55e', '#14b8a6',
-  '#06b6d4', '#3b82f6', '#6366f1', '#8b5cf6', '#d946ef', '#ec4899',
-]
+const CAT_COLORS = CATEGORY_PALETTE
 
 export function parseCsv(text: string): ParsedCsv {
   const result = Papa.parse<Record<string, string>>(text, {

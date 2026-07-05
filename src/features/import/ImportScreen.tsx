@@ -112,7 +112,7 @@ export default function ImportScreen() {
     return (
       <SubScreen title="Import from Spendee">
         <div className="px-4 py-6">
-          <label className="flex cursor-pointer flex-col items-center gap-3 rounded-2xl border-2 border-dashed border-border bg-surface p-10 text-center">
+          <label className="flex cursor-pointer flex-col items-center gap-3 rounded-[22px] border-2 border-dashed border-border bg-surface p-10 text-center">
             <UploadIcon size={36} className="text-primary" />
             <span className="text-sm font-medium">Choose a CSV file</span>
             <span className="text-xs text-muted">Export your data from Spendee as CSV</span>
@@ -127,7 +127,7 @@ export default function ImportScreen() {
             />
           </label>
           {error && <p className="mt-4 text-center text-sm text-expense">{error}</p>}
-          <div className="mt-6 rounded-2xl bg-surface p-4 text-sm text-muted">
+          <div className="mt-6 rounded-[22px] bg-surface p-4 text-sm text-muted">
             <p className="mb-1 font-semibold text-content">How it works</p>
             <p>
               Pick your exported CSV. We’ll auto-detect the columns and show a preview so you can
@@ -149,7 +149,7 @@ export default function ImportScreen() {
         </p>
 
         {/* Column mapping */}
-        <div className="space-y-2 rounded-2xl bg-surface p-3">
+        <div className="space-y-2 rounded-[22px] bg-surface p-3">
           {FIELD_ORDER.map((field) => (
             <div key={field} className="flex items-center gap-3">
               <span className="w-28 flex-shrink-0 text-sm font-medium">{FIELD_LABELS[field]}</span>
@@ -172,7 +172,7 @@ export default function ImportScreen() {
         </div>
 
         {/* Options */}
-        <div className="mt-3 space-y-2 rounded-2xl bg-surface p-3">
+        <div className="mt-3 space-y-2 rounded-[22px] bg-surface p-3">
           <div className="flex items-center justify-between">
             <span className="text-sm">Fallback currency</span>
             <button
@@ -225,7 +225,7 @@ export default function ImportScreen() {
         <p className="mb-1.5 mt-4 text-xs font-semibold uppercase tracking-wide text-muted">
           Preview {preview.length > 40 ? '(first 40 rows)' : ''}
         </p>
-        <div className="overflow-x-auto rounded-2xl border border-border">
+        <div className="overflow-x-auto rounded-[22px] border border-border">
           <table className="w-full min-w-[560px] text-left text-xs">
             <thead className="bg-surface2 text-muted">
               <tr>
@@ -274,14 +274,14 @@ export default function ImportScreen() {
               setCsv(null)
               setMapping(null)
             }}
-            className="rounded-2xl border border-border px-4 py-3 text-sm font-semibold text-muted"
+            className="rounded-[22px] border border-border px-4 py-3 text-sm font-semibold text-muted"
           >
             Cancel
           </button>
           <button
             onClick={doImport}
             disabled={busy || validCount === 0 || !mapping.date || !mapping.amount}
-            className="flex-1 rounded-2xl bg-primary py-3 text-sm font-semibold text-primary-fg disabled:opacity-40"
+            className="flex-1 rounded-[22px] bg-primary py-3 text-sm font-semibold text-primary-fg disabled:opacity-40"
           >
             {busy ? 'Importing…' : `Import ${validCount} transactions`}
           </button>

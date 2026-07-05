@@ -10,31 +10,31 @@ interface SeedCat {
 }
 
 export const DEFAULT_EXPENSE_CATEGORIES: SeedCat[] = [
-  { name: 'Food & Drink', icon: '🍔', color: '#ef4444', type: 'expense' },
-  { name: 'Groceries', icon: '🛒', color: '#f97316', type: 'expense' },
-  { name: 'Transport', icon: '🚗', color: '#3b82f6', type: 'expense' },
-  { name: 'Coffee', icon: '☕', color: '#a16207', type: 'expense' },
-  { name: 'Shopping', icon: '🛍️', color: '#ec4899', type: 'expense' },
-  { name: 'Bills', icon: '💡', color: '#eab308', type: 'expense' },
-  { name: 'Rent', icon: '🏠', color: '#8b5cf6', type: 'expense' },
-  { name: 'Entertainment', icon: '🎬', color: '#06b6d4', type: 'expense' },
-  { name: 'Health', icon: '🏥', color: '#10b981', type: 'expense' },
-  { name: 'Travel', icon: '✈️', color: '#0ea5e9', type: 'expense' },
-  { name: 'Subscriptions', icon: '📱', color: '#6366f1', type: 'expense' },
-  { name: 'Fitness', icon: '🏋️', color: '#84cc16', type: 'expense' },
-  { name: 'Personal Care', icon: '💇', color: '#d946ef', type: 'expense' },
-  { name: 'Gifts', icon: '🎁', color: '#f43f5e', type: 'expense' },
-  { name: 'Education', icon: '📚', color: '#14b8a6', type: 'expense' },
-  { name: 'Pets', icon: '🐾', color: '#a3620a', type: 'expense' },
-  { name: 'Other', icon: '📦', color: '#64748b', type: 'expense' },
+  { name: 'Food & Drink', icon: '🍔', color: '#C08268', type: 'expense' }, // terracotta
+  { name: 'Groceries', icon: '🛒', color: '#BFA05A', type: 'expense' }, // olive gold
+  { name: 'Transport', icon: '🚗', color: '#7D93A8', type: 'expense' }, // dusty blue
+  { name: 'Coffee', icon: '☕', color: '#8A6E55', type: 'expense' }, // brown
+  { name: 'Shopping', icon: '🛍️', color: '#A78BA0', type: 'expense' }, // mauve
+  { name: 'Bills', icon: '💡', color: '#D1A54E', type: 'expense' }, // honey
+  { name: 'Rent', icon: '🏠', color: '#8F7396', type: 'expense' }, // plum
+  { name: 'Entertainment', icon: '🎬', color: '#5E9490', type: 'expense' }, // teal
+  { name: 'Health', icon: '🏥', color: '#6C8F6E', type: 'expense' }, // sage
+  { name: 'Travel', icon: '✈️', color: '#82A9BD', type: 'expense' }, // sky
+  { name: 'Subscriptions', icon: '📱', color: '#6E85A0', type: 'expense' }, // denim
+  { name: 'Fitness', icon: '🏋️', color: '#7C9473', type: 'expense' }, // moss
+  { name: 'Personal Care', icon: '💇', color: '#C08A93', type: 'expense' }, // rose
+  { name: 'Gifts', icon: '🎁', color: '#B56A5B', type: 'expense' }, // clay
+  { name: 'Education', icon: '📚', color: '#C9A876', type: 'expense' }, // sand
+  { name: 'Pets', icon: '🐾', color: '#6F9B7B', type: 'expense' }, // fern
+  { name: 'Other', icon: '📦', color: '#767B70', type: 'expense' }, // slate
 ]
 
 export const DEFAULT_INCOME_CATEGORIES: SeedCat[] = [
-  { name: 'Salary', icon: '💵', color: '#22c55e', type: 'income' },
-  { name: 'Business', icon: '💼', color: '#0ea5e9', type: 'income' },
-  { name: 'Investments', icon: '📈', color: '#8b5cf6', type: 'income' },
-  { name: 'Gifts', icon: '🎁', color: '#f59e0b', type: 'income' },
-  { name: 'Other Income', icon: '➕', color: '#64748b', type: 'income' },
+  { name: 'Salary', icon: '💵', color: '#7C9473', type: 'income' }, // moss
+  { name: 'Business', icon: '💼', color: '#6E85A0', type: 'income' }, // denim
+  { name: 'Investments', icon: '📈', color: '#5E9490', type: 'income' }, // teal
+  { name: 'Gifts', icon: '🎁', color: '#D1A54E', type: 'income' }, // honey
+  { name: 'Other Income', icon: '➕', color: '#A6A28C', type: 'income' }, // stone
 ]
 
 function buildCategories(): Category[] {

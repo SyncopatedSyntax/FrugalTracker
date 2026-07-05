@@ -208,7 +208,7 @@ export default function AddScreen() {
           </div>
           <button
             onClick={() => setDetailsOpen(false)}
-            className="w-full rounded-2xl bg-primary py-3 text-base font-semibold text-primary-fg"
+            className="w-full rounded-[22px] bg-primary py-3 text-base font-semibold text-primary-fg"
           >
             Done
           </button>

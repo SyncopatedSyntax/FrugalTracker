@@ -1,5 +1,6 @@
 import type { Category, Transaction, TxType } from '@/db/types'
 import { toBase, type RateMap } from '@/lib/convert'
+import { CATEGORY_PALETTE } from '@/lib/palette'
 import type { Bucket } from './period'
 
 export function signedBase(t: Transaction, rates: RateMap): number {
@@ -26,10 +27,7 @@ export interface Slice {
   count: number
 }
 
-const LABEL_COLORS = [
-  '#22c55e', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6',
-  '#14b8a6', '#ec4899', '#f97316', '#06b6d4', '#a855f7',
-]
+const LABEL_COLORS = CATEGORY_PALETTE
 
 export function categoryBreakdown(
   txs: Transaction[],

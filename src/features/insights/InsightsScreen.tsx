@@ -245,7 +245,7 @@ function OverviewView({
 }) {
   return (
     <>
-      <div className="grid grid-cols-2 overflow-hidden rounded-2xl border border-border">
+      <div className="grid grid-cols-2 overflow-hidden rounded-[22px] border border-border">
         <button
           onClick={() => setMetric('wealth')}
           className={cn('p-3 text-left', metric === 'wealth' ? 'bg-surface' : 'bg-transparent')}
@@ -294,7 +294,7 @@ function OverviewView({
         </button>
       )}
 
-      <div className="mt-4 rounded-2xl bg-surface p-4">
+      <div className="mt-4 rounded-[22px] bg-surface p-4">
         {empty ? (
           <p className="py-12 text-center text-sm text-muted">No activity in this period.</p>
         ) : (
@@ -316,7 +316,7 @@ function OverviewView({
 
 function MiniStat({ label, value, tone }: { label: string; value: string; tone: 'income' | 'expense' }) {
   return (
-    <div className="rounded-2xl bg-surface p-3">
+    <div className="rounded-[22px] bg-surface p-3">
       <p className="text-[11px] font-medium uppercase tracking-wide text-muted">{label}</p>
       <p className={cn('mt-0.5 truncate text-base font-bold tabular-nums', tone === 'income' ? 'text-income' : 'text-expense')}>
         {value}

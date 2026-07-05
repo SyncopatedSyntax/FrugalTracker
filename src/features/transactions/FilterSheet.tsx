@@ -124,7 +124,7 @@ export default function FilterSheet({ open, onClose, filters, onApply }: Props) 
         <div className="flex gap-2 pt-1">
           <button
             onClick={() => setDraft(emptyFilters)}
-            className="flex-1 rounded-2xl border border-border py-3 text-sm font-semibold text-muted"
+            className="flex-1 rounded-[22px] border border-border py-3 text-sm font-semibold text-muted"
           >
             Clear all
           </button>
@@ -133,7 +133,7 @@ export default function FilterSheet({ open, onClose, filters, onApply }: Props) 
               onApply(draft)
               onClose()
             }}
-            className="flex-[2] rounded-2xl bg-primary py-3 text-sm font-semibold text-primary-fg"
+            className="flex-[2] rounded-[22px] bg-primary py-3 text-sm font-semibold text-primary-fg"
           >
             Show results
           </button>

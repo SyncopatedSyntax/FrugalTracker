@@ -4,6 +4,7 @@ import Segmented from '@/components/Segmented'
 import { cn } from '@/lib/cn'
 import type { Category, TxType } from '@/db/types'
 import { addCategory, updateCategory } from '@/db/repo'
+import { CATEGORY_PALETTE } from '@/lib/palette'
 
 const EMOJIS = [
   '🍔', '🛒', '🚗', '☕', '🛍️', '💡', '🏠', '🎬', '🏥', '✈️',
@@ -13,11 +14,7 @@ const EMOJIS = [
   '🔧', '💻', '📷', '🎟️', '🍷', '🌮', '🥗', '🍦', '🚿', '🌐',
 ]
 
-const COLORS = [
-  '#ef4444', '#f97316', '#f59e0b', '#eab308', '#84cc16', '#22c55e',
-  '#10b981', '#14b8a6', '#06b6d4', '#0ea5e9', '#3b82f6', '#6366f1',
-  '#8b5cf6', '#a855f7', '#d946ef', '#ec4899', '#f43f5e', '#64748b',
-]
+const COLORS = CATEGORY_PALETTE
 
 interface Props {
   open: boolean
@@ -36,7 +33,7 @@ export default function CategoryFormSheet({
 }: Props) {
   const [name, setName] = useState('')
   const [icon, setIcon] = useState('📦')
-  const [color, setColor] = useState('#64748b')
+  const [color, setColor] = useState('#767B70')
   const [type, setType] = useState<TxType>(defaultType)
 
   useEffect(() => {
@@ -49,7 +46,7 @@ export default function CategoryFormSheet({
     } else {
       setName('')
       setIcon('📦')
-      setColor('#64748b')
+      setColor('#767B70')
       setType(defaultType)
     }
   }, [open, editing, defaultType])
@@ -137,7 +134,7 @@ export default function CategoryFormSheet({
         <button
           onClick={save}
           disabled={!canSave}
-          className="w-full rounded-2xl bg-primary py-3.5 text-base font-semibold text-primary-fg disabled:opacity-40"
+          className="w-full rounded-[22px] bg-primary py-3.5 text-base font-semibold text-primary-fg disabled:opacity-40"
         >
           {editing ? 'Save changes' : 'Create category'}
         </button>

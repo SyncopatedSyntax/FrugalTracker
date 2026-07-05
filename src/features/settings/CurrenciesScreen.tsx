@@ -70,7 +70,7 @@ export default function CurrenciesScreen() {
         </p>
         <button
           onClick={() => setBaseOpen(true)}
-          className="mb-6 flex w-full items-center gap-3 rounded-2xl bg-surface p-4"
+          className="mb-6 flex w-full items-center gap-3 rounded-[22px] bg-surface p-4"
         >
           <span className="grid h-10 w-10 place-items-center rounded-full bg-primary/10 font-semibold text-primary">
             {currencyInfo(base).symbol}
@@ -96,7 +96,7 @@ export default function CurrenciesScreen() {
           </button>
         </div>
 
-        <div className="overflow-hidden rounded-2xl bg-surface">
+        <div className="overflow-hidden rounded-[22px] bg-surface">
           {others.length === 0 && (
             <p className="px-4 py-6 text-center text-sm text-muted">
               Add currencies you spend in to convert them into {base}.
@@ -126,7 +126,7 @@ export default function CurrenciesScreen() {
 
         <button
           onClick={() => setAddOpen(true)}
-          className="mt-3 flex w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-border py-3 text-sm font-medium text-muted"
+          className="mt-3 flex w-full items-center justify-center gap-2 rounded-[22px] border border-dashed border-border py-3 text-sm font-medium text-muted"
         >
           <PlusIcon size={18} /> Add currency
         </button>
@@ -182,7 +182,7 @@ export default function CurrenciesScreen() {
                 setEditCurrency(null)
               }}
               className={cn(
-                'grid w-12 place-items-center rounded-2xl border border-border text-expense',
+                'grid w-12 place-items-center rounded-[22px] border border-border text-expense',
               )}
               aria-label="Remove currency"
             >
@@ -190,7 +190,7 @@ export default function CurrenciesScreen() {
             </button>
             <button
               onClick={saveRate}
-              className="flex-1 rounded-2xl bg-primary py-3 text-base font-semibold text-primary-fg"
+              className="flex-1 rounded-[22px] bg-primary py-3 text-base font-semibold text-primary-fg"
             >
               Save rate
             </button>

@@ -3,30 +3,33 @@
 @tailwind utilities;
 
 :root {
-  /* Light theme */
-  --c-bg: 244 245 247;
+  /* Light theme — "Sage Ledger": warm porcelain ground, botanical sage accent,
+     clay (not alarm-red) for spending, so money-out reads as information. */
+  --c-bg: 244 244 238; /* #F4F4EE porcelain */
   --c-surface: 255 255 255;
-  --c-surface2: 241 243 245;
-  --c-border: 226 229 233;
-  --c-content: 17 24 39;
-  --c-muted: 107 114 128;
-  --c-primary: 15 118 110; /* teal-700 */
+  --c-surface2: 233 233 225; /* #E9E9E1 */
+  --c-border: 228 228 219; /* #E4E4DB */
+  --c-content: 39 43 38; /* #272B26 moss ink */
+  --c-muted: 137 144 127; /* #89907F */
+  --c-primary: 94 122 95; /* #5E7A5F sage */
   --c-primary-fg: 255 255 255;
-  --c-expense: 220 38 38; /* red-600 */
-  --c-income: 22 163 74; /* green-600 */
+  --c-expense: 181 106 91; /* #B56A5B clay */
+  --c-income: 71 121 93; /* #47795D */
 }
 
 .dark {
-  --c-bg: 11 17 32; /* deep navy */
-  --c-surface: 20 27 45;
-  --c-surface2: 30 39 61;
-  --c-border: 42 52 77;
-  --c-content: 237 240 245;
-  --c-muted: 148 158 178;
-  --c-primary: 20 184 166; /* teal-500 */
-  --c-primary-fg: 8 12 22;
-  --c-expense: 248 113 113; /* red-400 */
-  --c-income: 74 222 128; /* green-400 */
+  /* Dark theme — a warm dark olive-charcoal night variant of the same
+     identity (not a generic navy), so the accent and semantics carry over. */
+  --c-bg: 27 29 24; /* #1B1D18 */
+  --c-surface: 37 40 33; /* #252821 */
+  --c-surface2: 46 49 40; /* #2E3128 */
+  --c-border: 58 61 51; /* #3A3D33 */
+  --c-content: 236 237 229; /* #ECEDE5 */
+  --c-muted: 154 159 142; /* #9A9F8E */
+  --c-primary: 143 176 143; /* #8FB08F lightened sage */
+  --c-primary-fg: 20 22 17; /* #141611 */
+  --c-expense: 224 152 138; /* #E0988A lightened clay */
+  --c-income: 143 199 154; /* #8FC79A */
 }
 
 * {

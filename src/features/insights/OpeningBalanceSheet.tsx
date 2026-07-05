@@ -77,7 +77,7 @@ export default function OpeningBalanceSheet({
         </label>
         <button
           onClick={save}
-          className="w-full rounded-2xl bg-primary py-3.5 text-base font-semibold text-primary-fg"
+          className="w-full rounded-[22px] bg-primary py-3.5 text-base font-semibold text-primary-fg"
         >
           Save
         </button>

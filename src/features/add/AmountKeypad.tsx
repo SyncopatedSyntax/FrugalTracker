@@ -51,7 +51,7 @@ export default function AmountKeypad({
             type="button"
             onClick={() => (k === '.' && decimals === 0 ? null : onChange(applyKey(value, k, decimals)))}
             className={cn(
-              'flex h-14 items-center justify-center rounded-2xl text-2xl font-medium text-content transition-transform active:scale-95 active:bg-surface2',
+              'flex h-14 items-center justify-center rounded-[22px] border border-border bg-surface text-2xl font-medium text-content shadow-sm transition-transform active:scale-95 active:bg-surface2',
               k === '.' && decimals === 0 && 'pointer-events-none opacity-30',
             )}
             aria-label={k === 'back' ? 'Delete' : k}
@@ -65,7 +65,7 @@ export default function AmountKeypad({
         onClick={onSubmit}
         disabled={submitDisabled}
         className={cn(
-          'mt-1.5 flex h-14 w-full items-center justify-center gap-2 rounded-2xl text-lg font-semibold text-white shadow-lg transition-transform active:scale-[0.98] disabled:opacity-40 disabled:shadow-none',
+          'mt-1.5 flex h-14 w-full items-center justify-center gap-2 rounded-[22px] text-lg font-semibold text-white shadow-lg transition-transform active:scale-[0.98] disabled:opacity-40 disabled:shadow-none',
           accentBg,
         )}
       >

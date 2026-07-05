@@ -232,7 +232,7 @@ export default function EditTransactionScreen() {
           </div>
           <button
             onClick={() => setDetailsOpen(false)}
-            className="w-full rounded-2xl bg-primary py-3 text-base font-semibold text-primary-fg"
+            className="w-full rounded-[22px] bg-primary py-3 text-base font-semibold text-primary-fg"
           >
             Done
           </button>
@@ -244,13 +244,13 @@ export default function EditTransactionScreen() {
         <div className="mt-4 flex gap-2">
           <button
             onClick={() => setConfirmDelete(false)}
-            className="flex-1 rounded-2xl border border-border py-3 text-sm font-semibold"
+            className="flex-1 rounded-[22px] border border-border py-3 text-sm font-semibold"
           >
             Cancel
           </button>
           <button
             onClick={remove}
-            className="flex-1 rounded-2xl bg-expense py-3 text-sm font-semibold text-white"
+            className="flex-1 rounded-[22px] bg-expense py-3 text-sm font-semibold text-white"
           >
             Delete
           </button>
