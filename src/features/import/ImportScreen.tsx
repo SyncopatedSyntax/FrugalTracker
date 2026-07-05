@@ -4,6 +4,7 @@ import SubScreen from '@/components/SubScreen'
 import CurrencyPickerSheet from '@/components/CurrencyPickerSheet'
 import { UploadIcon } from '@/components/icons'
 import { useSettings } from '@/hooks'
+import { changeBaseCurrency } from '@/db/repo'
 import { cn } from '@/lib/cn'
 import { formatMoney } from '@/lib/currency'
 import {
@@ -30,6 +31,8 @@ export default function ImportScreen() {
   const [busy, setBusy] = useState(false)
   const [result, setResult] = useState<ImportResult | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [setAsBase, setSetAsBase] = useState(true)
+  const [baseChanged, setBaseChanged] = useState<string | null>(null)
 
   const onFile = async (file: File) => {
     setError(null)
@@ -54,10 +57,22 @@ export default function ImportScreen() {
   const validCount = preview.filter((r) => r.valid).length
   const invalidCount = preview.length - validCount
 
+  // If every valid row shares one currency that isn't the current base, offer
+  // to adopt it so totals read correctly without manual setup.
+  const detectedCurrency = useMemo(() => {
+    const set = new Set(preview.filter((r) => r.valid).map((r) => r.currency))
+    return set.size === 1 ? [...set][0] : null
+  }, [preview])
+  const offerBase = !!detectedCurrency && detectedCurrency !== settings.baseCurrency
+
   const doImport = async () => {
     setBusy(true)
     try {
       const res = await runImport(preview, dedupe)
+      if (offerBase && setAsBase && detectedCurrency) {
+        await changeBaseCurrency(detectedCurrency)
+        setBaseChanged(detectedCurrency)
+      }
       setResult(res)
     } catch (e) {
       setError('Import failed: ' + (e as Error).message)
@@ -79,6 +94,7 @@ export default function ImportScreen() {
             )}
             {result.skipped > 0 && <p>{result.skipped} duplicates skipped</p>}
             {result.invalid > 0 && <p>{result.invalid} rows skipped (unreadable)</p>}
+            {baseChanged && <p>Base currency set to {baseChanged}</p>}
           </div>
           <Link
             to="/transactions"
@@ -175,6 +191,22 @@ export default function ImportScreen() {
               className="h-5 w-5 accent-[rgb(var(--c-primary))]"
             />
           </label>
+          {offerBase && (
+            <label className="flex items-center justify-between gap-3 border-t border-border/60 pt-2">
+              <span className="min-w-0 text-sm">
+                Set base currency to {detectedCurrency}
+                <span className="block text-xs text-muted">
+                  Every entry is in {detectedCurrency}, so totals will read correctly
+                </span>
+              </span>
+              <input
+                type="checkbox"
+                checked={setAsBase}
+                onChange={(e) => setSetAsBase(e.target.checked)}
+                className="h-5 w-5 flex-shrink-0 accent-[rgb(var(--c-primary))]"
+              />
+            </label>
+          )}
         </div>
 
         {/* Summary */}

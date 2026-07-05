@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
   ChevronRightIcon,
@@ -5,10 +6,13 @@ import {
   DownloadIcon,
   ListIcon,
   PaletteIcon,
+  RefreshIcon,
   TargetIcon,
   UploadIcon,
 } from '@/components/icons'
+import { Toast, useToast } from '@/components/Toast'
 import { useSettings, useTransactionCount } from '@/hooks'
+import { APP_VERSION, forceUpdate, formattedBuildDate } from '@/lib/pwa'
 
 const items = [
   { to: '/more/categories', label: 'Categories', desc: 'Add, edit & reorder', Icon: ListIcon },
@@ -22,6 +26,15 @@ const items = [
 export default function MoreScreen() {
   const settings = useSettings()
   const count = useTransactionCount() ?? 0
+  const { message, show } = useToast()
+  const [updating, setUpdating] = useState(false)
+
+  const handleUpdate = async () => {
+    setUpdating(true)
+    show('Checking for updates…')
+    // forceUpdate reloads the page when done, so `updating` stays on until then.
+    await forceUpdate()
+  }
 
   return (
     <div className="flex h-full flex-col">
@@ -56,10 +69,29 @@ export default function MoreScreen() {
           ))}
         </div>
 
-        <p className="mt-6 text-center text-xs text-muted">
-          All data is stored privately on this device.
+        <div className="mt-6 rounded-2xl bg-surface p-4">
+          <div className="flex items-center justify-between gap-3">
+            <div className="min-w-0">
+              <p className="text-sm font-medium">Version {APP_VERSION}</p>
+              <p className="truncate text-xs text-muted">Updated {formattedBuildDate()}</p>
+            </div>
+            <button
+              onClick={handleUpdate}
+              disabled={updating}
+              className="flex flex-shrink-0 items-center gap-1.5 rounded-full border border-primary px-3.5 py-2 text-sm font-semibold text-primary disabled:opacity-50"
+            >
+              <RefreshIcon size={16} className={updating ? 'animate-spin' : ''} />
+              {updating ? 'Updating…' : 'Update'}
+            </button>
+          </div>
+        </div>
+
+        <p className="mt-4 text-center text-xs text-muted">
+          Works offline · all data stays private on this device.
         </p>
       </div>
+
+      <Toast message={message} />
     </div>
   )
 }
