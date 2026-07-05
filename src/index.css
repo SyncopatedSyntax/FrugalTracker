@@ -1,0 +1,74 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  /* Light theme */
+  --c-bg: 244 245 247;
+  --c-surface: 255 255 255;
+  --c-surface2: 241 243 245;
+  --c-border: 226 229 233;
+  --c-content: 17 24 39;
+  --c-muted: 107 114 128;
+  --c-primary: 15 118 110; /* teal-700 */
+  --c-primary-fg: 255 255 255;
+  --c-expense: 220 38 38; /* red-600 */
+  --c-income: 22 163 74; /* green-600 */
+}
+
+.dark {
+  --c-bg: 11 17 32; /* deep navy */
+  --c-surface: 20 27 45;
+  --c-surface2: 30 39 61;
+  --c-border: 42 52 77;
+  --c-content: 237 240 245;
+  --c-muted: 148 158 178;
+  --c-primary: 20 184 166; /* teal-500 */
+  --c-primary-fg: 8 12 22;
+  --c-expense: 248 113 113; /* red-400 */
+  --c-income: 74 222 128; /* green-400 */
+}
+
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  @apply bg-bg text-content;
+  font-family: theme('fontFamily.sans');
+  overscroll-behavior-y: none;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Respect notches / safe areas on mobile. */
+.safe-top {
+  padding-top: env(safe-area-inset-top);
+}
+.safe-bottom {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+/* Hide number input spinners */
+input[type='number']::-webkit-outer-spin-button,
+input[type='number']::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type='number'] {
+  -moz-appearance: textfield;
+}
+
+/* Thin scrollbars where scrolling is intentional */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
