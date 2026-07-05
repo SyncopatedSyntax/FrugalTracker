@@ -75,3 +75,11 @@ A chronological record of your prompts in this build session, each followed by a
 > Create a prompt.md file and put all my prompts and the summarized result in it, chronologically.
 
 **Result:** This file.
+
+---
+
+## 10. Making the log a standing convention
+
+> This prompt.md should be updated with each prompt, and uploaded whenever "commit and push"
+
+**Result:** Added `CLAUDE.md` documenting this as a persistent project convention: append an entry to `prompt.md` after each prompt, and make sure it's included whenever changes are committed and pushed (whether requested explicitly or triggered by the repo's stop hook).
