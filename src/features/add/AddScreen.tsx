@@ -28,6 +28,18 @@ function dateLabel(iso: string): string {
   return iso === todayISO() ? 'Today' : formatShortDate(iso)
 }
 
+/** Step the amount's (and its currency symbol's) font size down as the typed
+ * value grows longer, so a long entry shrinks to fit instead of overflowing
+ * the space left beside the fixed-width toggle/currency column. */
+function amountFontSizes(displayLen: number): { amount: string; symbol: string } {
+  if (displayLen <= 6) return { amount: 'text-5xl', symbol: 'text-2xl' }
+  if (displayLen <= 8) return { amount: 'text-4xl', symbol: 'text-xl' }
+  if (displayLen <= 10) return { amount: 'text-3xl', symbol: 'text-lg' }
+  if (displayLen <= 13) return { amount: 'text-2xl', symbol: 'text-base' }
+  if (displayLen <= 15) return { amount: 'text-xl', symbol: 'text-sm' }
+  return { amount: 'text-lg', symbol: 'text-xs' }
+}
+
 type Step = 0 | 1 | 2
 
 function prefersReducedMotion(): boolean {
@@ -138,6 +150,8 @@ export default function AddScreen() {
 
   const amt = parseAmount(amount)
   const canSave = amt > 0 && !!categoryId
+  const amountDisplay = formatTypedAmount(amount)
+  const amountFont = amountFontSizes(amountDisplay.length)
 
   const goNext = () => {
     if (!(amt > 0)) return
@@ -190,9 +204,11 @@ export default function AddScreen() {
 
       {/* Middle band: type toggle + currency stacked to one side, sharing a
           single row with the live amount instead of three stacked rows —
-          frees up more height for the step track below. */}
-      <div className="flex items-center justify-center gap-4 px-4 pt-3">
-        <div className="flex flex-col items-center gap-1.5">
+          frees up more height for the step track below. The left column is
+          flex-shrink-0 so typing longer amounts can never nudge it — only the
+          amount's own region (and its font size) responds to length. */}
+      <div className="flex items-center gap-3 px-4 pt-3">
+        <div className="flex flex-shrink-0 flex-col items-start gap-1">
           <Segmented
             options={[
               { value: 'expense', label: 'Expense' },
@@ -200,6 +216,7 @@ export default function AddScreen() {
             ]}
             value={type}
             onChange={setType}
+            size="sm"
             activeClass={cn('text-white shadow', type === 'expense' ? 'bg-expense' : 'bg-income')}
           />
           <button
@@ -209,15 +226,18 @@ export default function AddScreen() {
             {activeCurrency}
           </button>
         </div>
-        <div className="flex items-baseline gap-1">
-          <span className="text-2xl font-medium text-muted">{symbol}</span>
+        <div className="flex min-w-0 flex-1 items-baseline justify-center gap-1">
+          <span className={cn('flex-shrink-0 font-medium text-muted', amountFont.symbol)}>
+            {symbol}
+          </span>
           <span
             className={cn(
-              'text-5xl font-bold tabular-nums',
+              'font-bold tabular-nums',
+              amountFont.amount,
               amt > 0 ? 'text-content' : 'text-muted/60',
             )}
           >
-            {formatTypedAmount(amount)}
+            {amountDisplay}
           </span>
         </div>
       </div>
