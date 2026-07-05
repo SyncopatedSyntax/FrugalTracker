@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import Segmented from '@/components/Segmented'
 import CurrencyPickerSheet from '@/components/CurrencyPickerSheet'
-import TagInput from '@/components/TagInput'
+import TagInput, { addTag } from '@/components/TagInput'
 import Sheet from '@/components/Sheet'
 import { Toast, useToast } from '@/components/Toast'
 import {
@@ -10,6 +10,7 @@ import {
   ChevronLeftIcon,
   ChevronRightIcon,
   PencilIcon,
+  TagIcon,
 } from '@/components/icons'
 import CategoryGrid from './CategoryGrid'
 import AmountKeypad from './AmountKeypad'
@@ -53,6 +54,8 @@ export default function AddScreen() {
   const [catFormOpen, setCatFormOpen] = useState(false)
   const [noteOpen, setNoteOpen] = useState(false)
   const [dateOpen, setDateOpen] = useState(false)
+  const [newTagOpen, setNewTagOpen] = useState(false)
+  const [newTagText, setNewTagText] = useState('')
 
   // The 3-step thumb-zone flow: 0 = amount, 1 = category, 2 = tags/date/note.
   // `unlocked` is the highest step rendered — steps beyond it don't exist in
@@ -165,6 +168,7 @@ export default function AddScreen() {
     setCategoryId(null)
     setNote('')
     setTags([])
+    setNewTagText('')
     setDate(todayISO())
     setStep(0)
     // Let the slide-back settle before dropping steps 2 & 3 from the DOM, so
@@ -184,9 +188,11 @@ export default function AddScreen() {
         <BudgetPanel type={type} categoryId={categoryId} />
       </div>
 
-      {/* Middle band: type toggle, currency, live amount — unchanged, fixed */}
-      <div className="px-4 pt-2">
-        <div className="flex justify-center">
+      {/* Middle band: type toggle + currency stacked to one side, sharing a
+          single row with the live amount instead of three stacked rows —
+          frees up more height for the step track below. */}
+      <div className="flex items-center justify-center gap-4 px-4 pt-3">
+        <div className="flex flex-col items-center gap-1.5">
           <Segmented
             options={[
               { value: 'expense', label: 'Expense' },
@@ -196,16 +202,13 @@ export default function AddScreen() {
             onChange={setType}
             activeClass={cn('text-white shadow', type === 'expense' ? 'bg-expense' : 'bg-income')}
           />
+          <button
+            onClick={() => setCurrencyOpen(true)}
+            className="rounded-full bg-surface2 px-3 py-1 text-xs font-semibold text-muted active:scale-95"
+          >
+            {activeCurrency}
+          </button>
         </div>
-      </div>
-
-      <div className="flex flex-col items-center px-4 pt-2">
-        <button
-          onClick={() => setCurrencyOpen(true)}
-          className="mb-0.5 rounded-full bg-surface2 px-3 py-1 text-xs font-semibold text-muted active:scale-95"
-        >
-          {activeCurrency}
-        </button>
         <div className="flex items-baseline gap-1">
           <span className="text-2xl font-medium text-muted">{symbol}</span>
           <span
@@ -270,20 +273,27 @@ export default function AddScreen() {
           </div>
         )}
 
-        {/* Step 2: tags fill nearly all the space (as many recent candidates
-            visible at once as possible); note & date are equal-sized small
-            buttons that open a sheet, so they take minimal room. No scrolling
+        {/* Step 2: New tag / Note / Date sit in one compact row at the top —
+            each opens a sheet — so the recent-tags grid below gets nearly all
+            the remaining space and can scroll as long as needed. No scrolling
             needed to reach Save. */}
         {unlocked >= 2 && (
           <div className="relative flex h-full w-full flex-shrink-0 snap-start flex-col">
             <ChevronLeftIcon size={16} className="absolute left-1.5 top-1.5 text-muted/40" />
             <div className="flex min-h-0 flex-1 flex-col gap-2.5 px-4 pt-6">
-              <TagInput fill tags={tags} onChange={setTags} suggestions={tagSuggestions} />
-              <div className="flex flex-shrink-0 gap-2">
+              <div className="flex flex-shrink-0 gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => setNewTagOpen(true)}
+                  className="flex h-11 flex-1 items-center justify-center gap-1.5 rounded-xl border border-border bg-surface2 px-2 text-sm font-medium text-content active:scale-[0.98]"
+                >
+                  <TagIcon size={15} className="flex-shrink-0 text-muted" />
+                  <span className="truncate">New tag</span>
+                </button>
                 <button
                   type="button"
                   onClick={() => setNoteOpen(true)}
-                  className="flex h-11 flex-1 items-center justify-center gap-1.5 rounded-xl border border-border bg-surface2 px-3 text-sm font-medium text-content active:scale-[0.98]"
+                  className="flex h-11 flex-1 items-center justify-center gap-1.5 rounded-xl border border-border bg-surface2 px-2 text-sm font-medium text-content active:scale-[0.98]"
                 >
                   <PencilIcon size={15} className="flex-shrink-0 text-muted" />
                   <span className="truncate">{note.trim() || 'Note'}</span>
@@ -291,12 +301,13 @@ export default function AddScreen() {
                 <button
                   type="button"
                   onClick={() => setDateOpen(true)}
-                  className="flex h-11 flex-1 items-center justify-center gap-1.5 rounded-xl border border-border bg-surface2 px-3 text-sm font-medium text-content active:scale-[0.98]"
+                  className="flex h-11 flex-1 items-center justify-center gap-1.5 rounded-xl border border-border bg-surface2 px-2 text-sm font-medium text-content active:scale-[0.98]"
                 >
                   <CalendarIcon size={15} className="flex-shrink-0 text-muted" />
-                  {dateLabel(date)}
+                  <span className="truncate">{dateLabel(date)}</span>
                 </button>
               </div>
+              <TagInput fill tags={tags} onChange={setTags} suggestions={tagSuggestions} />
             </div>
             <div className="flex-shrink-0 px-4 pb-2 pt-2">
               <button
@@ -331,6 +342,42 @@ export default function AddScreen() {
         defaultType={type}
         onSaved={(id) => selectCategory(id)}
       />
+
+      <Sheet
+        open={newTagOpen}
+        onClose={() => {
+          setNewTagOpen(false)
+          setNewTagText('')
+        }}
+        title="New tag"
+      >
+        <input
+          type="text"
+          autoFocus
+          value={newTagText}
+          onChange={(e) => setNewTagText(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ',') {
+              e.preventDefault()
+              setTags((t) => addTag(t, newTagText))
+              setNewTagText('')
+            }
+          }}
+          placeholder="Type a tag…"
+          className="w-full rounded-xl border border-border bg-surface2 px-3.5 py-3 text-sm outline-none focus:border-primary"
+        />
+        <button
+          type="button"
+          onClick={() => {
+            setTags((t) => addTag(t, newTagText))
+            setNewTagText('')
+            setNewTagOpen(false)
+          }}
+          className="mt-4 w-full rounded-[22px] bg-primary py-3 text-base font-semibold text-primary-fg"
+        >
+          Done
+        </button>
+      </Sheet>
 
       <Sheet open={noteOpen} onClose={() => setNoteOpen(false)} title="Note">
         <input
