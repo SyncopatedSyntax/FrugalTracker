@@ -7,9 +7,17 @@ interface Props {
   onChange: (tags: string[]) => void
   suggestions?: string[]
   placeholder?: string
+  /** Render the recent-tag candidates as a single scrollable row instead of wrapping. */
+  compact?: boolean
 }
 
-export default function TagInput({ tags, onChange, suggestions = [], placeholder }: Props) {
+export default function TagInput({
+  tags,
+  onChange,
+  suggestions = [],
+  placeholder,
+  compact,
+}: Props) {
   const [text, setText] = useState('')
 
   const add = (raw: string) => {
@@ -64,29 +72,47 @@ export default function TagInput({ tags, onChange, suggestions = [], placeholder
           className="min-w-[6rem] flex-1 bg-transparent px-1 py-1 text-sm outline-none placeholder:text-muted"
         />
       </div>
-      {matches.length > 0 && (
-        <div className="mt-2">
-          {!lower && (
-            <p className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-muted">
-              Recent
-            </p>
-          )}
-          <div className="flex flex-wrap gap-1.5">
+      {matches.length > 0 &&
+        (compact ? (
+          <div className="no-scrollbar mt-1.5 flex items-center gap-1.5 overflow-x-auto">
+            {!lower && (
+              <span className="flex-shrink-0 text-[10px] font-semibold uppercase tracking-wide text-muted">
+                Recent
+              </span>
+            )}
             {matches.map((s) => (
               <button
                 key={s}
                 onClick={() => add(s)}
-                className={cn(
-                  'rounded-full border border-border px-2.5 py-1 text-xs text-muted',
-                  'hover:border-primary hover:text-primary',
-                )}
+                className="flex-shrink-0 rounded-full border border-border px-2.5 py-1 text-xs text-muted hover:border-primary hover:text-primary"
               >
                 #{s}
               </button>
             ))}
           </div>
-        </div>
-      )}
+        ) : (
+          <div className="mt-2">
+            {!lower && (
+              <p className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-muted">
+                Recent
+              </p>
+            )}
+            <div className="flex flex-wrap gap-1.5">
+              {matches.map((s) => (
+                <button
+                  key={s}
+                  onClick={() => add(s)}
+                  className={cn(
+                    'rounded-full border border-border px-2.5 py-1 text-xs text-muted',
+                    'hover:border-primary hover:text-primary',
+                  )}
+                >
+                  #{s}
+                </button>
+              ))}
+            </div>
+          </div>
+        ))}
     </div>
   )
 }

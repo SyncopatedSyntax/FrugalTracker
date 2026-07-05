@@ -3,9 +3,10 @@ import Segmented from '@/components/Segmented'
 import CurrencyPickerSheet from '@/components/CurrencyPickerSheet'
 import TagInput from '@/components/TagInput'
 import { Toast, useToast } from '@/components/Toast'
-import { CheckIcon, ChevronLeftIcon, ChevronRightIcon } from '@/components/icons'
+import { CheckIcon, ChevronLeftIcon, ChevronRightIcon, PencilIcon } from '@/components/icons'
 import CategoryGrid from './CategoryGrid'
 import AmountKeypad from './AmountKeypad'
+import BudgetPanel from './BudgetPanel'
 import CategoryFormSheet from '@/features/categories/CategoryFormSheet'
 import { useCategoriesByType, useSettings, useTags } from '@/hooks'
 import { addTransaction } from '@/db/repo'
@@ -146,7 +147,14 @@ export default function AddScreen() {
 
   return (
     <div className="flex h-full flex-col">
-      <div className="safe-top px-4 pt-2">
+      {/* Top part: reacts to the entry in progress (all-categories until a
+          category is picked, then that category's budget/average) */}
+      <div className="safe-top">
+        <BudgetPanel type={type} categoryId={categoryId} />
+      </div>
+
+      {/* Middle band: type toggle, currency, live amount — unchanged, fixed */}
+      <div className="px-4 pt-2">
         <div className="flex justify-center">
           <Segmented
             options={[
@@ -160,7 +168,6 @@ export default function AddScreen() {
         </div>
       </div>
 
-      {/* Fixed: currency + live amount, visible across all 3 steps */}
       <div className="flex flex-col items-center px-4 pt-3">
         <button
           onClick={() => setCurrencyOpen(true)}
@@ -231,47 +238,42 @@ export default function AddScreen() {
           </div>
         )}
 
-        {/* Step 2: tags, date, note + save */}
+        {/* Step 2: tags, date, note + save — compact, since this step has
+            less room now that the budget panel sits above */}
         {unlocked >= 2 && (
           <div className="relative flex h-full w-full flex-shrink-0 snap-start flex-col">
             <ChevronLeftIcon size={16} className="absolute left-1.5 top-1.5 text-muted/40" />
-            <div className="no-scrollbar min-h-0 flex-1 space-y-4 overflow-y-auto px-4 pt-2">
-              {selectedCategory && (
-                <div className="mx-auto flex w-fit items-center gap-1.5 rounded-full bg-surface2 px-3 py-1.5 text-sm font-medium">
-                  <span>{selectedCategory.icon}</span>
-                  {selectedCategory.name}
+            <div className="no-scrollbar min-h-0 flex-1 space-y-3 overflow-y-auto px-4 pt-2">
+              <div className="flex items-center gap-2">
+                {selectedCategory && (
+                  <span className="flex flex-shrink-0 items-center gap-1 rounded-full bg-surface2 px-2.5 py-1.5 text-xs font-medium">
+                    <span>{selectedCategory.icon}</span>
+                    {selectedCategory.name}
+                  </span>
+                )}
+                <div className="min-w-0 flex-1">
+                  <TagInput compact tags={tags} onChange={setTags} suggestions={tagSuggestions} />
                 </div>
-              )}
-              <div>
-                <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-muted">
-                  Tags
-                </span>
-                <TagInput tags={tags} onChange={setTags} suggestions={tagSuggestions} />
               </div>
-              <label className="block">
-                <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-muted">
-                  Date
-                </span>
+              <div className="flex items-center gap-2">
                 <input
                   type="date"
                   value={date}
                   max={todayISO()}
                   onChange={(e) => setDate(e.target.value || todayISO())}
-                  className="w-full rounded-xl border border-border bg-surface2 px-3 py-2.5 text-sm outline-none focus:border-primary"
+                  className="w-[126px] flex-shrink-0 rounded-xl border border-border bg-surface2 px-2.5 py-2 text-sm outline-none focus:border-primary"
                 />
-              </label>
-              <label className="block">
-                <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-muted">
-                  Note
-                </span>
-                <textarea
-                  value={note}
-                  onChange={(e) => setNote(e.target.value)}
-                  rows={2}
-                  placeholder="What was it for?"
-                  className="w-full resize-none rounded-xl border border-border bg-surface2 px-3 py-2.5 text-sm outline-none focus:border-primary"
-                />
-              </label>
+                <label className="flex min-w-0 flex-1 items-center gap-1.5 rounded-xl border border-border bg-surface2 px-2.5 py-2">
+                  <PencilIcon size={15} className="flex-shrink-0 text-muted" />
+                  <input
+                    type="text"
+                    value={note}
+                    onChange={(e) => setNote(e.target.value)}
+                    placeholder="What was it for?"
+                    className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-muted"
+                  />
+                </label>
+              </div>
             </div>
             <div className="px-4 pb-2 pt-2">
               <button
