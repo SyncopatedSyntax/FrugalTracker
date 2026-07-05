@@ -207,7 +207,7 @@ export default function AddScreen() {
         className="no-scrollbar flex min-h-0 flex-1 snap-x snap-mandatory overflow-x-auto overscroll-x-contain"
       >
         {/* Step 0: amount keypad, anchored to the bottom (thumb zone) */}
-        <div className="flex h-full w-full flex-shrink-0 snap-start flex-col justify-end">
+        <div className="flex h-full w-full flex-shrink-0 snap-start flex-col justify-center">
           <AmountKeypad
             value={amount}
             onChange={setAmount}

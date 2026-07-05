@@ -1,8 +1,7 @@
-import { useMemo, useState } from 'react'
-import Segmented from '@/components/Segmented'
+import type { ReactNode } from 'react'
 import { useAllTransactions, useBudgets, useCategoryMap, useRateMap, useSettings } from '@/hooks'
 import type { TxType } from '@/db/types'
-import { formatMoney } from '@/lib/currency'
+import { formatMoneyCompact } from '@/lib/currency'
 import { cn } from '@/lib/cn'
 import {
   periodRange,
@@ -13,11 +12,8 @@ import {
   type Timeframe,
 } from '@/lib/budgetMath'
 
-const CAPTIONS: Record<Timeframe, string> = {
-  week: 'Week to date',
-  month: 'Month to date',
-  year: 'Year to date',
-}
+const TIMEFRAMES: Timeframe[] = ['week', 'month', 'year']
+const TF_LABELS: Record<Timeframe, string> = { week: 'Week', month: 'Month', year: 'Year' }
 
 interface Props {
   type: TxType
@@ -25,7 +21,6 @@ interface Props {
 }
 
 export default function BudgetPanel({ type, categoryId }: Props) {
-  const [timeframe, setTimeframe] = useState<Timeframe>('month')
   const settings = useSettings()
   const base = settings.baseCurrency
   const txs = useAllTransactions()
@@ -33,189 +28,260 @@ export default function BudgetPanel({ type, categoryId }: Props) {
   const budgets = useBudgets()
   const categoryMap = useCategoryMap()
 
-  const now = new Date()
-  const range = useMemo(
-    () => periodRange(timeframe, now, settings.firstDayOfWeek),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [timeframe, settings.firstDayOfWeek],
-  )
-
   return (
-    <div className="mx-4 mt-2 rounded-[22px] bg-surface p-3">
-      <div className="mb-2 flex items-center justify-between">
-        <span className="text-xs font-semibold text-muted">{CAPTIONS[timeframe]}</span>
-        <Segmented
-          options={[
-            { value: 'week', label: 'Week' },
-            { value: 'month', label: 'Month' },
-            { value: 'year', label: 'Year' },
-          ]}
-          value={timeframe}
-          onChange={setTimeframe}
-          className="[&>button]:px-2.5 [&>button]:py-1 [&>button]:text-[11px]"
-        />
-      </div>
-
+    <div className="mx-4 mt-2 rounded-[22px] bg-surface p-5">
       {type === 'income' ? (
-        <IncomeCompare range={range} txs={txs} rates={rates} base={base} />
+        <IncomeCompare
+          txs={txs}
+          rates={rates}
+          base={base}
+          firstDayOfWeek={settings.firstDayOfWeek}
+        />
       ) : (
         <ExpenseCompare
-          range={range}
-          timeframe={timeframe}
           categoryId={categoryId}
           txs={txs}
           rates={rates}
           budgets={budgets}
           categoryMap={categoryMap}
           base={base}
+          firstDayOfWeek={settings.firstDayOfWeek}
         />
       )}
     </div>
   )
 }
 
+/** Ring color: healthy/neutral in `base`, ramps to amber near the limit, red
+ * once over — except for income, where reaching/exceeding last year is the
+ * good outcome, so it lands on the income color instead of red. */
+function ringColor(ratio: number, hasComparison: boolean, base: string, isIncome: boolean): string {
+  if (!hasComparison) return 'rgb(var(--c-border))'
+  if (isIncome) return ratio >= 1 ? 'rgb(var(--c-income))' : base
+  if (ratio > 1) return 'rgb(var(--c-expense))'
+  if (ratio >= 0.8) return '#D1A54E'
+  return base
+}
+
 function ExpenseCompare({
-  range,
-  timeframe,
   categoryId,
   txs,
   rates,
   budgets,
   categoryMap,
   base,
+  firstDayOfWeek,
 }: {
-  range: { startISO: string; endISO: string }
-  timeframe: Timeframe
   categoryId: string | null
   txs: ReturnType<typeof useAllTransactions>
   rates: ReturnType<typeof useRateMap>
   budgets: ReturnType<typeof useBudgets>
   categoryMap: ReturnType<typeof useCategoryMap>
   base: string
+  firstDayOfWeek: 0 | 1
 }) {
   const now = new Date()
   const category = categoryId ? categoryMap.get(categoryId) : undefined
-  const spent = sumInRange(txs, range, 'expense', categoryId, rates)
-
   const budget = budgets.find((b) => b.categoryId === categoryId)
-  let target = 0
+
+  let monthly = 0
   let isAvg = false
   let hasComparison = true
-
   if (budget) {
-    target = prorateMonthly(budget.amount, timeframe, now)
+    monthly = budget.amount
   } else {
     const avg = rollingMonthlyAverage(txs, categoryId, now, rates)
     if (avg > 0) {
-      target = prorateMonthly(avg, timeframe, now)
+      monthly = avg
       isAvg = true
     } else {
       hasComparison = false
     }
   }
 
-  const ratio = target > 0 ? spent / target : 0
-  const over = hasComparison && ratio > 1
-  const near = hasComparison && ratio >= 0.8 && !over
-  const barColor = over
-    ? 'rgb(var(--c-expense))'
-    : near
-      ? '#D1A54E'
-      : (category?.color ?? 'rgb(var(--c-primary))')
+  const categoryColor = category?.color ?? 'rgb(var(--c-primary))'
+  const rings = TIMEFRAMES.map((tf) => {
+    const range = periodRange(tf, now, firstDayOfWeek)
+    const spent = sumInRange(txs, range, 'expense', categoryId, rates)
+    const target = hasComparison ? prorateMonthly(monthly, tf, now) : 0
+    const ratio = target > 0 ? spent / target : 0
+    return { tf, spent, target, ratio }
+  })
 
   return (
     <div>
-      <div className="mb-1.5 flex items-center gap-2">
+      <div className="mb-4 flex items-center gap-2.5">
         <span
-          className="grid h-7 w-7 flex-shrink-0 place-items-center rounded-full text-sm"
+          className="grid h-10 w-10 flex-shrink-0 place-items-center rounded-full text-xl"
           style={{ backgroundColor: (category?.color ?? '#767B70') + '22' }}
         >
           {category ? category.icon : '💰'}
         </span>
-        <span className="flex-1 truncate text-sm font-semibold">
+        <span className="flex-1 truncate text-lg font-bold">
           {category ? category.name : 'All categories'}
         </span>
         {hasComparison && (
-          <span className="flex-shrink-0 rounded-full bg-surface2 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-muted">
+          <span className="flex-shrink-0 rounded-full bg-surface2 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-muted">
             {isAvg ? 'Avg · 12mo' : 'Budget'}
           </span>
         )}
       </div>
 
-      {hasComparison ? (
-        <>
-          <div className="flex items-baseline justify-between">
-            <span className={cn('text-base font-bold tabular-nums', over && 'text-expense')}>
-              {formatMoney(spent, base)}
-            </span>
-            <span className="text-xs text-muted tabular-nums">/ {formatMoney(target, base)}</span>
-          </div>
-          <div className="mt-1.5 h-2 overflow-hidden rounded-full bg-surface2">
-            <div
-              className="h-full rounded-full transition-all"
-              style={{ width: `${Math.min(100, ratio * 100)}%`, backgroundColor: barColor }}
-            />
-          </div>
-          <p className={cn('mt-1 text-xs', over ? 'text-expense' : 'text-muted')}>
-            {over
-              ? `${formatMoney(spent - target, base)} over`
-              : `${formatMoney(target - spent, base)} left`}
-          </p>
-        </>
-      ) : (
-        <>
-          <span className="text-base font-bold tabular-nums">{formatMoney(spent, base)}</span>
-          <p className="mt-1 text-xs text-muted">No budget or spending history to compare yet</p>
-        </>
+      <div className="grid grid-cols-3 gap-3">
+        {rings.map(({ tf, spent, target, ratio }) => (
+          <RingStat
+            key={tf}
+            label={TF_LABELS[tf]}
+            ratio={ratio}
+            color={ringColor(ratio, hasComparison, categoryColor, false)}
+            over={hasComparison && ratio > 1}
+            caption={
+              hasComparison
+                ? `${formatMoneyCompact(spent, base)}/${formatMoneyCompact(target, base)}`
+                : formatMoneyCompact(spent, base)
+            }
+            pct={hasComparison ? Math.round(ratio * 100) : null}
+          />
+        ))}
+      </div>
+
+      {!hasComparison && (
+        <p className="mt-3 text-center text-xs text-muted">
+          No budget or spending history to compare yet
+        </p>
       )}
     </div>
   )
 }
 
 function IncomeCompare({
-  range,
   txs,
   rates,
   base,
+  firstDayOfWeek,
 }: {
-  range: { startISO: string; endISO: string }
   txs: ReturnType<typeof useAllTransactions>
   rates: ReturnType<typeof useRateMap>
   base: string
+  firstDayOfWeek: 0 | 1
 }) {
-  const current = sumInRange(txs, range, 'income', null, rates)
-  const lastYearRange = sameRangeLastYear(range)
-  const lastYear = sumInRange(txs, lastYearRange, 'income', null, rates)
-  const hasLastYear = lastYear > 0
-  const pct = hasLastYear ? ((current - lastYear) / lastYear) * 100 : null
+  const now = new Date()
+  const rings = TIMEFRAMES.map((tf) => {
+    const range = periodRange(tf, now, firstDayOfWeek)
+    const current = sumInRange(txs, range, 'income', null, rates)
+    const lastYear = sumInRange(txs, sameRangeLastYear(range), 'income', null, rates)
+    const hasLastYear = lastYear > 0
+    const ratio = hasLastYear ? current / lastYear : 0
+    return { tf, current, hasLastYear, ratio }
+  })
+  const noHistory = rings.every((r) => !r.hasLastYear)
 
   return (
     <div>
-      <div className="mb-1.5 flex items-center gap-2">
-        <span className="grid h-7 w-7 flex-shrink-0 place-items-center rounded-full bg-income/15 text-sm">
+      <div className="mb-4 flex items-center gap-2.5">
+        <span className="grid h-10 w-10 flex-shrink-0 place-items-center rounded-full bg-income/15 text-xl">
           💵
         </span>
-        <span className="flex-1 truncate text-sm font-semibold">Income</span>
-        <span className="flex-shrink-0 rounded-full bg-surface2 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-muted">
+        <span className="flex-1 truncate text-lg font-bold">Income</span>
+        <span className="flex-shrink-0 rounded-full bg-surface2 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-muted">
           vs last year
         </span>
       </div>
-      <div className="flex items-baseline justify-between">
-        <span className="text-base font-bold tabular-nums">{formatMoney(current, base)}</span>
-        {hasLastYear && (
-          <span className="text-xs text-muted tabular-nums">
-            was {formatMoney(lastYear, base)}
-          </span>
-        )}
+
+      <div className="grid grid-cols-3 gap-3">
+        {rings.map(({ tf, current, hasLastYear, ratio }) => (
+          <RingStat
+            key={tf}
+            label={TF_LABELS[tf]}
+            ratio={ratio}
+            color={ringColor(ratio, hasLastYear, 'rgb(var(--c-primary))', true)}
+            over={hasLastYear && ratio >= 1}
+            overClass="text-income"
+            caption={formatMoneyCompact(current, base)}
+            pct={hasLastYear ? Math.round(ratio * 100) : null}
+          />
+        ))}
       </div>
-      {hasLastYear ? (
-        <p className={cn('mt-1.5 text-xs font-medium', (pct ?? 0) >= 0 ? 'text-income' : 'text-expense')}>
-          {(pct ?? 0) >= 0 ? '+' : ''}
-          {(pct ?? 0).toFixed(0)}% vs same period last year
+
+      {noHistory && (
+        <p className="mt-3 text-center text-xs text-muted">
+          No income recorded this time last year
         </p>
-      ) : (
-        <p className="mt-1.5 text-xs text-muted">No income recorded this time last year</p>
       )}
+    </div>
+  )
+}
+
+function RingStat({
+  label,
+  ratio,
+  color,
+  over,
+  overClass = 'text-expense',
+  caption,
+  pct,
+}: {
+  label: string
+  ratio: number
+  color: string
+  over: boolean
+  overClass?: string
+  caption: string
+  pct: number | null
+}) {
+  return (
+    <div className="flex flex-col items-center">
+      <ProgressRing ratio={ratio} color={color} size={116} stroke={10}>
+        <span className={cn('text-xl font-bold tabular-nums', over && overClass)}>
+          {pct === null ? '–' : `${pct}%`}
+        </span>
+      </ProgressRing>
+      <span className="mt-2 text-xs font-semibold text-muted">{label}</span>
+      <span className="mt-0.5 text-xs tabular-nums text-muted">{caption}</span>
+    </div>
+  )
+}
+
+/**
+ * A circular meter. Ratios beyond 1 still render as a full, capped ring in
+ * the "over" status color — it never wraps into a confusing second lap at
+ * this size — while the center label (passed in as `children`, showing the
+ * true, uncapped percentage) is what actually communicates how far over.
+ */
+function ProgressRing({
+  ratio,
+  color,
+  size,
+  stroke,
+  children,
+}: {
+  ratio: number
+  color: string
+  size: number
+  stroke: number
+  children: ReactNode
+}) {
+  const r = (size - stroke) / 2
+  const c = 2 * Math.PI * r
+  const filled = Math.min(Math.max(ratio, 0), 1) * c
+  return (
+    <div className="relative" style={{ width: size, height: size }}>
+      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
+        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="rgb(var(--c-surface2))" strokeWidth={stroke} />
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={r}
+          fill="none"
+          stroke={color}
+          strokeWidth={stroke}
+          strokeLinecap="round"
+          strokeDasharray={`${filled} ${c - filled}`}
+          transform={`rotate(-90 ${size / 2} ${size / 2})`}
+          className="transition-all"
+        />
+      </svg>
+      <div className="absolute inset-0 grid place-items-center">{children}</div>
     </div>
   )
 }
