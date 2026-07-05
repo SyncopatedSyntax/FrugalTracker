@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import Segmented from '@/components/Segmented'
 import CurrencyPickerSheet from '@/components/CurrencyPickerSheet'
 import TagInput from '@/components/TagInput'
+import Sheet from '@/components/Sheet'
 import { Toast, useToast } from '@/components/Toast'
 import {
   CalendarIcon,
@@ -9,7 +10,6 @@ import {
   ChevronLeftIcon,
   ChevronRightIcon,
   PencilIcon,
-  TagIcon,
 } from '@/components/icons'
 import CategoryGrid from './CategoryGrid'
 import AmountKeypad from './AmountKeypad'
@@ -19,9 +19,13 @@ import { useCategoriesByType, useSettings, useTags } from '@/hooks'
 import { addTransaction } from '@/db/repo'
 import { currencyDecimals, currencySymbol } from '@/lib/currency'
 import { formatTypedAmount, parseAmount } from '@/lib/amount'
-import { todayISO } from '@/lib/date'
+import { formatShortDate, todayISO } from '@/lib/date'
 import type { TxType } from '@/db/types'
 import { cn } from '@/lib/cn'
+
+function dateLabel(iso: string): string {
+  return iso === todayISO() ? 'Today' : formatShortDate(iso)
+}
 
 type Step = 0 | 1 | 2
 
@@ -47,6 +51,8 @@ export default function AddScreen() {
 
   const [currencyOpen, setCurrencyOpen] = useState(false)
   const [catFormOpen, setCatFormOpen] = useState(false)
+  const [noteOpen, setNoteOpen] = useState(false)
+  const [dateOpen, setDateOpen] = useState(false)
 
   // The 3-step thumb-zone flow: 0 = amount, 1 = category, 2 = tags/date/note.
   // `unlocked` is the highest step rendered — steps beyond it don't exist in
@@ -56,6 +62,13 @@ export default function AddScreen() {
   const [step, setStep] = useState<Step>(0)
   const [unlocked, setUnlocked] = useState<Step>(0)
   const trackRef = useRef<HTMLDivElement>(null)
+  // Tracks the live `step` for the delayed unlock-reset in `save()` below —
+  // a ref (not the `step` state itself) so that closure doesn't go stale if
+  // the user starts a new entry before the delay elapses.
+  const stepRef = useRef<Step>(0)
+  useEffect(() => {
+    stepRef.current = step
+  }, [step])
 
   const activeCurrency = currency ?? settings.baseCurrency
   const decimals = currencyDecimals(activeCurrency)
@@ -78,9 +91,18 @@ export default function AddScreen() {
     if (step === 2 && !categoryId) setStep(1)
   }, [step, categoryId])
 
+  // Shared between the two effects below so a fresh transition can invalidate
+  // a stale debounce timer left over from the previous one (see settle()).
+  const settleTimerRef = useRef<number>()
+
   useEffect(() => {
     const el = trackRef.current
     if (!el) return
+    // A new transition is starting: any pending debounced `settle` below is
+    // necessarily stale (it was armed by the *previous* transition's scroll
+    // ticks and hasn't fired yet) — left alone, it can fire moments from now
+    // using the pre-transition scrollLeft and stomp the step we just set.
+    window.clearTimeout(settleTimerRef.current)
     el.scrollTo({ left: step * el.clientWidth, behavior: prefersReducedMotion() ? 'auto' : 'smooth' })
   }, [step, unlocked])
 
@@ -93,22 +115,21 @@ export default function AddScreen() {
   useEffect(() => {
     const el = trackRef.current
     if (!el) return
-    let timer: number
     const settle = () => {
       if (el.clientWidth === 0) return
       const idx = Math.round(el.scrollLeft / el.clientWidth) as Step
       setStep((prev) => (prev === idx ? prev : idx))
     }
     const onScroll = () => {
-      window.clearTimeout(timer)
-      timer = window.setTimeout(settle, 120)
+      window.clearTimeout(settleTimerRef.current)
+      settleTimerRef.current = window.setTimeout(settle, 120)
     }
     el.addEventListener('scroll', onScroll, { passive: true })
     el.addEventListener('scrollend', settle)
     return () => {
       el.removeEventListener('scroll', onScroll)
       el.removeEventListener('scrollend', settle)
-      window.clearTimeout(timer)
+      window.clearTimeout(settleTimerRef.current)
     }
   }, [])
 
@@ -146,9 +167,13 @@ export default function AddScreen() {
     setTags([])
     setDate(todayISO())
     setStep(0)
-    // Let the slide-back settle before dropping steps 2 & 3 from the DOM,
-    // so the reset never shows as an abrupt cut mid-transition.
-    window.setTimeout(() => setUnlocked(0), 350)
+    // Let the slide-back settle before dropping steps 2 & 3 from the DOM, so
+    // the reset never shows as an abrupt cut mid-transition. Guarded on
+    // stepRef so that if the user has already advanced into a new entry
+    // before this fires, it doesn't clobber that in-progress step.
+    window.setTimeout(() => {
+      if (stepRef.current === 0) setUnlocked(0)
+    }, 350)
   }
 
   return (
@@ -245,38 +270,35 @@ export default function AddScreen() {
           </div>
         )}
 
-        {/* Step 2: tags, date, note + save. Fields are vertically centred so the
-            whitespace stays balanced instead of pooling above the Save button. */}
+        {/* Step 2: tags fill nearly all the space (as many recent candidates
+            visible at once as possible); note & date are equal-sized small
+            buttons that open a sheet, so they take minimal room. No scrolling
+            needed to reach Save. */}
         {unlocked >= 2 && (
           <div className="relative flex h-full w-full flex-shrink-0 snap-start flex-col">
             <ChevronLeftIcon size={16} className="absolute left-1.5 top-1.5 text-muted/40" />
-            <div className="no-scrollbar flex min-h-0 flex-1 flex-col justify-center gap-4 overflow-y-auto px-5 py-2">
-              <div>
-                <FieldLabel icon={<TagIcon size={13} />}>Tags</FieldLabel>
-                <TagInput compact tags={tags} onChange={setTags} suggestions={tagSuggestions} />
-              </div>
-              <div>
-                <FieldLabel icon={<PencilIcon size={13} />}>Note</FieldLabel>
-                <input
-                  type="text"
-                  value={note}
-                  onChange={(e) => setNote(e.target.value)}
-                  placeholder="What was it for?"
-                  className="w-full rounded-xl border border-border bg-surface2 px-3.5 py-3 text-sm outline-none focus:border-primary"
-                />
-              </div>
-              <div>
-                <FieldLabel icon={<CalendarIcon size={13} />}>Date</FieldLabel>
-                <input
-                  type="date"
-                  value={date}
-                  max={todayISO()}
-                  onChange={(e) => setDate(e.target.value || todayISO())}
-                  className="w-full rounded-xl border border-border bg-surface2 px-3.5 py-3 text-sm outline-none focus:border-primary"
-                />
+            <div className="flex min-h-0 flex-1 flex-col gap-2.5 px-4 pt-6">
+              <TagInput fill tags={tags} onChange={setTags} suggestions={tagSuggestions} />
+              <div className="flex flex-shrink-0 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setNoteOpen(true)}
+                  className="flex h-11 flex-1 items-center justify-center gap-1.5 rounded-xl border border-border bg-surface2 px-3 text-sm font-medium text-content active:scale-[0.98]"
+                >
+                  <PencilIcon size={15} className="flex-shrink-0 text-muted" />
+                  <span className="truncate">{note.trim() || 'Note'}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setDateOpen(true)}
+                  className="flex h-11 flex-1 items-center justify-center gap-1.5 rounded-xl border border-border bg-surface2 px-3 text-sm font-medium text-content active:scale-[0.98]"
+                >
+                  <CalendarIcon size={15} className="flex-shrink-0 text-muted" />
+                  {dateLabel(date)}
+                </button>
               </div>
             </div>
-            <div className="px-4 pb-2 pt-2">
+            <div className="flex-shrink-0 px-4 pb-2 pt-2">
               <button
                 type="button"
                 onClick={save}
@@ -309,15 +331,39 @@ export default function AddScreen() {
         defaultType={type}
         onSaved={(id) => selectCategory(id)}
       />
-    </div>
-  )
-}
 
-function FieldLabel({ icon, children }: { icon: React.ReactNode; children: React.ReactNode }) {
-  return (
-    <div className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-muted">
-      <span className="text-muted/70">{icon}</span>
-      {children}
+      <Sheet open={noteOpen} onClose={() => setNoteOpen(false)} title="Note">
+        <input
+          type="text"
+          autoFocus
+          value={note}
+          onChange={(e) => setNote(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && setNoteOpen(false)}
+          placeholder="What was it for?"
+          className="w-full rounded-xl border border-border bg-surface2 px-3.5 py-3 text-sm outline-none focus:border-primary"
+        />
+        <button
+          type="button"
+          onClick={() => setNoteOpen(false)}
+          className="mt-4 w-full rounded-[22px] bg-primary py-3 text-base font-semibold text-primary-fg"
+        >
+          Done
+        </button>
+      </Sheet>
+
+      <Sheet open={dateOpen} onClose={() => setDateOpen(false)} title="Date">
+        <input
+          type="date"
+          autoFocus
+          value={date}
+          max={todayISO()}
+          onChange={(e) => {
+            setDate(e.target.value || todayISO())
+            setDateOpen(false)
+          }}
+          className="w-full rounded-xl border border-border bg-surface2 px-3.5 py-3 text-sm outline-none focus:border-primary"
+        />
+      </Sheet>
     </div>
   )
 }
