@@ -20,7 +20,7 @@ export default function TabBar() {
             end={end}
             className={({ isActive }) =>
               cn(
-                'flex h-[34px] flex-1 flex-col items-center justify-center text-[8px] font-medium leading-none transition-colors',
+                'flex h-11 flex-1 flex-col items-center justify-center text-[9px] font-medium leading-none transition-colors',
                 isActive ? 'text-primary' : 'text-muted hover:text-content',
               )
             }
@@ -29,11 +29,11 @@ export default function TabBar() {
               <>
                 <span
                   className={cn(
-                    'flex items-center justify-center rounded-full px-1.5 transition-colors',
+                    'mb-0.5 flex items-center justify-center rounded-full px-2 transition-colors',
                     isActive && 'bg-primary/10',
                   )}
                 >
-                  <Icon size={26} />
+                  <Icon size={30} />
                 </span>
                 {label}
               </>
