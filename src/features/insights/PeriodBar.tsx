@@ -33,14 +33,14 @@ export default function PeriodBar({
   const showNav = granularity === 'week' || granularity === 'month' || granularity === 'year'
 
   return (
-    <div className="px-4 pt-2">
-      <div className="no-scrollbar -mx-1 flex gap-1 overflow-x-auto px-1">
+    <div className="pt-2">
+      <div className="flex gap-1">
         {GRANS.map((g) => (
           <button
             key={g.v}
             onClick={() => onGranularity(g.v)}
             className={cn(
-              'flex-shrink-0 rounded-full px-3.5 py-1.5 text-sm font-semibold transition-colors',
+              'flex-1 rounded-full px-1 py-1.5 text-center text-[13px] font-semibold transition-colors',
               granularity === g.v ? 'bg-primary text-primary-fg' : 'bg-surface2 text-muted',
             )}
           >

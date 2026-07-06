@@ -130,7 +130,7 @@ export default function TransactionsScreen() {
         </div>
       </div>
 
-      <div className="min-h-0 flex-1 overflow-y-auto pb-6">
+      <div className="min-h-0 flex-1 overflow-y-auto pt-3 pb-6">
         {filtered.length === 0 ? (
           <div className="flex h-full flex-col items-center justify-center px-8 text-center">
             <p className="text-4xl">🧾</p>

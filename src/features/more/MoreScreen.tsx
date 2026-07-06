@@ -39,18 +39,14 @@ export default function MoreScreen() {
   return (
     <div className="flex h-full flex-col">
       <div className="safe-top">
-        <div className="mx-4 mt-2 rounded-[22px] bg-surface px-5 py-4">
-          <h1 className="text-xl font-bold">More</h1>
-        </div>
-      </div>
-      <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4">
-        <div className="mb-4 rounded-[22px] bg-surface p-4">
+        <div className="mx-4 mt-2 rounded-[22px] bg-surface p-4">
           <p className="text-2xl font-bold">FrugalTracker</p>
           <p className="mt-1 text-sm text-muted">
             {count} {count === 1 ? 'transaction' : 'transactions'} · base currency {settings.baseCurrency}
           </p>
         </div>
-
+      </div>
+      <div className="min-h-0 flex-1 overflow-y-auto px-4 pt-3 pb-4">
         <div className="overflow-hidden rounded-[22px] bg-surface">
           {items.map(({ to, label, desc, Icon }, i) => (
             <Link
