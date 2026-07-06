@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
+  CalculatorIcon,
   ChevronRightIcon,
   CoinsIcon,
   DownloadIcon,
@@ -18,6 +19,7 @@ const items = [
   { to: '/more/categories', label: 'Categories', desc: 'Add, edit & reorder', Icon: ListIcon },
   { to: '/more/budgets', label: 'Budgets', desc: 'Monthly spending limits', Icon: TargetIcon },
   { to: '/more/currencies', label: 'Currency & rates', desc: 'Base currency & exchange rates', Icon: CoinsIcon },
+  { to: '/more/keypad', label: 'Keypad & calculator', desc: 'Calculator style & one-handed reach', Icon: CalculatorIcon },
   { to: '/more/appearance', label: 'Appearance', desc: 'Light, dark or system', Icon: PaletteIcon },
   { to: '/more/import', label: 'Import from Spendee', desc: 'Bring in a CSV export', Icon: UploadIcon },
   { to: '/more/data', label: 'Backup & export', desc: 'Save or restore your data', Icon: DownloadIcon },

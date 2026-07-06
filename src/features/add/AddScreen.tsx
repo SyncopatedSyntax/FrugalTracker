@@ -14,14 +14,16 @@ import {
 import CategoryGrid from './CategoryGrid'
 import AmountKeypad from './AmountKeypad'
 import BudgetPanel from './BudgetPanel'
+import CalculatorSheet from './CalculatorSheet'
+import { useCalculator } from './useCalculator'
 import TypeSwitch, { TYPE_SWITCH_WIDTH } from './TypeSwitch'
 import CategoryFormSheet from '@/features/categories/CategoryFormSheet'
 import { useCategoriesByType, useSettings, useTags } from '@/hooks'
 import { addTransaction } from '@/db/repo'
 import { currencyDecimals, currencySymbol } from '@/lib/currency'
-import { formatTypedAmount, parseAmount } from '@/lib/amount'
+import { formatTypedAmount } from '@/lib/amount'
 import { formatShortDate, todayISO } from '@/lib/date'
-import type { TxType } from '@/db/types'
+import type { KeypadReach, TxType } from '@/db/types'
 import { cn } from '@/lib/cn'
 
 function dateLabel(iso: string): string {
@@ -55,7 +57,6 @@ export default function AddScreen() {
   const { message, show } = useToast()
 
   const [type, setType] = useState<TxType>('expense')
-  const [amount, setAmount] = useState('')
   const [currency, setCurrency] = useState<string | null>(null)
   const [categoryId, setCategoryId] = useState<string | null>(null)
   const [note, setNote] = useState('')
@@ -88,6 +89,16 @@ export default function AddScreen() {
   const activeCurrency = currency ?? settings.baseCurrency
   const decimals = currencyDecimals(activeCurrency)
   const symbol = currencySymbol(activeCurrency)
+
+  // The amount step is a calculator: `calc.cur` is the live entry / amount.
+  const calc = useCalculator(decimals)
+  const [calcSheetOpen, setCalcSheetOpen] = useState(false)
+
+  // Keypad reach: seeded from the saved preference, but the gutter lets you
+  // flip left⇄right on the fly for the current session.
+  const [reach, setReach] = useState<KeypadReach>(settings.keypadReach)
+  useEffect(() => setReach(settings.keypadReach), [settings.keypadReach])
+  const flipReach = () => setReach((r) => (r === 'left' ? 'right' : 'left'))
 
   const cats = useCategoriesByType(type)
   const sortedCats = useMemo(
@@ -148,9 +159,9 @@ export default function AddScreen() {
     }
   }, [])
 
-  const amt = parseAmount(amount)
+  const amt = calc.value
   const canSave = amt > 0 && !!categoryId
-  const amountDisplay = formatTypedAmount(amount)
+  const amountDisplay = formatTypedAmount(calc.cur)
   const amountFont = amountFontSizes(amountDisplay.length)
 
   const goNext = () => {
@@ -178,7 +189,7 @@ export default function AddScreen() {
     })
     navigator.vibrate?.(12)
     show(type === 'expense' ? 'Expense saved' : 'Income saved')
-    setAmount('')
+    calc.reset()
     setCategoryId(null)
     setNote('')
     setTags([])
@@ -220,19 +231,26 @@ export default function AddScreen() {
             {activeCurrency}
           </button>
         </div>
-        <div className="flex min-w-0 flex-1 items-baseline justify-end gap-1">
-          <span className={cn('flex-shrink-0 font-medium text-muted', amountFont.symbol)}>
-            {symbol}
+        <div className="flex min-w-0 flex-1 flex-col items-end">
+          {/* Live calculator expression, e.g. "1,200 ÷". Reserves its own line
+              so the amount below never jumps when math is in progress. */}
+          <span className="h-4 max-w-full truncate font-mono text-xs tabular-nums text-muted">
+            {calc.expression}
           </span>
-          <span
-            className={cn(
-              'font-bold tabular-nums',
-              amountFont.amount,
-              amt > 0 ? 'text-content' : 'text-muted/60',
-            )}
-          >
-            {amountDisplay}
-          </span>
+          <div className="flex items-baseline gap-1">
+            <span className={cn('flex-shrink-0 font-medium text-muted', amountFont.symbol)}>
+              {symbol}
+            </span>
+            <span
+              className={cn(
+                'font-bold tabular-nums',
+                amountFont.amount,
+                amt > 0 ? 'text-content' : 'text-muted/60',
+              )}
+            >
+              {amountDisplay}
+            </span>
+          </div>
         </div>
       </div>
 
@@ -258,14 +276,29 @@ export default function AddScreen() {
         <div className="h-full w-full flex-shrink-0 snap-start">
           <AmountKeypad
             fill
-            value={amount}
-            onChange={setAmount}
+            value={calc.cur}
+            onChange={() => {}}
             decimals={decimals}
             onSubmit={goNext}
             submitDisabled={!(amt > 0)}
             submitLabel="Next"
             submitIcon={ChevronRightIcon}
             accent={type}
+            calc={{
+              pending: calc.pending,
+              activeOp: calc.activeOp,
+              onDigit: calc.input,
+              onOperator: calc.operator,
+              onPercent: calc.percent,
+              onEquals: calc.equals,
+              onAllClear: calc.allClear,
+            }}
+            showOperators={settings.calculatorMode === 'inline'}
+            onOpenCalculator={
+              settings.calculatorMode === 'full' ? () => setCalcSheetOpen(true) : undefined
+            }
+            reach={reach}
+            onReachFlip={flipReach}
           />
         </div>
 
@@ -342,6 +375,14 @@ export default function AddScreen() {
       </div>
 
       <Toast message={message} />
+
+      <CalculatorSheet
+        open={calcSheetOpen}
+        onClose={() => setCalcSheetOpen(false)}
+        base={activeCurrency}
+        decimals={decimals}
+        onUse={(v) => calc.setValue(v)}
+      />
 
       <CurrencyPickerSheet
         open={currencyOpen}

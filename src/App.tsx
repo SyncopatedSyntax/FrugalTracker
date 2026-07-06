@@ -10,6 +10,7 @@ import EditTransactionScreen from './features/transactions/EditTransactionScreen
 import InsightsScreen from './features/insights/InsightsScreen'
 import MoreScreen from './features/more/MoreScreen'
 import AppearanceScreen from './features/more/AppearanceScreen'
+import KeypadScreen from './features/more/KeypadScreen'
 import CategoriesScreen from './features/categories/CategoriesScreen'
 import BudgetsScreen from './features/budgets/BudgetsScreen'
 import CurrenciesScreen from './features/settings/CurrenciesScreen'
@@ -52,6 +53,7 @@ export default function App() {
       <Route path="/more/budgets" element={<BudgetsScreen />} />
       <Route path="/more/currencies" element={<CurrenciesScreen />} />
       <Route path="/more/appearance" element={<AppearanceScreen />} />
+      <Route path="/more/keypad" element={<KeypadScreen />} />
       <Route path="/more/import" element={<ImportScreen />} />
       <Route path="/more/data" element={<DataScreen />} />
     </Routes>

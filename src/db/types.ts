@@ -51,6 +51,13 @@ export interface Budget {
 
 export type ThemePref = 'light' | 'dark' | 'system'
 
+/** Inline = operators + AC/%/= live on the amount pad; full = a calc button
+ * opens a standalone calculator screen (with parentheses). */
+export type CalculatorMode = 'inline' | 'full'
+
+/** Which edge the amount keypad hugs for one-handed use on big phones. */
+export type KeypadReach = 'center' | 'left' | 'right'
+
 export interface Settings {
   id: 'app'
   baseCurrency: string
@@ -63,6 +70,10 @@ export interface Settings {
   openingBalance: number
   /** ISO date the opening balance applies from; '' = use earliest transaction. */
   openingBalanceDate: string
+  /** How math folds into the amount step. */
+  calculatorMode: CalculatorMode
+  /** One-handed keypad alignment for large screens. */
+  keypadReach: KeypadReach
 }
 
 export interface Rate {

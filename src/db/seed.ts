@@ -59,6 +59,8 @@ export const DEFAULT_SETTINGS: Settings = {
   seededDefaults: 1,
   openingBalance: 0,
   openingBalanceDate: '',
+  calculatorMode: 'inline',
+  keypadReach: 'center',
 }
 
 /**

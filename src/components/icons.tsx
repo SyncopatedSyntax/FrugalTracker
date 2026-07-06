@@ -192,6 +192,14 @@ export const PaletteIcon = (p: IconProps) => (
   </Base>
 )
 
+export const CalculatorIcon = (p: IconProps) => (
+  <Base {...p}>
+    <rect x="4" y="3" width="16" height="18" rx="2" />
+    <path d="M8 7h8" />
+    <path d="M8 11h.01M12 11h.01M16 11h.01M8 15h.01M12 15h.01M16 15h.01M8 18h.01M12 18h.01M16 18h.01" />
+  </Base>
+)
+
 export const RefreshIcon = (p: IconProps) => (
   <Base {...p}>
     <path d="M3 12a9 9 0 0 1 15-6.7L21 8M21 3v5h-5M21 12a9 9 0 0 1-15 6.7L3 16M3 21v-5h5" />
