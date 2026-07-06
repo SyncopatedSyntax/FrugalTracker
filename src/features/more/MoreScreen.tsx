@@ -110,11 +110,25 @@ function measureEnv(prop: string): number {
   return h
 }
 
+function measureLen(cssHeight: string): number {
+  const el = document.createElement('div')
+  el.style.cssText = `position:fixed;left:0;top:0;width:0;height:${cssHeight};visibility:hidden;pointer-events:none;`
+  document.body.appendChild(el)
+  const h = Math.round(el.getBoundingClientRect().height)
+  el.remove()
+  return h
+}
+
 function readMetrics() {
   const root = document.getElementById('root')
   return {
     screen: `${window.screen.width}×${window.screen.height}`,
+    avail: `${window.screen.availWidth}×${window.screen.availHeight}`,
     inner: `${window.innerWidth}×${window.innerHeight}`,
+    vh: measureLen('100vh'),
+    dvh: measureLen('100dvh'),
+    svh: measureLen('100svh'),
+    lvh: measureLen('100lvh'),
     visual: window.visualViewport
       ? `${Math.round(window.visualViewport.width)}×${Math.round(window.visualViewport.height)}`
       : 'n/a',
@@ -149,7 +163,10 @@ function DisplayMetrics() {
   }, [])
   const rows: [string, string | number | boolean][] = [
     ['screen (pt)', m.screen],
+    ['availW×H', m.avail],
     ['innerW×H', m.inner],
+    ['100vh / lvh', `${m.vh} / ${m.lvh}`],
+    ['100dvh / svh', `${m.dvh} / ${m.svh}`],
     ['visualViewport', m.visual],
     ['doc.clientHeight', m.docClientH],
     ['#root rect H', m.rootRectH],
