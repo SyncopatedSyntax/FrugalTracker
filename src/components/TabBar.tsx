@@ -11,7 +11,7 @@ const tabs = [
 
 export default function TabBar() {
   return (
-    <nav className="border-t border-border bg-bg/95 backdrop-blur safe-bottom">
+    <nav className="border-b border-t border-border bg-bg/95 backdrop-blur safe-bottom">
       <div className="mx-auto flex max-w-lg items-stretch pt-1">
         {tabs.map(({ to, label, Icon, end }) => (
           <NavLink

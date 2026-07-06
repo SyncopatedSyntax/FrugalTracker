@@ -101,6 +101,15 @@ export default function TransactionsScreen() {
               </button>
             )}
           </div>
+          {fCount > 0 && (
+            <button
+              onClick={() => setFilters(emptyFilters)}
+              className="grid h-11 w-11 flex-shrink-0 place-items-center rounded-xl border border-border text-muted active:scale-95"
+              aria-label="Clear filters"
+            >
+              <XIcon size={18} />
+            </button>
+          )}
           <button
             onClick={() => setFilterOpen(true)}
             className={cn(
