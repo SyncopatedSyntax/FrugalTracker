@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { Fragment, useMemo, useState } from 'react'
 import Segmented from '@/components/Segmented'
 import { PencilIcon, TagIcon } from '@/components/icons'
 import { useAllTransactions, useCategoryMap, useRateMap, useSettings } from '@/hooks'
@@ -406,56 +406,62 @@ function BreakdownView({
           )}
 
           <div className="mt-4 space-y-1">
-            {orderedSlices.map((s) => {
+            {orderedSlices.map((s, i) => {
               const pct = total > 0 ? (s.value / total) * 100 : 0
               const on = selectedKey === s.key
               return (
-                <button
-                  key={s.key}
-                  onClick={() => onSelect(on ? null : s.key)}
-                  className={cn(
-                    'flex w-full items-center gap-3 rounded-xl px-2 py-2 text-left',
-                    on ? 'bg-surface2' : 'hover:bg-surface2/60',
-                  )}
-                >
-                  <span
-                    className="grid h-9 w-9 flex-shrink-0 place-items-center rounded-full text-base"
-                    style={{ backgroundColor: kind === 'category' ? s.color + '22' : s.color + '22' }}
-                  >
-                    {kind === 'category' ? (
-                      s.icon
-                    ) : (
-                      <TagIcon size={16} style={{ color: s.color }} />
+                <Fragment key={s.key}>
+                  <button
+                    onClick={() => onSelect(on ? null : s.key)}
+                    className={cn(
+                      'flex w-full items-center gap-3 rounded-xl px-2 py-2 text-left',
+                      on ? 'bg-surface2' : 'hover:bg-surface2/60',
                     )}
-                  </span>
-                  <span className="min-w-0 flex-1">
-                    <span className="mb-1 flex items-center justify-between gap-2">
-                      <span className="truncate text-sm font-medium">
-                        {kind === 'label' ? '#' + s.name : s.name}
-                      </span>
-                      <span
-                        className={cn(
-                          'flex-shrink-0 text-sm font-semibold tabular-nums',
-                          flow === 'expense' ? 'text-expense' : 'text-income',
-                        )}
-                      >
-                        {sign}
-                        {formatMoney(s.value, base)}
-                      </span>
+                  >
+                    <span
+                      className="grid h-9 w-9 flex-shrink-0 place-items-center rounded-full text-base"
+                      style={{ backgroundColor: kind === 'category' ? s.color + '22' : s.color + '22' }}
+                    >
+                      {kind === 'category' ? (
+                        s.icon
+                      ) : (
+                        <TagIcon size={16} style={{ color: s.color }} />
+                      )}
                     </span>
-                    <span className="flex items-center gap-2">
-                      <span className="h-1.5 flex-1 overflow-hidden rounded-full bg-surface2">
+                    <span className="min-w-0 flex-1">
+                      <span className="mb-1 flex items-center justify-between gap-2">
+                        <span className="truncate text-sm font-medium">
+                          {kind === 'label' ? '#' + s.name : s.name}
+                        </span>
                         <span
-                          className="block h-full rounded-full"
-                          style={{ width: `${maxVal > 0 ? (s.value / maxVal) * 100 : 0}%`, backgroundColor: s.color }}
-                        />
+                          className={cn(
+                            'flex-shrink-0 text-sm font-semibold tabular-nums',
+                            flow === 'expense' ? 'text-expense' : 'text-income',
+                          )}
+                        >
+                          {sign}
+                          {formatMoney(s.value, base)}
+                        </span>
                       </span>
-                      <span className="w-16 flex-shrink-0 text-right text-[11px] text-muted">
-                        {s.count} tx · {pct.toFixed(0)}%
+                      <span className="flex items-center gap-2">
+                        <span className="h-1.5 flex-1 overflow-hidden rounded-full bg-surface2">
+                          <span
+                            className="block h-full rounded-full"
+                            style={{ width: `${maxVal > 0 ? (s.value / maxVal) * 100 : 0}%`, backgroundColor: s.color }}
+                          />
+                        </span>
+                        <span className="w-16 flex-shrink-0 text-right text-[11px] text-muted">
+                          {s.count} tx · {pct.toFixed(0)}%
+                        </span>
                       </span>
                     </span>
-                  </span>
-                </button>
+                  </button>
+                  {/* Separates the tapped-to-top category from the rest so the
+                      reorder reads as a deliberate promotion, not a shuffle. */}
+                  {i === 0 && selectedKey && orderedSlices.length > 1 && (
+                    <div className="my-2 border-t border-border" />
+                  )}
+                </Fragment>
               )
             })}
           </div>

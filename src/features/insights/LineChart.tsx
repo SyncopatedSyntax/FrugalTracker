@@ -76,27 +76,51 @@ export default function LineChart({ series, labels, formatY, height = 190 }: Pro
     setSel(Math.max(0, Math.min(n - 1, idx)))
   }
 
+  // Catmull-Rom → cubic Bezier: a smooth curve that still passes through
+  // every data point (as opposed to an approximating spline), so the visible
+  // shape stays truthful to the underlying values while reading as a curve
+  // rather than a jagged polyline.
+  const smoothPath = (pts: Array<{ x: number; y: number }>) => {
+    if (pts.length === 0) return ''
+    if (pts.length === 1) return `M${pts[0].x.toFixed(1)} ${pts[0].y.toFixed(1)}`
+    let d = `M${pts[0].x.toFixed(1)} ${pts[0].y.toFixed(1)} `
+    for (let i = 0; i < pts.length - 1; i++) {
+      const p0 = pts[i - 1] ?? pts[i]
+      const p1 = pts[i]
+      const p2 = pts[i + 1]
+      const p3 = pts[i + 2] ?? p2
+      const cp1x = p1.x + (p2.x - p0.x) / 6
+      const cp1y = p1.y + (p2.y - p0.y) / 6
+      const cp2x = p2.x - (p3.x - p1.x) / 6
+      const cp2y = p2.y - (p3.y - p1.y) / 6
+      d += `C${cp1x.toFixed(1)} ${cp1y.toFixed(1)} ${cp2x.toFixed(1)} ${cp2y.toFixed(1)} ${p2.x.toFixed(1)} ${p2.y.toFixed(1)} `
+    }
+    return d.trim()
+  }
+
   const buildPath = (pts: Array<number | null>) => {
-    let d = ''
-    let started = false
+    const segments: Array<Array<{ x: number; y: number }>> = []
+    let current: Array<{ x: number; y: number }> = []
     pts.forEach((p, i) => {
       if (p == null) {
-        started = false
+        if (current.length) segments.push(current)
+        current = []
         return
       }
-      d += `${started ? 'L' : 'M'}${x(i).toFixed(1)} ${y(p).toFixed(1)} `
-      started = true
+      current.push({ x: x(i), y: y(p) })
     })
-    return d.trim()
+    if (current.length) segments.push(current)
+    return segments.map(smoothPath).join(' ')
   }
 
   const areaPath = (pts: Array<number | null>) => {
     const idxs = pts.map((p, i) => (p != null ? i : -1)).filter((i) => i >= 0)
     if (idxs.length < 2) return ''
-    const top = idxs.map((i) => `${x(i).toFixed(1)} ${y(pts[i] as number).toFixed(1)}`)
+    const top = idxs.map((i) => ({ x: x(i), y: y(pts[i] as number) }))
+    const curve = smoothPath(top).replace(/^M/, 'L')
     const first = idxs[0]
     const last = idxs[idxs.length - 1]
-    return `M${x(first).toFixed(1)} ${(height - padB).toFixed(1)} L${top.join(' L')} L${x(last).toFixed(1)} ${(height - padB).toFixed(1)} Z`
+    return `M${x(first).toFixed(1)} ${(height - padB).toFixed(1)} ${curve} L${x(last).toFixed(1)} ${(height - padB).toFixed(1)} Z`
   }
 
   const gridVals = [max - pad, (min + max) / 2, min + pad]

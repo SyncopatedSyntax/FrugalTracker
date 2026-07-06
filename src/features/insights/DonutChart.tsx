@@ -44,7 +44,7 @@ export default function DonutChart({
   // bubble near the top) leaves the center-anchored text overlapping the
   // bubble on that side. Scaling with `size` (rather than a flat constant)
   // keeps it wide enough for the longest label ("9.9%"/"100%") at any size.
-  const labelR = bubbleCenterR + bubbleR + size * 0.11
+  const labelR = bubbleCenterR + bubbleR + size * 0.08
   // Wide enough that a label sitting at the ring's left/right extreme (where
   // labelR contributes almost entirely to horizontal position) still clears
   // the viewBox with its own half-width to spare — otherwise a wider gap here

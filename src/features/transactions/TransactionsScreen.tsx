@@ -123,8 +123,8 @@ export default function TransactionsScreen() {
             }, 0)
             return (
               <section key={date}>
-                <div className="sticky top-0 z-[1] flex items-center justify-between bg-bg/95 px-4 py-2 backdrop-blur">
-                  <span className="rounded-full bg-surface2 px-2.5 py-1 text-xs font-bold uppercase tracking-wide text-content">
+                <div className="sticky top-0 z-[1] flex items-center justify-between bg-surface2/95 px-4 py-2 backdrop-blur">
+                  <span className="text-xs font-bold uppercase tracking-wide text-content">
                     {formatDayHeader(date)}
                   </span>
                   <span

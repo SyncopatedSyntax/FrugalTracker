@@ -90,6 +90,39 @@ function buildBuckets(mode: Mode, startISO: string, endISO: string): Bucket[] {
   return out
 }
 
+/** Weekly checkpoints across the range, plus every month-end date, so the
+ * Year view reads at a finer resolution than 12 flat monthly points while
+ * still giving a clean, recognizable marker at each month boundary. */
+function buildYearBuckets(startISO: string, endISO: string): Bucket[] {
+  const start = parseISO(startISO)
+  const end = parseISO(endISO)
+
+  const dates = new Set<string>()
+  for (let d = start; d <= end; d = addDays(d, 7)) {
+    dates.add(toISO(d))
+  }
+  dates.add(endISO)
+  for (let d = startOfMonth(start); d <= end; d = addMonths(d, 1)) {
+    const monthEnd = endOfMonth(d)
+    if (monthEnd >= start && monthEnd <= end) dates.add(toISO(monthEnd))
+  }
+
+  const sorted = [...dates].sort()
+  const out: Bucket[] = []
+  let prevISO = toISO(addDays(start, -1))
+  for (const iso of sorted) {
+    out.push({
+      key: iso,
+      label: formatShortDate(iso),
+      fullLabel: longDate(iso),
+      startISO: toISO(addDays(parseISO(prevISO), 1)),
+      endISO: iso,
+    })
+    prevISO = iso
+  }
+  return out
+}
+
 function longDate(iso: string): string {
   const d = parseISO(iso)
   const cur = new Date().getFullYear()
@@ -161,12 +194,12 @@ export function resolvePeriod(
       startISO: start,
       endISO: end,
       label: String(y),
-      buckets: buildBuckets('month', start, end),
+      buckets: buildYearBuckets(start, end),
       prev: {
         startISO: `${y - 1}-01-01`,
         endISO: `${y - 1}-12-31`,
         label: String(y - 1),
-        buckets: buildBuckets('month', `${y - 1}-01-01`, `${y - 1}-12-31`),
+        buckets: buildYearBuckets(`${y - 1}-01-01`, `${y - 1}-12-31`),
       },
       canGoNext: y < new Date().getFullYear(),
     }
