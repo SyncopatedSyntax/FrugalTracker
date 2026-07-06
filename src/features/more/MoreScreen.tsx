@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
   ChevronRightIcon,
@@ -86,12 +86,90 @@ export default function MoreScreen() {
           </div>
         </div>
 
+        <DisplayMetrics />
+
         <p className="mt-4 text-center text-xs text-muted">
           Works offline · all data stays private on this device.
         </p>
       </div>
 
       <Toast message={message} />
+    </div>
+  )
+}
+
+/** TEMPORARY debug readout to diagnose the iOS standalone bottom-gap: prints
+ *  the raw viewport/screen/safe-area numbers iOS actually reports. Remove once
+ *  the gap is understood. */
+function measureEnv(prop: string): number {
+  const el = document.createElement('div')
+  el.style.cssText = `position:fixed;left:0;bottom:0;width:0;height:env(${prop});visibility:hidden;pointer-events:none;`
+  document.body.appendChild(el)
+  const h = Math.round(el.getBoundingClientRect().height)
+  el.remove()
+  return h
+}
+
+function readMetrics() {
+  const root = document.getElementById('root')
+  return {
+    screen: `${window.screen.width}×${window.screen.height}`,
+    inner: `${window.innerWidth}×${window.innerHeight}`,
+    visual: window.visualViewport
+      ? `${Math.round(window.visualViewport.width)}×${Math.round(window.visualViewport.height)}`
+      : 'n/a',
+    docClientH: document.documentElement.clientHeight,
+    rootRectH: root ? Math.round(root.getBoundingClientRect().height) : 0,
+    rootBottom: root ? Math.round(root.getBoundingClientRect().bottom) : 0,
+    sat: measureEnv('safe-area-inset-top'),
+    sab: measureEnv('safe-area-inset-bottom'),
+    standalone:
+      window.matchMedia('(display-mode: standalone)').matches ||
+      // iOS legacy flag
+      (window.navigator as unknown as { standalone?: boolean }).standalone === true,
+    dpr: window.devicePixelRatio,
+  }
+}
+
+function DisplayMetrics() {
+  const [m, setM] = useState(readMetrics)
+  useEffect(() => {
+    const on = () => setM(readMetrics())
+    // Re-measure after layout settles and on any viewport change.
+    const t = setTimeout(on, 300)
+    window.addEventListener('resize', on)
+    window.addEventListener('orientationchange', on)
+    window.visualViewport?.addEventListener('resize', on)
+    return () => {
+      clearTimeout(t)
+      window.removeEventListener('resize', on)
+      window.removeEventListener('orientationchange', on)
+      window.visualViewport?.removeEventListener('resize', on)
+    }
+  }, [])
+  const rows: [string, string | number | boolean][] = [
+    ['screen (pt)', m.screen],
+    ['innerW×H', m.inner],
+    ['visualViewport', m.visual],
+    ['doc.clientHeight', m.docClientH],
+    ['#root rect H', m.rootRectH],
+    ['#root rect bottom', m.rootBottom],
+    ['safe-top', m.sat],
+    ['safe-bottom', m.sab],
+    ['standalone', m.standalone],
+    ['dpr', m.dpr],
+  ]
+  return (
+    <div className="mt-4 rounded-[22px] bg-surface p-4">
+      <p className="mb-2 text-sm font-semibold">Display metrics (debug)</p>
+      <div className="space-y-1 font-mono text-xs text-muted">
+        {rows.map(([k, v]) => (
+          <div key={k} className="flex justify-between gap-3">
+            <span>{k}</span>
+            <span className="text-content">{String(v)}</span>
+          </div>
+        ))}
+      </div>
     </div>
   )
 }
