@@ -214,3 +214,11 @@ A chronological record of your prompts in this build session, each followed by a
 > The tab bar should be even thinner, and the icons can be bigger.
 
 **Result:** Replaced the icon "bubble" that used a fixed `h-6 w-10` box with one sized by padding alone (`px-2 py-0.5`), so it grows with the icon instead of capping it — bumped icon size `18px → 22px`. To net out thinner despite the bigger icon, dropped the icon-to-label gap entirely, switched the label to `leading-none` (killing unused line-height), and cut the link's own top/bottom padding to `pt-0.5 pb-0.5`. Measured `navHeight` dropping from 85px to 78px while the icon glyphs render visibly larger — confirmed via cropped screenshots in both light and dark themes that nothing clips or feels cramped. Zero console errors. Bumped to **v0.8.3**, committed, pushed.
+
+---
+
+## 27. Tab bar 20% shorter, icon sized to fill and center the height
+
+> Why are you only doing such a small change of the tab bar?? Now reduce the height of the tab bar by 20% and increase the size of the icon to fill and centre to the height.
+
+**Result:** The previous pass was too incremental, so this one committed to concrete numbers instead of nudging padding. Replaced the per-tab column's padding-driven sizing with an explicit fixed height (`h-[34px]`, down from the previous ~42px content height — a 19% cut) and dropped the icon-to-label gap and label font to `text-[8px]` so the icon (bumped `22px → 26px`, +18%) plus label together fill that height edge-to-edge with `items-center justify-center`, rather than floating inside leftover padding. Measured before shipping: `linkHeight` 42px → 34px, `iconSize` 22px → 26px, and confirmed via `scrollHeight`/`clientHeight` that the icon+label content no longer overflows the fixed box (it did on the first pass at this size, fixed by removing the gap). Verified with cropped before/after screenshots in both themes — the icon now reads as clearly larger and the bar noticeably shorter, nothing clipped. Zero console errors. Bumped to **v0.8.4**, committed, pushed.
