@@ -40,10 +40,11 @@ html,
 body,
 #root {
   height: 100%;
-  /* 100% can resolve short of the real screen in an installed iOS PWA
-     (viewport-fit=cover + standalone), leaving unstyled body background
-     below the tab bar; 100dvh tracks the live visible viewport instead. */
-  height: 100dvh;
+  /* 100% (and even 100dvh) can resolve short of the real screen in an installed
+     iOS PWA (viewport-fit=cover + standalone), leaving an empty band below the
+     tab bar. --app-height mirrors window.innerHeight — the actual usable height
+     in standalone — set by src/lib/viewport.ts; 100dvh is the pre-JS fallback. */
+  height: var(--app-height, 100dvh);
   /* The app is a fixed-viewport shell — every screen manages its own inner
      scroll region (overflow-y-auto). Nothing outside those regions should
      ever scroll or rubber-band, and overscroll-behavior:none keeps a
