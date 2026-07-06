@@ -46,6 +46,7 @@ export default function InsightsScreen() {
   const [flow, setFlow] = useState<TxType>('expense')
   const [metric, setMetric] = useState<'wealth' | 'cashflow'>('wealth')
   const [selectedCat, setSelectedCat] = useState<string | null>(null)
+  const [selectedLabel, setSelectedLabel] = useState<string | null>(null)
   const [obOpen, setObOpen] = useState(false)
 
   const allStart = useMemo(() => earliestDate(all), [all])
@@ -120,6 +121,7 @@ export default function InsightsScreen() {
   const labelSlices = useMemo(() => labelBreakdown(periodTxs, flow, rates), [periodTxs, flow, rates])
   const flowTotal = flow === 'expense' ? totalExpense : totalIncome
   const selected = selectedCat ? catSlices.find((s) => s.key === selectedCat) : undefined
+  const selectedLbl = selectedLabel ? labelSlices.find((s) => s.key === selectedLabel) : undefined
 
   const step = (dir: -1 | 1) => setAnchor((a) => stepAnchor(granularity, a, dir))
 
@@ -141,6 +143,7 @@ export default function InsightsScreen() {
           onChange={(v) => {
             setView(v)
             setSelectedCat(null)
+            setSelectedLabel(null)
           }}
         />
         <PeriodBar
@@ -196,8 +199,9 @@ export default function InsightsScreen() {
             slices={labelSlices}
             total={flowTotal}
             base={base}
-            selectedKey={null}
-            onSelect={() => {}}
+            selectedKey={selectedLabel}
+            onSelect={setSelectedLabel}
+            selected={selectedLbl}
           />
         )}
       </div>
@@ -386,24 +390,22 @@ function BreakdownView({
         </p>
       ) : (
         <>
-          {kind === 'category' && (
-            <div className="mt-4">
-              <DonutChart
-                slices={slices.map((s) => ({
-                  key: s.key,
-                  label: s.name,
-                  value: s.value,
-                  color: s.color,
-                  icon: s.icon,
-                }))}
-                total={total}
-                centerLabel={selected ? selected.name : 'Total'}
-                centerValue={formatMoneyCompact(selected ? selected.value : total, base)}
-                selectedKey={selectedKey}
-                onSelect={onSelect}
-              />
-            </div>
-          )}
+          <div className="mt-4">
+            <DonutChart
+              slices={slices.map((s) => ({
+                key: s.key,
+                label: s.name,
+                value: s.value,
+                color: s.color,
+                icon: s.icon ?? (kind === 'label' ? '#' : undefined),
+              }))}
+              total={total}
+              centerLabel={selected ? (kind === 'label' ? '#' + selected.name : selected.name) : 'Total'}
+              centerValue={formatMoneyCompact(selected ? selected.value : total, base)}
+              selectedKey={selectedKey}
+              onSelect={onSelect}
+            />
+          </div>
 
           <div className="mt-4 space-y-1">
             {orderedSlices.map((s, i) => {
