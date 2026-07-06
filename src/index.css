@@ -37,19 +37,26 @@
 }
 
 html,
-body,
-#root {
+body {
   height: 100%;
-  /* 100% (and even 100dvh) can resolve short of the real screen in an installed
-     iOS PWA (viewport-fit=cover + standalone), leaving an empty band below the
-     tab bar. --app-height mirrors window.innerHeight — the actual usable height
-     in standalone — set by src/lib/viewport.ts; 100dvh is the pre-JS fallback. */
-  height: var(--app-height, 100dvh);
-  /* The app is a fixed-viewport shell — every screen manages its own inner
-     scroll region (overflow-y-auto). Nothing outside those regions should
-     ever scroll or rubber-band, and overscroll-behavior:none keeps a
-     horizontal drag from chaining into the browser's edge-swipe
-     back/forward navigation gesture. */
+  /* Paint the shell color behind #root so any device rounding never flashes a
+     bright sliver at the edges. */
+  background: rgb(var(--c-bg));
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
+/* The app is a fixed-viewport shell — every screen manages its own inner scroll
+   region (overflow-y-auto). #root is pinned as a fixed box to the viewport
+   itself rather than sized with a height: in an installed iOS PWA, height:100%,
+   100dvh and even window.innerHeight all resolve short of the real display and
+   leave a dark band below the tab bar, whereas a fixed box (edge-to-edge via
+   viewport-fit=cover) fills the screen regardless. overscroll-behavior:none
+   keeps a horizontal drag from chaining into the browser's edge-swipe
+   back/forward navigation gesture. */
+#root {
+  position: fixed;
+  inset: 0;
   overflow: hidden;
   overscroll-behavior: none;
 }
