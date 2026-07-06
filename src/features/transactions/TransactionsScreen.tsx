@@ -104,7 +104,7 @@ export default function TransactionsScreen() {
           {fCount > 0 && (
             <button
               onClick={() => setFilters(emptyFilters)}
-              className="grid h-11 w-11 flex-shrink-0 place-items-center rounded-xl border border-border text-muted active:scale-95"
+              className="grid h-11 w-11 flex-shrink-0 place-items-center rounded-xl border border-primary text-primary active:scale-95"
               aria-label="Clear filters"
             >
               <XIcon size={18} />

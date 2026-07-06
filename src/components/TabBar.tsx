@@ -12,7 +12,7 @@ const tabs = [
 export default function TabBar() {
   return (
     <nav className="border-b border-t border-border bg-bg/95 backdrop-blur safe-bottom">
-      <div className="mx-auto flex max-w-lg items-stretch pt-1">
+      <div className="mx-auto flex max-w-lg items-stretch">
         {tabs.map(({ to, label, Icon, end }) => (
           <NavLink
             key={to}
@@ -20,7 +20,7 @@ export default function TabBar() {
             end={end}
             className={({ isActive }) =>
               cn(
-                'flex flex-1 flex-col items-center gap-0.5 py-2 text-[11px] font-medium transition-colors',
+                'flex flex-1 flex-col items-center gap-0.5 pb-0.5 pt-1 text-[11px] font-medium transition-colors',
                 isActive ? 'text-primary' : 'text-muted hover:text-content',
               )
             }
@@ -29,11 +29,11 @@ export default function TabBar() {
               <>
                 <span
                   className={cn(
-                    'flex h-8 w-12 items-center justify-center rounded-full transition-colors',
+                    'flex h-6 w-10 items-center justify-center rounded-full transition-colors',
                     isActive && 'bg-primary/10',
                   )}
                 >
-                  <Icon size={22} />
+                  <Icon size={18} />
                 </span>
                 {label}
               </>

@@ -179,6 +179,8 @@ export default function InsightsScreen() {
             hasOpening={hasOpening}
             onEditOpening={() => setObOpen(true)}
             empty={periodTxs.length === 0}
+            periodFrom={period.startISO}
+            periodTo={period.endISO}
           />
         ) : view === 'categories' ? (
           <BreakdownView
@@ -238,6 +240,8 @@ function OverviewView({
   hasOpening,
   onEditOpening,
   empty,
+  periodFrom,
+  periodTo,
 }: {
   metric: 'wealth' | 'cashflow'
   setMetric: (m: 'wealth' | 'cashflow') => void
@@ -251,7 +255,17 @@ function OverviewView({
   hasOpening: boolean
   onEditOpening: () => void
   empty: boolean
+  periodFrom: string
+  periodTo: string
 }) {
+  const navigate = useNavigate()
+  const openInActivity = (type: TxType) => {
+    const params = new URLSearchParams()
+    params.set('type', type)
+    params.set('from', periodFrom)
+    params.set('to', periodTo)
+    navigate(`/transactions?${params.toString()}`)
+  }
   return (
     <>
       <div className="grid grid-cols-2 overflow-hidden rounded-[22px] border border-border">
@@ -316,21 +330,41 @@ function OverviewView({
       </div>
 
       <div className="mt-3 grid grid-cols-2 gap-3">
-        <MiniStat label="Income" value={formatMoney(income, base)} tone="income" />
-        <MiniStat label="Expenses" value={formatMoney(expense, base)} tone="expense" />
+        <MiniStat
+          label="Income"
+          value={formatMoney(income, base)}
+          tone="income"
+          onClick={() => openInActivity('income')}
+        />
+        <MiniStat
+          label="Expenses"
+          value={formatMoney(expense, base)}
+          tone="expense"
+          onClick={() => openInActivity('expense')}
+        />
       </div>
     </>
   )
 }
 
-function MiniStat({ label, value, tone }: { label: string; value: string; tone: 'income' | 'expense' }) {
+function MiniStat({
+  label,
+  value,
+  tone,
+  onClick,
+}: {
+  label: string
+  value: string
+  tone: 'income' | 'expense'
+  onClick: () => void
+}) {
   return (
-    <div className="rounded-[22px] bg-surface p-3">
+    <button onClick={onClick} className="rounded-[22px] bg-surface p-3 text-left active:scale-[0.98]">
       <p className="text-[11px] font-medium uppercase tracking-wide text-muted">{label}</p>
       <p className={cn('mt-0.5 truncate text-base font-bold tabular-nums', tone === 'income' ? 'text-income' : 'text-expense')}>
         {value}
       </p>
-    </div>
+    </button>
   )
 }
 
