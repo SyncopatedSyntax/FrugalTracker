@@ -40,6 +40,10 @@ html,
 body,
 #root {
   height: 100%;
+  /* 100% can resolve short of the real screen in an installed iOS PWA
+     (viewport-fit=cover + standalone), leaving unstyled body background
+     below the tab bar; 100dvh tracks the live visible viewport instead. */
+  height: 100dvh;
   /* The app is a fixed-viewport shell — every screen manages its own inner
      scroll region (overflow-y-auto). Nothing outside those regions should
      ever scroll or rubber-band, and overscroll-behavior:none keeps a
