@@ -128,7 +128,8 @@ export default function InsightsScreen() {
 
   return (
     <div className="flex h-full flex-col">
-      <header className="safe-top border-b border-border bg-surface/95 px-4 pt-2 backdrop-blur">
+      <div className="safe-top">
+        <div className="mx-4 mt-2 rounded-[22px] bg-surface p-4">
         <div className="mb-2 flex items-center justify-between">
           <h1 className="text-xl font-bold">Insights</h1>
           <span className="text-xs text-muted">in {base}</span>
@@ -159,8 +160,8 @@ export default function InsightsScreen() {
           custom={custom}
           onCustom={setCustom}
         />
-        <div className="h-2" />
-      </header>
+        </div>
+      </div>
 
       <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-8 pt-3">
         {periodTxs.length === 0 && view !== 'overview' ? (

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
   ChevronRightIcon,
@@ -38,9 +38,11 @@ export default function MoreScreen() {
 
   return (
     <div className="flex h-full flex-col">
-      <header className="safe-top border-b border-border bg-surface/95 px-4 pt-2 pb-3 backdrop-blur">
-        <h1 className="text-xl font-bold">More</h1>
-      </header>
+      <div className="safe-top">
+        <div className="mx-4 mt-2 rounded-[22px] bg-surface px-5 py-4">
+          <h1 className="text-xl font-bold">More</h1>
+        </div>
+      </div>
       <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4">
         <div className="mb-4 rounded-[22px] bg-surface p-4">
           <p className="text-2xl font-bold">FrugalTracker</p>
@@ -86,107 +88,12 @@ export default function MoreScreen() {
           </div>
         </div>
 
-        <DisplayMetrics />
-
         <p className="mt-4 text-center text-xs text-muted">
           Works offline · all data stays private on this device.
         </p>
       </div>
 
       <Toast message={message} />
-    </div>
-  )
-}
-
-/** TEMPORARY debug readout to diagnose the iOS standalone bottom-gap: prints
- *  the raw viewport/screen/safe-area numbers iOS actually reports. Remove once
- *  the gap is understood. */
-function measureEnv(prop: string): number {
-  const el = document.createElement('div')
-  el.style.cssText = `position:fixed;left:0;bottom:0;width:0;height:env(${prop});visibility:hidden;pointer-events:none;`
-  document.body.appendChild(el)
-  const h = Math.round(el.getBoundingClientRect().height)
-  el.remove()
-  return h
-}
-
-function measureLen(cssHeight: string): number {
-  const el = document.createElement('div')
-  el.style.cssText = `position:fixed;left:0;top:0;width:0;height:${cssHeight};visibility:hidden;pointer-events:none;`
-  document.body.appendChild(el)
-  const h = Math.round(el.getBoundingClientRect().height)
-  el.remove()
-  return h
-}
-
-function readMetrics() {
-  const root = document.getElementById('root')
-  return {
-    screen: `${window.screen.width}×${window.screen.height}`,
-    avail: `${window.screen.availWidth}×${window.screen.availHeight}`,
-    inner: `${window.innerWidth}×${window.innerHeight}`,
-    vh: measureLen('100vh'),
-    dvh: measureLen('100dvh'),
-    svh: measureLen('100svh'),
-    lvh: measureLen('100lvh'),
-    visual: window.visualViewport
-      ? `${Math.round(window.visualViewport.width)}×${Math.round(window.visualViewport.height)}`
-      : 'n/a',
-    docClientH: document.documentElement.clientHeight,
-    rootRectH: root ? Math.round(root.getBoundingClientRect().height) : 0,
-    rootBottom: root ? Math.round(root.getBoundingClientRect().bottom) : 0,
-    sat: measureEnv('safe-area-inset-top'),
-    sab: measureEnv('safe-area-inset-bottom'),
-    standalone:
-      window.matchMedia('(display-mode: standalone)').matches ||
-      // iOS legacy flag
-      (window.navigator as unknown as { standalone?: boolean }).standalone === true,
-    dpr: window.devicePixelRatio,
-  }
-}
-
-function DisplayMetrics() {
-  const [m, setM] = useState(readMetrics)
-  useEffect(() => {
-    const on = () => setM(readMetrics())
-    // Re-measure after layout settles and on any viewport change.
-    const t = setTimeout(on, 300)
-    window.addEventListener('resize', on)
-    window.addEventListener('orientationchange', on)
-    window.visualViewport?.addEventListener('resize', on)
-    return () => {
-      clearTimeout(t)
-      window.removeEventListener('resize', on)
-      window.removeEventListener('orientationchange', on)
-      window.visualViewport?.removeEventListener('resize', on)
-    }
-  }, [])
-  const rows: [string, string | number | boolean][] = [
-    ['screen (pt)', m.screen],
-    ['availW×H', m.avail],
-    ['innerW×H', m.inner],
-    ['100vh / lvh', `${m.vh} / ${m.lvh}`],
-    ['100dvh / svh', `${m.dvh} / ${m.svh}`],
-    ['visualViewport', m.visual],
-    ['doc.clientHeight', m.docClientH],
-    ['#root rect H', m.rootRectH],
-    ['#root rect bottom', m.rootBottom],
-    ['safe-top', m.sat],
-    ['safe-bottom', m.sab],
-    ['standalone', m.standalone],
-    ['dpr', m.dpr],
-  ]
-  return (
-    <div className="mt-4 rounded-[22px] bg-surface p-4">
-      <p className="mb-2 text-sm font-semibold">Display metrics (debug)</p>
-      <div className="space-y-1 font-mono text-xs text-muted">
-        {rows.map(([k, v]) => (
-          <div key={k} className="flex justify-between gap-3">
-            <span>{k}</span>
-            <span className="text-content">{String(v)}</span>
-          </div>
-        ))}
-      </div>
     </div>
   )
 }

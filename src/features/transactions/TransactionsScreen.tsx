@@ -76,7 +76,8 @@ export default function TransactionsScreen() {
 
   return (
     <div className="flex h-full flex-col">
-      <header className="safe-top border-b border-border bg-surface/95 px-4 pt-2 pb-3 backdrop-blur">
+      <div className="safe-top">
+        <div className="mx-4 mt-2 rounded-[22px] bg-surface p-4">
         <div className="mb-2 flex items-baseline justify-between">
           <h1 className="text-xl font-bold">Activity</h1>
           <span className="text-xs text-muted">
@@ -126,7 +127,8 @@ export default function TransactionsScreen() {
             )}
           </button>
         </div>
-      </header>
+        </div>
+      </div>
 
       <div className="min-h-0 flex-1 overflow-y-auto pb-6">
         {filtered.length === 0 ? (
