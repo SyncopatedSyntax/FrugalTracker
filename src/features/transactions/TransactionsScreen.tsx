@@ -76,7 +76,7 @@ export default function TransactionsScreen() {
 
   return (
     <div className="flex h-full flex-col">
-      <div className="safe-top">
+      <div className="safe-top pb-3">
         <div className="mx-4 mt-2 rounded-[22px] bg-surface p-4">
         <div className="mb-2 flex items-baseline justify-between">
           <h1 className="text-xl font-bold">Activity</h1>
@@ -130,7 +130,7 @@ export default function TransactionsScreen() {
         </div>
       </div>
 
-      <div className="min-h-0 flex-1 overflow-y-auto pt-3 pb-6">
+      <div className="min-h-0 flex-1 overflow-y-auto pb-6">
         {filtered.length === 0 ? (
           <div className="flex h-full flex-col items-center justify-center px-8 text-center">
             <p className="text-4xl">🧾</p>
@@ -159,7 +159,7 @@ export default function TransactionsScreen() {
             }, 0)
             return (
               <section key={date}>
-                <div className="sticky top-0 z-[1] flex items-center justify-between bg-surface2/95 px-4 py-2 backdrop-blur">
+                <div className="sticky top-0 z-[1] flex items-center justify-between bg-surface2 px-4 py-2">
                   <span className="text-xs font-bold uppercase tracking-wide text-content">
                     {formatDayHeader(date)}
                   </span>

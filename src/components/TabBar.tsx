@@ -12,7 +12,7 @@ const tabs = [
 export default function TabBar() {
   return (
     <nav className="border-b border-t border-border bg-bg/95 backdrop-blur safe-bottom">
-      <div className="mx-auto flex max-w-lg items-stretch">
+      <div className="mx-auto flex max-w-lg items-stretch pt-2">
         {tabs.map(({ to, label, Icon, end }) => (
           <NavLink
             key={to}

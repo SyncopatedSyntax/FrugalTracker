@@ -32,12 +32,12 @@ function dateLabel(iso: string): string {
  * value grows longer, so a long entry shrinks to fit instead of overflowing
  * the space left beside the fixed-width toggle/currency column. */
 function amountFontSizes(displayLen: number): { amount: string; symbol: string } {
-  if (displayLen <= 6) return { amount: 'text-5xl', symbol: 'text-2xl' }
-  if (displayLen <= 8) return { amount: 'text-4xl', symbol: 'text-xl' }
-  if (displayLen <= 10) return { amount: 'text-3xl', symbol: 'text-lg' }
-  if (displayLen <= 13) return { amount: 'text-2xl', symbol: 'text-base' }
-  if (displayLen <= 15) return { amount: 'text-xl', symbol: 'text-sm' }
-  return { amount: 'text-lg', symbol: 'text-xs' }
+  if (displayLen <= 6) return { amount: 'text-6xl', symbol: 'text-3xl' }
+  if (displayLen <= 8) return { amount: 'text-5xl', symbol: 'text-2xl' }
+  if (displayLen <= 10) return { amount: 'text-4xl', symbol: 'text-xl' }
+  if (displayLen <= 13) return { amount: 'text-3xl', symbol: 'text-lg' }
+  if (displayLen <= 15) return { amount: 'text-2xl', symbol: 'text-base' }
+  return { amount: 'text-xl', symbol: 'text-sm' }
 }
 
 type Step = 0 | 1 | 2
@@ -209,13 +209,13 @@ export default function AddScreen() {
           amount's own region (and its font size) responds to length. The
           currency chip's width is pinned to the switch's own width so the
           two read as a matched pair. */}
-      <div className="flex items-center gap-3 px-4 pt-3">
-        <div className="flex flex-shrink-0 flex-col items-start gap-1">
+      <div className="flex items-center gap-3 px-4 pt-4 pb-2">
+        <div className="flex flex-shrink-0 flex-col items-start gap-1.5">
           <TypeSwitch value={type} onChange={setType} />
           <button
             onClick={() => setCurrencyOpen(true)}
             style={{ width: TYPE_SWITCH_WIDTH }}
-            className="h-[27px] rounded-full bg-surface2 text-center text-xs font-semibold text-muted active:scale-95"
+            className="h-[34px] rounded-full bg-surface2 text-center text-sm font-semibold text-muted active:scale-95"
           >
             {activeCurrency}
           </button>

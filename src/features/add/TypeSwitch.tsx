@@ -4,7 +4,7 @@ import type { TxType } from '@/db/types'
 /** Fixed pixel width, shared with the currency chip beside it (see
  * AddScreen.tsx) so the two stay a matched pair regardless of which label
  * ("Expense" vs "Income", or which currency code) is currently showing. */
-export const TYPE_SWITCH_WIDTH = 84
+export const TYPE_SWITCH_WIDTH = 108
 
 interface Props {
   value: TxType
@@ -24,18 +24,18 @@ export default function TypeSwitch({ value, onChange }: Props) {
       type="button"
       onClick={() => onChange(isIncome ? 'expense' : 'income')}
       aria-label={isIncome ? 'Income. Tap to switch to Expense.' : 'Expense. Tap to switch to Income.'}
-      className="relative h-[27px] w-[84px] flex-shrink-0 rounded-full bg-surface2"
+      className="relative h-[34px] w-[108px] flex-shrink-0 rounded-full bg-surface2"
     >
-      <span className="absolute left-[9px] top-1/2 -translate-y-1/2 text-[10px] font-bold text-muted">
+      <span className="absolute left-[12px] top-1/2 -translate-y-1/2 text-xs font-bold text-muted">
         +
       </span>
-      <span className="absolute right-[9px] top-1/2 -translate-y-1/2 text-[10px] font-bold text-muted">
+      <span className="absolute right-[12px] top-1/2 -translate-y-1/2 text-xs font-bold text-muted">
         −
       </span>
       <span
         className={cn(
-          'absolute left-0.5 top-0.5 grid h-[23px] w-[62px] place-items-center rounded-full text-[11px] font-bold text-white transition-transform duration-200',
-          isIncome ? 'translate-x-[18px] bg-income' : 'translate-x-0 bg-expense',
+          'absolute left-[3px] top-[3px] grid h-[28px] w-[80px] place-items-center rounded-full text-[13px] font-bold text-white transition-transform duration-200',
+          isIncome ? 'translate-x-[22px] bg-income' : 'translate-x-0 bg-expense',
         )}
       >
         {isIncome ? 'Income' : 'Expense'}
