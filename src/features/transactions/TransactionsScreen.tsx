@@ -1,8 +1,8 @@
-import { useMemo, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useEffect, useMemo, useState } from 'react'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { FilterIcon, SearchIcon, XIcon } from '@/components/icons'
 import { useAllTransactions, useCategoryMap, useRateMap, useSettings } from '@/hooks'
-import type { Transaction } from '@/db/types'
+import type { Transaction, TxType } from '@/db/types'
 import { toBase } from '@/lib/convert'
 import { formatMoney } from '@/lib/currency'
 import { formatDayHeader } from '@/lib/date'
@@ -11,8 +11,27 @@ import TransactionRow from './TransactionRow'
 import FilterSheet from './FilterSheet'
 import { activeFilterCount, emptyFilters, filterTransactions, type Filters } from './filters'
 
+/** Insights' category/label rows link here with ?type=&categoryId=|tag=&from=&to=
+ * to drill into the transactions behind a breakdown result. */
+function filtersFromSearchParams(params: URLSearchParams): Filters {
+  const type = params.get('type')
+  const categoryId = params.get('categoryId')
+  const tag = params.get('tag')
+  const from = params.get('from')
+  const to = params.get('to')
+  if (!type && !categoryId && !tag && !from && !to) return emptyFilters
+  return {
+    type: (type as TxType | null) === 'expense' || type === 'income' ? (type as TxType) : 'all',
+    categoryIds: categoryId ? [categoryId] : [],
+    tags: tag ? [tag] : [],
+    from: from || null,
+    to: to || null,
+  }
+}
+
 export default function TransactionsScreen() {
   const navigate = useNavigate()
+  const [searchParams, setSearchParams] = useSearchParams()
   const all = useAllTransactions()
   const categoryMap = useCategoryMap()
   const rates = useRateMap()
@@ -20,8 +39,14 @@ export default function TransactionsScreen() {
   const base = settings.baseCurrency
 
   const [keyword, setKeyword] = useState('')
-  const [filters, setFilters] = useState<Filters>(emptyFilters)
+  const [filters, setFilters] = useState<Filters>(() => filtersFromSearchParams(searchParams))
   const [filterOpen, setFilterOpen] = useState(false)
+
+  // Consume the incoming filter once, then clear it from the URL so it
+  // doesn't linger or get reapplied if this screen remounts.
+  useEffect(() => {
+    if (searchParams.toString()) setSearchParams({}, { replace: true })
+  }, [])
 
   const filtered = useMemo(
     () => filterTransactions(all, filters, keyword, categoryMap),

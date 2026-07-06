@@ -1,6 +1,7 @@
 import { Fragment, useMemo, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import Segmented from '@/components/Segmented'
-import { PencilIcon, TagIcon } from '@/components/icons'
+import { ChevronRightIcon, PencilIcon, TagIcon } from '@/components/icons'
 import { useAllTransactions, useCategoryMap, useRateMap, useSettings } from '@/hooks'
 import type { TxType } from '@/db/types'
 import { formatMoney, formatMoneyCompact } from '@/lib/currency'
@@ -190,6 +191,8 @@ export default function InsightsScreen() {
             selectedKey={selectedCat}
             onSelect={setSelectedCat}
             selected={selected}
+            periodFrom={period.startISO}
+            periodTo={period.endISO}
           />
         ) : (
           <BreakdownView
@@ -202,6 +205,8 @@ export default function InsightsScreen() {
             selectedKey={selectedLabel}
             onSelect={setSelectedLabel}
             selected={selectedLbl}
+            periodFrom={period.startISO}
+            periodTo={period.endISO}
           />
         )}
       </div>
@@ -341,6 +346,8 @@ function BreakdownView({
   selectedKey,
   onSelect,
   selected,
+  periodFrom,
+  periodTo,
 }: {
   kind: 'category' | 'label'
   flow: TxType
@@ -351,9 +358,23 @@ function BreakdownView({
   selectedKey: string | null
   onSelect: (k: string | null) => void
   selected?: Slice
+  periodFrom: string
+  periodTo: string
 }) {
+  const navigate = useNavigate()
   const maxVal = slices.length ? slices[0].value : 0
   const sign = flow === 'expense' ? '-' : ''
+  // Drill into the transactions behind a row: same category/label, same
+  // flow, and the timeframe currently selected on this screen.
+  const openInActivity = (s: Slice) => {
+    const params = new URLSearchParams()
+    params.set('type', flow)
+    if (kind === 'category') params.set('categoryId', s.key)
+    else params.set('tag', s.name)
+    params.set('from', periodFrom)
+    params.set('to', periodTo)
+    navigate(`/transactions?${params.toString()}`)
+  }
   // Tapping a slice on the donut should surface its row at the top of the
   // list below, without touching the donut's own (value-sorted) arc order.
   const orderedSlices = useMemo(() => {
@@ -414,7 +435,10 @@ function BreakdownView({
               return (
                 <Fragment key={s.key}>
                   <button
-                    onClick={() => onSelect(on ? null : s.key)}
+                    onClick={() => {
+                      onSelect(s.key)
+                      openInActivity(s)
+                    }}
                     className={cn(
                       'flex w-full items-center gap-3 rounded-xl px-2 py-2 text-left',
                       on ? 'bg-surface2' : 'hover:bg-surface2/60',
@@ -457,6 +481,7 @@ function BreakdownView({
                         </span>
                       </span>
                     </span>
+                    <ChevronRightIcon size={16} className="flex-shrink-0 text-muted/50" />
                   </button>
                   {/* Separates the tapped-to-top category from the rest so the
                       reorder reads as a deliberate promotion, not a shuffle. */}
