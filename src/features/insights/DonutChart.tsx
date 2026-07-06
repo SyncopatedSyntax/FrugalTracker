@@ -37,8 +37,19 @@ export default function DonutChart({
 
   const bubbleR = size * 0.05
   const bubbleCenterR = r + stroke / 2 + bubbleR + 10
-  const labelR = bubbleCenterR + bubbleR + 8
-  const pad = size * 0.07
+  // Gap beyond the bubble's own edge, along the radial direction. This needs
+  // to clear the label text's *half-width* too, not just its height — for a
+  // bubble sitting near the left/right of the ring, the radial direction is
+  // almost purely horizontal, so a small flat gap (which reads fine above a
+  // bubble near the top) leaves the center-anchored text overlapping the
+  // bubble on that side. Scaling with `size` (rather than a flat constant)
+  // keeps it wide enough for the longest label ("9.9%"/"100%") at any size.
+  const labelR = bubbleCenterR + bubbleR + size * 0.11
+  // Wide enough that a label sitting at the ring's left/right extreme (where
+  // labelR contributes almost entirely to horizontal position) still clears
+  // the viewBox with its own half-width to spare — otherwise a wider gap here
+  // just clips the text at the SVG edge instead of overlapping the bubble.
+  const pad = labelR - c + size * 0.09
 
   // Precompute slice angles (start at top, clockwise).
   let acc = 0

@@ -350,6 +350,17 @@ function BreakdownView({
 }) {
   const maxVal = slices.length ? slices[0].value : 0
   const sign = flow === 'expense' ? '-' : ''
+  // Tapping a slice on the donut should surface its row at the top of the
+  // list below, without touching the donut's own (value-sorted) arc order.
+  const orderedSlices = useMemo(() => {
+    if (!selectedKey) return slices
+    const idx = slices.findIndex((s) => s.key === selectedKey)
+    if (idx <= 0) return slices
+    const copy = slices.slice()
+    const [sel] = copy.splice(idx, 1)
+    copy.unshift(sel)
+    return copy
+  }, [slices, selectedKey])
 
   return (
     <>
@@ -395,7 +406,7 @@ function BreakdownView({
           )}
 
           <div className="mt-4 space-y-1">
-            {slices.map((s) => {
+            {orderedSlices.map((s) => {
               const pct = total > 0 ? (s.value / total) * 100 : 0
               const on = selectedKey === s.key
               return (
