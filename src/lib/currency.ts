@@ -83,15 +83,22 @@ export function formatMoneyCompact(amount: number, currency: string): string {
   return formatter(currency, { maximumFractionDigits: abs < 100 ? 2 : 0 }).format(amount)
 }
 
+const decimalsCache = new Map<string, number>()
+
 /** Number of decimal places a currency conventionally uses (2, or 0 for JPY etc.). */
 export function currencyDecimals(currency: string): number {
-  try {
-    const parts = new Intl.NumberFormat(undefined, {
-      style: 'currency',
-      currency,
-    }).resolvedOptions()
-    return parts.maximumFractionDigits ?? 2
-  } catch {
-    return 2
+  let d = decimalsCache.get(currency)
+  if (d === undefined) {
+    try {
+      const parts = new Intl.NumberFormat(undefined, {
+        style: 'currency',
+        currency,
+      }).resolvedOptions()
+      d = parts.maximumFractionDigits ?? 2
+    } catch {
+      d = 2
+    }
+    decimalsCache.set(currency, d)
   }
+  return d
 }

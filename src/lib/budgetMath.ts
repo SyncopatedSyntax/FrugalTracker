@@ -1,9 +1,10 @@
 import type { Transaction } from '@/db/types'
 import {
   addMonths,
-  addYears,
   daysInMonth,
   endOfMonth,
+  parseISO,
+  shiftYears,
   startOfMonth,
   startOfWeek,
   toISO,
@@ -34,11 +35,16 @@ export function periodRange(timeframe: Timeframe, now: Date, firstDayOfWeek: 0 |
  * a monthly figure would. Elapsed-month fractions use the current month's
  * day-of-month / day-count, consistent between the MTD and YTD formulas.
  */
-export function prorateMonthly(monthlyAmount: number, timeframe: Timeframe, now: Date): number {
+export function prorateMonthly(
+  monthlyAmount: number,
+  timeframe: Timeframe,
+  now: Date,
+  firstDayOfWeek: 0 | 1,
+): number {
   const dim = daysInMonth(now)
   const dayFraction = now.getDate() / dim
   if (timeframe === 'week') {
-    const start = startOfWeek(now, 1)
+    const start = startOfWeek(now, firstDayOfWeek)
     const elapsedDays = Math.round((now.getTime() - start.getTime()) / 86_400_000) + 1
     return monthlyAmount * (elapsedDays / dim)
   }
@@ -49,11 +55,11 @@ export function prorateMonthly(monthlyAmount: number, timeframe: Timeframe, now:
   return monthlyAmount * (fullMonthsElapsed + dayFraction)
 }
 
-/** Shift both boundaries of a range back exactly one year. */
+/** Shift both boundaries of a range back exactly one year, preserving day-of-month. */
 export function sameRangeLastYear(range: Range): Range {
   return {
-    startISO: toISO(addYears(new Date(range.startISO), -1)),
-    endISO: toISO(addYears(new Date(range.endISO), -1)),
+    startISO: toISO(shiftYears(parseISO(range.startISO), -1)),
+    endISO: toISO(shiftYears(parseISO(range.endISO), -1)),
   }
 }
 
@@ -79,7 +85,7 @@ export function rollingMonthlyAverage(
 
   const earliestTxDate = matches.reduce((m, t) => (t.date < m ? t.date : m), matches[0].date)
   const windowStart = new Date(
-    Math.max(earliestWanted.getTime(), new Date(earliestTxDate).getTime()),
+    Math.max(earliestWanted.getTime(), parseISO(earliestTxDate).getTime()),
   )
   if (windowStart > windowEnd) return 0
 

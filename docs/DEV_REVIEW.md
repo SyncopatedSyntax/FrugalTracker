@@ -1,7 +1,7 @@
 # FrugalTracker — Codebase Review & Dev Reference
 
-**Reviewed:** 2026-07-10, at v0.9.0 (branch `claude/expense-tracker-pwa-319tcf`). **Updated:** same day, at v0.9.2, once B2 was fixed (see §2).
-**Scope:** full pass over the data layer (`src/db`), pure libs (`src/lib`), all feature screens, shared components, and the PWA shell. Findings are grouped by kind and tagged by severity. Everything below is still open **except B2**, which is now fixed — the rest remains the backlog and reference for future work.
+**Reviewed:** 2026-07-10, at v0.9.0 (branch `claude/expense-tracker-pwa-319tcf`). **Updated:** same day, at v0.9.2, once B2 was fixed (see §2); updated again at v0.9.3 once B1, B3, T1, P1, P2, and U1 were fixed.
+**Scope:** full pass over the data layer (`src/db`), pure libs (`src/lib`), all feature screens, shared components, and the PWA shell. Findings are grouped by kind and tagged by severity. Everything below is still open **except B1, B2, B3, T1, P1, P2, and U1**, which are now fixed — the rest remains the backlog and reference for future work.
 
 ---
 
@@ -10,22 +10,18 @@
 - **Stack:** React 18 + Vite + TS, Tailwind (CSS-variable tokens, `darkMode: 'class'`), Dexie v4 on IndexedDB, `vite-plugin-pwa` (Workbox, `autoUpdate` + `skipWaiting`), React Router.
 - **Data flow:** all reads go through `useLiveQuery` hooks in `src/hooks/index.ts`; all writes go through `src/db/repo.ts`. Screens never touch Dexie directly (except `DataScreen`'s clear/restore, via `lib/backup.ts`).
 - **Money model:** `Transaction.amount` is a positive magnitude + `currency`; sign comes from `type`. Since v0.9.2, every transaction also locks in `baseAmount`/`baseRate` at save/edit time (see §2 B2 — resolved) — aggregation reads that locked snapshot, not a live conversion, so a later exchange-rate edit never rewrites historical totals. `lib/convert.ts`'s `toBase`/`convert` are now only used to *compute* a fresh snapshot at write time (`rates` table stores "1 unit of X in base"; base always rate 1; missing rate falls back to 1:1 by design).
-- **Dates:** local-calendar `"YYYY-MM-DD"` strings everywhere; `lib/date.ts` is deliberately UTC-free (`toISO`/`parseISO` use local fields). **Any `new Date(isoString)` elsewhere is a smell** — see bugs B1/B4.
-- **Pure logic lives in `src/lib`** (`calc.ts`, `budgetMath.ts`, `spendeeImport.ts`, `date.ts`, `filters.ts` in transactions, `compute.ts`/`period.ts` in insights) and is unit-testable without React — but there are currently **no tests** (§5).
+- **Dates:** local-calendar `"YYYY-MM-DD"` strings everywhere; `lib/date.ts` is deliberately UTC-free (`toISO`/`parseISO` use local fields). **Any `new Date(isoString)` elsewhere is a smell** — see B1 (resolved v0.9.3) for what it broke and how it was fixed (`shiftYears`, a day-preserving year shift, alongside the existing month-anchored `addYears`).
+- **Pure logic lives in `src/lib`** (`calc.ts`, `budgetMath.ts`, `spendeeImport.ts`, `date.ts`, `filters.ts` in transactions, `compute.ts`/`period.ts` in insights) and is unit-testable without React — `calc.ts`, `budgetMath.ts`, and `date.ts` now have Vitest coverage (§5, T1); `spendeeImport.ts` and `filters.ts` still don't.
 - **App shell:** `#root` is `position: fixed; inset: 0` (the iOS-standalone viewport bug fix — see prompt.md §29–33 for the full saga; don't regress this). Every screen manages its own inner scroll region. Status bar style is `black` on iOS on purpose (`black-translucent` shrinks the web view and re-opens the bottom-gap bug).
 
 ---
 
 ## 2. Bugs (correctness)
 
-### B1 · HIGH — "Income vs last year" compares against the wrong date range
-`lib/budgetMath.ts → sameRangeLastYear()` shifts a range back a year with `addYears(new Date(range.startISO), -1)`. Two problems compound:
+### B1 · RESOLVED (v0.9.3) — "Income vs last year" compared against the wrong date range
+Was: `lib/budgetMath.ts → sameRangeLastYear()` shifted a range back a year with `addYears(new Date(range.startISO), -1)`. Two problems compounded: `addYears()` is a month-anchor helper that resets the day-of-month to 1 (turned *June 29 – July 5* into *June 1 – July 1* of last year), and `new Date('2026-06-29')` parses as UTC midnight, so timezones west of UTC were off by a day before the shift even ran. The same raw-`new Date(iso)` smell was also in `rollingMonthlyAverage()`'s `new Date(earliestTxDate)`, which could mis-clamp the averaging window by a month at month boundaries.
 
-1. `date.ts → addYears()` is a **month-anchor helper**: it returns `new Date(y+n, month, 1)` — it resets the day-of-month to **1**. It's fine for `period.ts` stepping, but here it turns *June 29 – July 5* into *June 1 – July 1* of last year.
-2. `new Date('2026-06-29')` parses as **UTC midnight**, so in timezones west of UTC the local date is already off by one before the shift. Same issue in `rollingMonthlyAverage()` (`new Date(earliestTxDate)`), where it can mis-clamp the window by a month at month boundaries (B4, folded in here).
-
-**Effect:** the BudgetPanel's income rings ("vs last year") use a denominator from a wrong, usually much longer range — percentages are misleading. Week and month timeframes are badly wrong; year is subtly wrong (end date truncates to the 1st).
-**Fix sketch:** parse with `parseISO`, shift with a day-preserving helper (`new Date(y-1, m, d)`, clamping Feb 29 → Feb 28), never raw `new Date(iso)`. Add unit tests around DST/leap/timezone-west cases.
+**Fix:** added `date.ts → shiftYears(d, n)`, a day-preserving year shift (clamps Feb 29 → Feb 28 for a non-leap target year) built from local `Date` components, never a raw ISO string parse. `sameRangeLastYear()` now does `shiftYears(parseISO(range.startISO), -1)`; `rollingMonthlyAverage()` now parses `earliestTxDate` with `parseISO` instead of `new Date(...)`. Regression-tested in `budgetMath.test.ts` with `process.env.TZ` forced to `America/New_York` so the fix is verified against the exact west-of-UTC off-by-one this bug depended on (confirmed the old code reproduces the bug under that TZ; the new code doesn't).
 
 ### B2 · RESOLVED (v0.9.2) — Changing base currency silently re-denominated budgets and opening balance; transaction amounts weren't locked in at all
 Originally: `changeBaseCurrency()` re-anchored the rates table only, leaving `Budget.amount` and `Settings.openingBalance` numerically unchanged (a "$500" budget silently became "C$500"). Investigating it surfaced a bigger, related gap: transaction amounts were converted to base **live, at read time** — editing an exchange rate months later silently rewrote every past total that touched that currency, with no way to "lock in" a rate as of when an entry was logged.
@@ -36,9 +32,10 @@ Originally: `changeBaseCurrency()` re-anchored the rates table only, leaving `Bu
 
 Verified end-to-end in headless Chromium: added a €100 transaction (rate 1.1) → locked `baseAmount=110`; changed the live EUR rate to 1.5 → the transaction's stored amount stayed `110` (not `150`); edited the amount only (100→200) → kept the locked rate (`baseAmount=220`, not 300); edited the rate explicitly to 1.5 → `baseAmount=300`; switched base currency USD→EUR (divisor 1.5) → a 500-unit budget became `333.33` EUR, opening balance `1000`→`666.67`, and the transaction's `baseAmount` `300`→`200` with `baseRate` reset to `1`. Also verified the legacy-row backfill (a hand-inserted row with no `baseAmount` field was correctly backfilled on the next boot) and a full-app smoke test (Add/Activity/Insights/Budgets/Edit screens, multi-currency data) — zero console errors throughout.
 
-### B3 · MEDIUM — Week proration ignores the first-day-of-week setting
-`budgetMath.ts → prorateMonthly()` hardcodes `startOfWeek(now, 1)` (Monday). The ring's *numerator* (`periodRange('week', …, firstDayOfWeek)`) honors the user's Sunday/Monday setting, so Sunday-start users get a mismatched week ring (spend measured from Sunday, target prorated from Monday).
-**Fix:** thread `firstDayOfWeek` through `prorateMonthly` (the callers in `BudgetPanel` already have it).
+### B3 · RESOLVED (v0.9.3) — Week proration ignored the first-day-of-week setting
+Was: `budgetMath.ts → prorateMonthly()` hardcoded `startOfWeek(now, 1)` (Monday), while the ring's numerator (`periodRange('week', …, firstDayOfWeek)`) honored the user's Sunday/Monday setting — Sunday-start users got a mismatched week ring (spend measured from Sunday, target prorated from Monday).
+
+**Fix:** `prorateMonthly` now takes `firstDayOfWeek: 0 | 1` and uses it in place of the hardcoded `1`; `BudgetPanel`'s `ExpenseCompare` (which already had `firstDayOfWeek` as a prop) passes it through. Covered in `budgetMath.test.ts` for both anchor days.
 
 ### B5 · LOW — Amount survives a currency switch with too many decimals
 On the Add screen, typing `12.34` then switching currency to JPY (0 decimals) keeps `12.34` as the entry; it can be saved with sub-unit decimals in a currency that has none. Pre-dates the calculator. **Fix:** on currency change, round `calc.cur` (and Edit screen's `amount`) to the new `currencyDecimals`.
@@ -58,7 +55,7 @@ Two rapid `updateSettings` calls can clobber each other (last write wins over a 
 
 | # | Area | Note |
 |---|------|------|
-| U1 | Calculator sheet | A negative result leaves **Use amount** disabled with no explanation. Show a hint ("amount must be positive") or clamp at 0. |
+| U1 | Calculator sheet | ~~A negative result leaves **Use amount** disabled with no explanation.~~ **Resolved (v0.9.3):** an inline hint below the keypad now explains why — "Enter a calculation" when nothing's typed yet, "Result must be greater than zero" when it resolves to ≤ 0 — reserving its own line so the layout doesn't jump when the hint appears/disappears. |
 | U2 | Calculator sheet | After **Use amount**, the user still has to press **Next**. Consider auto-advancing to the category step (matches the "result is the amount" mental model). |
 | U3 | Reach mode | The on-the-fly gutter flip is session-only by design; the Settings value re-asserts on reload. Consider persisting the flip (it *is* an expressed preference) or at least keeping it for the app session across tab switches (it currently resets if settings re-emit). |
 | U4 | Edit screen parity | `EditTransactionScreen` uses the plain keypad — no calculator, no reach. Fine as a scope decision, but users who learn "the pad is a calculator" will expect it here too. The keypad already supports it via props. |
@@ -73,8 +70,8 @@ Two rapid `updateSettings` calls can clobber each other (last write wins over a 
 
 ## 4. Performance notes
 
-- **P1 — BudgetPanel recomputes on every keystroke.** Every digit press re-renders `AddScreen`, so `BudgetPanel` re-runs `sumInRange` ×3 + `rollingMonthlyAverage` over *all* transactions. Fine at ~1k txs, wasteful at 10k+. `React.memo(BudgetPanel)` is enough (its props are primitives; `useLiveQuery` results are referentially stable between db writes), plus `useMemo` inside keyed on `[txs, rates, budgets, categoryId]`.
-- **P2 — `currencyDecimals()` builds an uncached `Intl.NumberFormat` per call**, and it's called on every AddScreen render. Cache per currency code like `formatter()` already does.
+- **P1 · RESOLVED (v0.9.3) — BudgetPanel recomputed on every keystroke.** Was: every digit press re-rendered `AddScreen`, so `BudgetPanel` re-ran `sumInRange` ×3 + `rollingMonthlyAverage` over *all* transactions on every keystroke. **Fix:** wrapped the default export in `React.memo(BudgetPanel)` — its props (`type`, `categoryId`) are primitives, and its own `useLiveQuery` hooks already re-render it correctly whenever the underlying data actually changes, so memoizing loses nothing.
+- **P2 · RESOLVED (v0.9.3) — `currencyDecimals()` built an uncached `Intl.NumberFormat` per call**, and it was called on every AddScreen render. **Fix:** added a `Map<string, number>` cache keyed by currency code, mirroring the existing `formatter()` cache in the same file.
 - **P3 — `useAllTransactions()` loads and sorts the whole table** on every screen that uses it (Activity, Insights, BudgetPanel). This is the right simplicity trade-off now; if datasets grow (multi-year imports), move Insights/Activity to `useTransactionsInRange` + the existing `[type+date]` index, and paginate Activity.
 - **P4 — Sequential awaits in loops** (`bumpTags`, `reorderCategories`, import usage bumps) — all inside transactions, so they're fast enough; Dexie `bulkPut` would be marginally cleaner, not urgent.
 
@@ -82,7 +79,7 @@ Two rapid `updateSettings` calls can clobber each other (last write wins over a 
 
 ## 5. Code health & tooling
 
-- **T1 — No tests.** The riskiest logic is all pure and trivially testable: `lib/calc.ts` (state machine + shunting-yard), `lib/budgetMath.ts` (B1/B3 would have been caught), `lib/date.ts`, `lib/spendeeImport.ts` (`parseDate`/`parseNumber`/`parseLabels`), `transactions/filters.ts`. Recommend Vitest + a committed Playwright smoke test (the project has only ever had ad-hoc, deleted verification scripts).
+- **T1 · RESOLVED (v0.9.3) — No tests.** Added Vitest (`npm test` → `vitest run`; `vitest.config.ts` mirrors the `@/*` alias from `tsconfig`/`vite.config`). 51 tests across three co-located suites: `lib/date.test.ts` (ISO round-trips, `startOfWeek` for both anchor days, `addDays`/`addMonths`/`addYears`, the new `shiftYears` incl. leap-year clamping, `daysInMonth`, day-header/short-date formatting), `lib/budgetMath.test.ts` (`periodRange`, `prorateMonthly` incl. the B3 firstDayOfWeek threading, `sameRangeLastYear` and `rollingMonthlyAverage` incl. the B1 regression forced under `TZ=America/New_York`, `sumInRange`), and `lib/calc.test.ts` (the inline state machine — iOS-style percent, chaining, operator-swap — and `evaluateExpression`'s shunting-yard: parentheses, precedence, malformed/half-typed tolerance, float-noise rounding). `lib/spendeeImport.ts` and `transactions/filters.ts` remain untested — good next candidates, not covered by this pass. Still no committed Playwright smoke test (verification remains ad-hoc, per-session).
 - **T2 — No linter.** `npm run lint` is just `tsc --noEmit`. Add ESLint (typescript-eslint + react-hooks) — e.g. the intentional mount-only effect in `TransactionsScreen` and `BudgetsScreen`'s suppressed exhaustive-deps deserve explicit, checked suppressions.
 - **T3 — `AmountKeypad` prop contract is awkward.** In calc mode, `value`/`onChange` are required but unused (`onChange={() => {}}` at the call site). Make the props a discriminated union (`{ mode: 'plain', value, onChange } | { mode: 'calc', calc }`) or split the component.
 - **T4 — Dead code:** `applyKey` re-export in `AmountKeypad` (nothing imports it anymore; the logic lives in `lib/calc.ts → applyAmountKey`). `Settings.seededDefaults` is written but never read ("reserved").
@@ -111,12 +108,12 @@ Two rapid `updateSettings` calls can clobber each other (last write wins over a 
 
 ## 8. Suggested priority order
 
-1. ~~**B1** income-vs-last-year ranges~~ — still open, see §2 (not touched by the B2 fix; different root cause, same "raw `new Date(iso)`" family of bug).
+1. ~~**B1** income-vs-last-year ranges~~ — **resolved in v0.9.3**, see §2.
 2. ~~**B2** base-currency change re-denomination~~ — **resolved in v0.9.2**, see §2.
-3. **T1** Vitest setup with tests for `calc.ts`, `budgetMath.ts`, `date.ts` (would have caught B1, and now protects the B2 fix's rounding/rescale math).
-4. **B3** week proration `firstDayOfWeek`.
-5. **P1/P2** BudgetPanel memoization + `currencyDecimals` cache (do together, both in the keystroke path).
-6. **U1/U2** calculator-sheet polish; **B5/B6** decimal edge cases.
+3. ~~**T1** Vitest setup with tests for `calc.ts`, `budgetMath.ts`, `date.ts`~~ — **resolved in v0.9.3**, see §5.
+4. ~~**B3** week proration `firstDayOfWeek`~~ — **resolved in v0.9.3**, see §2.
+5. ~~**P1/P2** BudgetPanel memoization + `currencyDecimals` cache~~ — **resolved in v0.9.3**, see §4.
+6. ~~**U1**~~ **resolved in v0.9.3**, see §3; **U2** calculator-sheet auto-advance still open; **B5/B6** decimal edge cases still open.
 7. **T6** error boundary + write-failure toasts.
 8. **T7** README refresh (Insights sections, budget dashboard, calculator, reach mode, locked-in rates); then the bigger product items (U7 recurring, U3/U4 parity).
 

@@ -40,6 +40,16 @@ export function addYears(d: Date, n: number): Date {
   return new Date(d.getFullYear() + n, d.getMonth(), 1)
 }
 
+/** Shift a date by whole years, preserving month/day (clamping Feb 29 to
+ * Feb 28 for a non-leap target year) — unlike addYears, which resets to the
+ * 1st of the month. Use this for "this time last year" comparisons. */
+export function shiftYears(d: Date, n: number): Date {
+  const month = d.getMonth()
+  const shifted = new Date(d.getFullYear() + n, month, d.getDate())
+  if (shifted.getMonth() !== month) return new Date(d.getFullYear() + n, month + 1, 0)
+  return shifted
+}
+
 export function addDays(d: Date, n: number): Date {
   return new Date(d.getFullYear(), d.getMonth(), d.getDate() + n)
 }

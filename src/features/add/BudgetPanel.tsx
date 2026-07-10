@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react'
+import { memo, type ReactNode } from 'react'
 import { useAllTransactions, useBudgets, useCategoryMap, useSettings } from '@/hooks'
 import type { TxType } from '@/db/types'
 import { formatMoneyCompact } from '@/lib/currency'
@@ -20,7 +20,7 @@ interface Props {
   categoryId: string | null
 }
 
-export default function BudgetPanel({ type, categoryId }: Props) {
+function BudgetPanel({ type, categoryId }: Props) {
   const settings = useSettings()
   const base = settings.baseCurrency
   const txs = useAllTransactions()
@@ -44,6 +44,8 @@ export default function BudgetPanel({ type, categoryId }: Props) {
     </div>
   )
 }
+
+export default memo(BudgetPanel)
 
 /** Ring color: healthy/neutral in `base`, ramps to amber near the limit, red
  * once over — except for income, where reaching/exceeding last year is the
@@ -94,7 +96,7 @@ function ExpenseCompare({
   const rings = TIMEFRAMES.map((tf) => {
     const range = periodRange(tf, now, firstDayOfWeek)
     const spent = sumInRange(txs, range, 'expense', categoryId)
-    const target = hasComparison ? prorateMonthly(monthly, tf, now) : 0
+    const target = hasComparison ? prorateMonthly(monthly, tf, now, firstDayOfWeek) : 0
     const ratio = target > 0 ? spent / target : 0
     return { tf, spent, target, ratio }
   })

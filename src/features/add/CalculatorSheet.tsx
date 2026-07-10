@@ -52,6 +52,8 @@ export default function CalculatorSheet({ open, onClose, base, decimals, onUse }
     onUse(Math.round(v * Math.pow(10, decimals)) / Math.pow(10, decimals))
     onClose()
   }
+  const disabledReason =
+    result === null ? 'Enter a calculation' : result <= 0 ? 'Result must be greater than zero' : null
 
   const Key = ({
     label,
@@ -122,11 +124,14 @@ export default function CalculatorSheet({ open, onClose, base, decimals, onUse }
           <Key label="⌫" variant="fn" onClick={backspace} />
           <Key label="=" variant="eq" onClick={resolve} />
         </div>
+        <p className="mt-2 h-4 text-center text-[11px] font-medium text-muted">
+          {disabledReason ?? ''}
+        </p>
         <button
           type="button"
           onClick={use}
-          disabled={result === null || result <= 0}
-          className="mt-2 flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-income text-base font-bold text-white shadow-lg transition-transform active:scale-[0.98] disabled:opacity-40 disabled:shadow-none"
+          disabled={!!disabledReason}
+          className="flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-income text-base font-bold text-white shadow-lg transition-transform active:scale-[0.98] disabled:opacity-40 disabled:shadow-none"
         >
           <CheckIcon size={18} />
           Use {formatMoney(result ?? 0, base)}
