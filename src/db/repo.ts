@@ -3,18 +3,41 @@ import type { Budget, Category, Settings, Transaction, TxType } from './types'
 import { uid } from '@/lib/id'
 import { DEFAULT_SETTINGS } from './seed'
 
-export type NewTransaction = Omit<Transaction, 'id' | 'createdAt' | 'updatedAt'>
+export type NewTransaction = Omit<
+  Transaction,
+  'id' | 'createdAt' | 'updatedAt' | 'baseAmount' | 'baseRate'
+>
 
 /* ----------------------------- Transactions ----------------------------- */
 
+/** Round away float noise (e.g. 100 * 1.1 === 110.00000000000001) without
+ * being lossy for any realistic currency amount or rate. */
+function round6(n: number): number {
+  return Math.round(n * 1e6) / 1e6
+}
+
+/** The rate to lock in for `currency` right now: 1 if it's already the base,
+ * otherwise the live rate table's "1 unit of currency in base" value
+ * (falling back to 1:1 if that currency has no known rate, same as the rest
+ * of the app). */
+async function currentRateTo(currency: string): Promise<{ base: string; rate: number }> {
+  const settings = await getSettings()
+  if (currency === settings.baseCurrency) return { base: settings.baseCurrency, rate: 1 }
+  const r = await db.rates.get(currency)
+  return { base: settings.baseCurrency, rate: r?.rate ?? 1 }
+}
+
 export async function addTransaction(input: NewTransaction): Promise<string> {
   const now = Date.now()
+  const { rate } = await currentRateTo(input.currency)
   const tx: Transaction = {
     ...input,
     tags: normalizeTags(input.tags),
     id: uid(),
     createdAt: now,
     updatedAt: now,
+    baseRate: rate,
+    baseAmount: round6(input.amount * rate),
   }
   await db.transaction('rw', db.transactions, db.categories, db.tags, async () => {
     await db.transactions.add(tx)
@@ -27,27 +50,78 @@ export async function addTransaction(input: NewTransaction): Promise<string> {
 export async function updateTransaction(
   id: string,
   patch: Partial<NewTransaction>,
+  opts?: {
+    /** Explicit rate to lock in (1 unit of the transaction's currency in the
+     * base currency) — e.g. the user edited it directly. When omitted: the
+     * previously-locked rate is kept if the currency didn't change, or a
+     * fresh live rate is fetched if it did. */
+    baseRateOverride?: number
+  },
 ): Promise<void> {
-  await db.transaction('rw', db.transactions, db.categories, db.tags, async () => {
-    const prev = await db.transactions.get(id)
-    if (!prev) return
-    const nextTags = patch.tags ? normalizeTags(patch.tags) : prev.tags
-    const next: Transaction = {
-      ...prev,
-      ...patch,
-      tags: nextTags,
-      updatedAt: Date.now(),
-    }
-    await db.transactions.put(next)
-    if (patch.categoryId && patch.categoryId !== prev.categoryId) {
-      await bumpCategory(prev.categoryId, -1)
-      await bumpCategory(next.categoryId, 1)
-    }
-    if (patch.tags) {
-      await bumpTags(prev.tags, -1)
-      await bumpTags(nextTags, 1)
-    }
-  })
+  await db.transaction(
+    'rw',
+    db.transactions,
+    db.categories,
+    db.tags,
+    db.settings,
+    db.rates,
+    async () => {
+      const prev = await db.transactions.get(id)
+      if (!prev) return
+      const nextTags = patch.tags ? normalizeTags(patch.tags) : prev.tags
+      const nextCurrency = patch.currency ?? prev.currency
+      const nextAmount = patch.amount ?? prev.amount
+      const baseCurrency = (await getSettings()).baseCurrency
+
+      let baseRate: number
+      if (nextCurrency === baseCurrency) {
+        baseRate = 1
+      } else if (opts?.baseRateOverride != null) {
+        baseRate = opts.baseRateOverride
+      } else if (patch.currency && patch.currency !== prev.currency) {
+        baseRate = (await currentRateTo(nextCurrency)).rate
+      } else {
+        baseRate = prev.baseRate
+      }
+
+      const next: Transaction = {
+        ...prev,
+        ...patch,
+        tags: nextTags,
+        updatedAt: Date.now(),
+        baseRate,
+        baseAmount: round6(nextAmount * baseRate),
+      }
+      await db.transactions.put(next)
+      if (patch.categoryId && patch.categoryId !== prev.categoryId) {
+        await bumpCategory(prev.categoryId, -1)
+        await bumpCategory(next.categoryId, 1)
+      }
+      if (patch.tags) {
+        await bumpTags(prev.tags, -1)
+        await bumpTags(nextTags, 1)
+      }
+    },
+  )
+}
+
+/** Backfill `baseAmount`/`baseRate` on any transaction that predates this
+ * feature (rows from before v0.9.2, or restored from an older backup),
+ * using the current rate table as the best available approximation — those
+ * amounts couldn't have been "locked in" at the time since the fields didn't
+ * exist yet. Idempotent and cheap to call on every boot: touches nothing once
+ * every row has been migrated. */
+export async function backfillBaseAmounts(): Promise<void> {
+  const settings = await getSettings()
+  const rates = await db.rates.toArray()
+  const rateOf = new Map(rates.map((r) => [r.currency, r.rate]))
+  await db.transactions
+    .filter((t) => t.baseAmount == null || t.baseRate == null)
+    .modify((t) => {
+      const rate = t.currency === settings.baseCurrency ? 1 : rateOf.get(t.currency) ?? 1
+      t.baseRate = rate
+      t.baseAmount = round6(t.amount * rate)
+    })
 }
 
 export async function deleteTransaction(id: string): Promise<void> {
@@ -169,11 +243,20 @@ export async function updateSettings(patch: Partial<Settings>): Promise<void> {
 }
 
 /**
- * Change the base currency and re-anchor all stored rates so they remain
- * "value of 1 unit in the new base". Ensures the new base has rate 1.
+ * Change the base currency and re-anchor everything denominated in "the base
+ * currency" so it keeps its real-world value: the rates table, every
+ * transaction's locked-in `baseAmount`/`baseRate`, every budget's `amount`
+ * (+ its `currency` tag), and the opening balance. All divided by the same
+ * factor the rates table itself is re-anchored by, so a $500 budget becomes
+ * the equivalent amount in the new base rather than keeping the number 500.
+ *
+ * If the new base has no known rate (divisor falls back to 1:1), nothing is
+ * rescaled — same pre-existing limitation as the rates table itself: with no
+ * known exchange rate between the old and new base, there's no correct
+ * factor to apply.
  */
 export async function changeBaseCurrency(newBase: string): Promise<void> {
-  await db.transaction('rw', db.settings, db.rates, async () => {
+  await db.transaction('rw', db.settings, db.rates, db.transactions, db.budgets, async () => {
     const settings = await getSettings()
     const oldBase = settings.baseCurrency
     if (oldBase === newBase) return
@@ -187,9 +270,22 @@ export async function changeBaseCurrency(newBase: string): Promise<void> {
           updatedAt: Date.now(),
         })
       }
+      await db.transactions.toCollection().modify((t) => {
+        t.baseRate = round6(t.baseRate / divisor)
+        t.baseAmount = round6(t.baseAmount / divisor)
+      })
+      await db.budgets.toCollection().modify((b) => {
+        b.amount = round6(b.amount / divisor)
+        b.currency = newBase
+      })
     }
     await db.rates.put({ currency: newBase, rate: 1, updatedAt: Date.now() })
-    await db.settings.put({ ...settings, baseCurrency: newBase })
+    await db.settings.put({
+      ...settings,
+      baseCurrency: newBase,
+      openingBalance:
+        divisor && divisor !== 1 ? round6(settings.openingBalance / divisor) : settings.openingBalance,
+    })
   })
 }
 

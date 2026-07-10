@@ -1,17 +1,15 @@
 import type { Category, Transaction } from '@/db/types'
 import { formatMoney } from '@/lib/currency'
-import { toBase, type RateMap } from '@/lib/convert'
 import { cn } from '@/lib/cn'
 
 interface Props {
   tx: Transaction
   category?: Category
   base: string
-  rates: RateMap
   onClick?: () => void
 }
 
-export default function TransactionRow({ tx, category, base, rates, onClick }: Props) {
+export default function TransactionRow({ tx, category, base, onClick }: Props) {
   const isExpense = tx.type === 'expense'
   const sign = isExpense ? '-' : '+'
   const showConverted = tx.currency !== base
@@ -52,7 +50,7 @@ export default function TransactionRow({ tx, category, base, rates, onClick }: P
         {showConverted && (
           <span className="block text-[11px] text-muted tabular-nums">
             {sign}
-            {formatMoney(toBase(tx.amount, tx.currency, rates), base)}
+            {formatMoney(tx.baseAmount, base)}
           </span>
         )}
       </span>

@@ -1,21 +1,21 @@
 import type { Category, Transaction, TxType } from '@/db/types'
-import { toBase, type RateMap } from '@/lib/convert'
 import { CATEGORY_PALETTE } from '@/lib/palette'
 import type { Bucket } from './period'
 
-export function signedBase(t: Transaction, rates: RateMap): number {
-  const v = toBase(t.amount, t.currency, rates)
-  return t.type === 'income' ? v : -v
+/** Signed value in base currency, using each transaction's locked-in
+ * baseAmount (not a live conversion) — see Transaction.baseAmount. */
+export function signedBase(t: Transaction): number {
+  return t.type === 'income' ? t.baseAmount : -t.baseAmount
 }
 
-export function sumFlow(txs: Transaction[], flow: TxType, rates: RateMap): number {
+export function sumFlow(txs: Transaction[], flow: TxType): number {
   let s = 0
-  for (const t of txs) if (t.type === flow) s += toBase(t.amount, t.currency, rates)
+  for (const t of txs) if (t.type === flow) s += t.baseAmount
   return s
 }
 
-export function netFlow(txs: Transaction[], rates: RateMap): number {
-  return txs.reduce((s, t) => s + signedBase(t, rates), 0)
+export function netFlow(txs: Transaction[]): number {
+  return txs.reduce((s, t) => s + signedBase(t), 0)
 }
 
 export interface Slice {
@@ -32,14 +32,13 @@ const LABEL_COLORS = CATEGORY_PALETTE
 export function categoryBreakdown(
   txs: Transaction[],
   flow: TxType,
-  rates: RateMap,
   categoryMap: Map<string, Category>,
 ): Slice[] {
   const agg = new Map<string, { value: number; count: number }>()
   for (const t of txs) {
     if (t.type !== flow) continue
     const e = agg.get(t.categoryId) ?? { value: 0, count: 0 }
-    e.value += toBase(t.amount, t.currency, rates)
+    e.value += t.baseAmount
     e.count++
     agg.set(t.categoryId, e)
   }
@@ -58,15 +57,14 @@ export function categoryBreakdown(
     .sort((a, b) => b.value - a.value)
 }
 
-export function labelBreakdown(txs: Transaction[], flow: TxType, rates: RateMap): Slice[] {
+export function labelBreakdown(txs: Transaction[], flow: TxType): Slice[] {
   const agg = new Map<string, { value: number; count: number; display: string }>()
   for (const t of txs) {
     if (t.type !== flow) continue
-    const v = toBase(t.amount, t.currency, rates)
     for (const tag of t.tags) {
       const key = tag.toLowerCase()
       const e = agg.get(key) ?? { value: 0, count: 0, display: tag }
-      e.value += v
+      e.value += t.baseAmount
       e.count++
       agg.set(key, e)
     }
@@ -85,7 +83,6 @@ export function balanceSeries(
   buckets: Bucket[],
   opening: number,
   openingDateISO: string,
-  rates: RateMap,
 ): number[] {
   const from =
     openingDateISO || allTxs.reduce((m, t) => (t.date < m ? t.date : m), '9999-12-31')
@@ -95,7 +92,7 @@ export function balanceSeries(
   let i = 0
   for (const b of buckets) {
     while (i < txs.length && txs[i].date <= b.endISO) {
-      acc += signedBase(txs[i], rates)
+      acc += signedBase(txs[i])
       i++
     }
     out.push(acc)
@@ -104,14 +101,14 @@ export function balanceSeries(
 }
 
 /** Cumulative cash flow (starting at 0) at the end of each bucket. */
-export function cashflowSeries(periodTxs: Transaction[], buckets: Bucket[], rates: RateMap): number[] {
+export function cashflowSeries(periodTxs: Transaction[], buckets: Bucket[]): number[] {
   const txs = periodTxs.slice().sort(byDate)
   const out: number[] = []
   let acc = 0
   let i = 0
   for (const b of buckets) {
     while (i < txs.length && txs[i].date <= b.endISO) {
-      acc += signedBase(txs[i], rates)
+      acc += signedBase(txs[i])
       i++
     }
     out.push(acc)

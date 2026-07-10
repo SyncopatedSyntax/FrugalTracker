@@ -1,9 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { FilterIcon, SearchIcon, XIcon } from '@/components/icons'
-import { useAllTransactions, useCategoryMap, useRateMap, useSettings } from '@/hooks'
+import { useAllTransactions, useCategoryMap, useSettings } from '@/hooks'
 import type { Transaction, TxType } from '@/db/types'
-import { toBase } from '@/lib/convert'
 import { formatMoney } from '@/lib/currency'
 import { formatDayHeader } from '@/lib/date'
 import { cn } from '@/lib/cn'
@@ -34,7 +33,6 @@ export default function TransactionsScreen() {
   const [searchParams, setSearchParams] = useSearchParams()
   const all = useAllTransactions()
   const categoryMap = useCategoryMap()
-  const rates = useRateMap()
   const settings = useSettings()
   const base = settings.baseCurrency
 
@@ -65,11 +63,8 @@ export default function TransactionsScreen() {
 
   const net = useMemo(
     () =>
-      filtered.reduce((sum, tx) => {
-        const v = toBase(tx.amount, tx.currency, rates)
-        return sum + (tx.type === 'expense' ? -v : v)
-      }, 0),
-    [filtered, rates],
+      filtered.reduce((sum, tx) => sum + (tx.type === 'expense' ? -tx.baseAmount : tx.baseAmount), 0),
+    [filtered],
   )
 
   const fCount = activeFilterCount(filters)
@@ -153,10 +148,10 @@ export default function TransactionsScreen() {
           </div>
         ) : (
           groups.map(([date, txs]) => {
-            const dayNet = txs.reduce((sum, tx) => {
-              const v = toBase(tx.amount, tx.currency, rates)
-              return sum + (tx.type === 'expense' ? -v : v)
-            }, 0)
+            const dayNet = txs.reduce(
+              (sum, tx) => sum + (tx.type === 'expense' ? -tx.baseAmount : tx.baseAmount),
+              0,
+            )
             return (
               <section key={date}>
                 <div className="sticky top-0 z-[1] flex items-center justify-between bg-surface2 px-4 py-2">
@@ -179,7 +174,6 @@ export default function TransactionsScreen() {
                       tx={tx}
                       category={categoryMap.get(tx.categoryId)}
                       base={base}
-                      rates={rates}
                       onClick={() => navigate(`/tx/${tx.id}/edit`)}
                     />
                   ))}

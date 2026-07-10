@@ -6,6 +6,7 @@ import { DownloadIcon, UploadIcon, TrashIcon } from '@/components/icons'
 import { exportCSV, exportJSON, isValidBackup, restoreBackup, type BackupFile } from '@/lib/backup'
 import { db } from '@/db/db'
 import { ensureSeeded } from '@/db/seed'
+import { backfillBaseAmounts } from '@/db/repo'
 import { useTransactionCount } from '@/hooks'
 
 export default function DataScreen() {
@@ -31,6 +32,8 @@ export default function DataScreen() {
   const doRestore = async () => {
     if (!pending) return
     await restoreBackup(pending)
+    // Backups made before v0.9.2 won't have baseAmount/baseRate on their rows.
+    await backfillBaseAmounts()
     setPending(null)
     show('Backup restored')
   }

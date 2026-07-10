@@ -5,10 +5,12 @@ import App from './App'
 import './index.css'
 import './lib/pwa'
 import { ensureSeeded } from './db/seed'
+import { backfillBaseAmounts } from './db/repo'
 
 async function bootstrap() {
   try {
     await ensureSeeded()
+    await backfillBaseAmounts()
   } catch (err) {
     console.error('Seeding failed', err)
   }

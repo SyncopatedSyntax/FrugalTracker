@@ -1,7 +1,7 @@
 # FrugalTracker — Codebase Review & Dev Reference
 
-**Reviewed:** 2026-07-10, at v0.9.0 (branch `claude/expense-tracker-pwa-319tcf`).
-**Scope:** full pass over the data layer (`src/db`), pure libs (`src/lib`), all feature screens, shared components, and the PWA shell. Findings are grouped by kind and tagged by severity. Nothing here has been fixed yet — this is the backlog and reference for future work.
+**Reviewed:** 2026-07-10, at v0.9.0 (branch `claude/expense-tracker-pwa-319tcf`). **Updated:** same day, at v0.9.2, once B2 was fixed (see §2).
+**Scope:** full pass over the data layer (`src/db`), pure libs (`src/lib`), all feature screens, shared components, and the PWA shell. Findings are grouped by kind and tagged by severity. Everything below is still open **except B2**, which is now fixed — the rest remains the backlog and reference for future work.
 
 ---
 
@@ -9,7 +9,7 @@
 
 - **Stack:** React 18 + Vite + TS, Tailwind (CSS-variable tokens, `darkMode: 'class'`), Dexie v4 on IndexedDB, `vite-plugin-pwa` (Workbox, `autoUpdate` + `skipWaiting`), React Router.
 - **Data flow:** all reads go through `useLiveQuery` hooks in `src/hooks/index.ts`; all writes go through `src/db/repo.ts`. Screens never touch Dexie directly (except `DataScreen`'s clear/restore, via `lib/backup.ts`).
-- **Money model:** `Transaction.amount` is a positive magnitude + `currency`; sign comes from `type`. All aggregation converts to the base currency via `lib/convert.ts` (`rates` table stores "1 unit of X in base"; base always rate 1; missing rate falls back to 1:1 by design).
+- **Money model:** `Transaction.amount` is a positive magnitude + `currency`; sign comes from `type`. Since v0.9.2, every transaction also locks in `baseAmount`/`baseRate` at save/edit time (see §2 B2 — resolved) — aggregation reads that locked snapshot, not a live conversion, so a later exchange-rate edit never rewrites historical totals. `lib/convert.ts`'s `toBase`/`convert` are now only used to *compute* a fresh snapshot at write time (`rates` table stores "1 unit of X in base"; base always rate 1; missing rate falls back to 1:1 by design).
 - **Dates:** local-calendar `"YYYY-MM-DD"` strings everywhere; `lib/date.ts` is deliberately UTC-free (`toISO`/`parseISO` use local fields). **Any `new Date(isoString)` elsewhere is a smell** — see bugs B1/B4.
 - **Pure logic lives in `src/lib`** (`calc.ts`, `budgetMath.ts`, `spendeeImport.ts`, `date.ts`, `filters.ts` in transactions, `compute.ts`/`period.ts` in insights) and is unit-testable without React — but there are currently **no tests** (§5).
 - **App shell:** `#root` is `position: fixed; inset: 0` (the iOS-standalone viewport bug fix — see prompt.md §29–33 for the full saga; don't regress this). Every screen manages its own inner scroll region. Status bar style is `black` on iOS on purpose (`black-translucent` shrinks the web view and re-opens the bottom-gap bug).
@@ -27,14 +27,14 @@
 **Effect:** the BudgetPanel's income rings ("vs last year") use a denominator from a wrong, usually much longer range — percentages are misleading. Week and month timeframes are badly wrong; year is subtly wrong (end date truncates to the 1st).
 **Fix sketch:** parse with `parseISO`, shift with a day-preserving helper (`new Date(y-1, m, d)`, clamping Feb 29 → Feb 28), never raw `new Date(iso)`. Add unit tests around DST/leap/timezone-west cases.
 
-### B2 · HIGH — Changing base currency silently re-denominates budgets and opening balance
-`db/repo.ts → changeBaseCurrency()` re-anchors the **rates** table only. But two other stores hold amounts documented as "in base currency":
+### B2 · RESOLVED (v0.9.2) — Changing base currency silently re-denominated budgets and opening balance; transaction amounts weren't locked in at all
+Originally: `changeBaseCurrency()` re-anchored the rates table only, leaving `Budget.amount` and `Settings.openingBalance` numerically unchanged (a "$500" budget silently became "C$500"). Investigating it surfaced a bigger, related gap: transaction amounts were converted to base **live, at read time** — editing an exchange rate months later silently rewrote every past total that touched that currency, with no way to "lock in" a rate as of when an entry was logged.
 
-- `Budget.amount` (a `currency` field is stored at save time but **ignored everywhere** — `BudgetPanel` and `BudgetsScreen` use `amount` raw),
-- `Settings.openingBalance`.
+**Fix implemented:** `Transaction` gained `baseAmount`/`baseRate` — computed once at `addTransaction`/import time from the live rate table and stored permanently; every aggregation site (`compute.ts`, `budgetMath.ts`, `BudgetsScreen`, `TransactionsScreen`, `TransactionRow`) now reads `t.baseAmount` directly instead of re-converting via `toBase(t.amount, t.currency, rates)`, so a later rate edit no longer touches historical figures. `updateTransaction` keeps the previously-locked rate when only the amount changes, fetches a fresh live rate if the currency changes, and accepts an explicit `baseRateOverride` — surfaced in `EditTransactionScreen` as an editable "1 EUR = _ USD" field (defaults to the locked rate, editable, with a "≈ $X locked in" preview). `changeBaseCurrency` now rescales `Budget.amount` (+ sets its `currency`), `Settings.openingBalance`, and every transaction's `baseAmount`/`baseRate` by the same factor the rates table itself is re-anchored by — all in one atomic transaction. A `backfillBaseAmounts()` migration (idempotent, runs on every boot and after a backup restore) fills in the fields for rows that predate this feature, using today's rate table as the best available approximation (historical per-transaction rates were never recorded, so this is a one-time backfill, not a retroactive lock).
 
-Switch base from USD to CAD and a "$500" budget becomes "C$500" — off by the FX factor; Total Wealth shifts too.
-**Fix sketch:** inside `changeBaseCurrency`'s transaction, multiply `openingBalance` and every `Budget.amount` by the old→new factor (`1 / divisor`), and update `Budget.currency`. Alternatively convert budgets at read time using their stored `currency` — but then `openingBalance` still needs the write-time fix, so converting both at write time is simpler and keeps the "everything is base" invariant true.
+**A real bug found while building the fix:** `updateTransaction`'s `db.transaction(...)` call didn't declare `db.settings`/`db.rates` as participating tables, but the new code read from them inside that transaction (to resolve the base currency and live rates) — Dexie silently rolled back the *entire* transaction when that happened, so edits to amount/currency/category were dropped with no error surfaced to the user (only a console `NotFoundError`). Fixed by adding both tables to the transaction's declaration. This is a sharp Dexie edge: **any table read or written inside a `db.transaction(...)` callback must be listed in that call's arguments**, even for a simple `.get()`.
+
+Verified end-to-end in headless Chromium: added a €100 transaction (rate 1.1) → locked `baseAmount=110`; changed the live EUR rate to 1.5 → the transaction's stored amount stayed `110` (not `150`); edited the amount only (100→200) → kept the locked rate (`baseAmount=220`, not 300); edited the rate explicitly to 1.5 → `baseAmount=300`; switched base currency USD→EUR (divisor 1.5) → a 500-unit budget became `333.33` EUR, opening balance `1000`→`666.67`, and the transaction's `baseAmount` `300`→`200` with `baseRate` reset to `1`. Also verified the legacy-row backfill (a hand-inserted row with no `baseAmount` field was correctly backfilled on the next boot) and a full-app smoke test (Add/Activity/Insights/Budgets/Edit screens, multi-currency data) — zero console errors throughout.
 
 ### B3 · MEDIUM — Week proration ignores the first-day-of-week setting
 `budgetMath.ts → prorateMonthly()` hardcodes `startOfWeek(now, 1)` (Monday). The ring's *numerator* (`periodRange('week', …, firstDayOfWeek)`) honors the user's Sunday/Monday setting, so Sunday-start users get a mismatched week ring (spend measured from Sunday, target prorated from Monday).
@@ -63,7 +63,7 @@ Two rapid `updateSettings` calls can clobber each other (last write wins over a 
 | U3 | Reach mode | The on-the-fly gutter flip is session-only by design; the Settings value re-asserts on reload. Consider persisting the flip (it *is* an expressed preference) or at least keeping it for the app session across tab switches (it currently resets if settings re-emit). |
 | U4 | Edit screen parity | `EditTransactionScreen` uses the plain keypad — no calculator, no reach. Fine as a scope decision, but users who learn "the pad is a calculator" will expect it here too. The keypad already supports it via props. |
 | U5 | Tag casing | The tags table lowercases names (`bumpTags`), so suggestions/labels show "rc cars" while transactions preserve "RC Cars". Store a `display` casing on the tag row (first-seen, like `labelBreakdown` does) for consistent chips. |
-| U6 | Rates | Exchange rates are manual-only. README even claims "optional online refresh," which doesn't exist (B/doc mismatch — fix README or build a fetch against a free FX API with offline fallback). |
+| U6 | Rates | Correction to an earlier draft of this review: online refresh *does* exist (`CurrenciesScreen`'s "Update online" button fetches `open.er-api.com`) — the README's claim is accurate, not drift. Real gap: it has no offline/error affordance beyond a toast, and no "last updated" staleness indicator on the rates list itself (only in the per-currency edit sheet's underlying `updatedAt`, which isn't surfaced in the UI). |
 | U7 | Recurring transactions | Most-requested Spendee feature likely to be missed: scheduled/recurring entries (rent, subscriptions). The data model would need a `recurrence` table + materialization on launch. |
 | U8 | iOS status bar | `black` status-bar style shows a black strip in light theme. Acceptable trade-off (see §1), but a future option: theme-aware `theme-color` meta (`media="(prefers-color-scheme: …)"` pair or JS-updated) so at least browser-tab/Android chrome matches. Do **not** return to `black-translucent`. |
 | U9 | Deleting a category with transactions | Verified handled: `CategoriesScreen` disables the delete button while `categoryTxCount > 0`, so orphaned `categoryId`s can't happen through the UI (only via a malformed backup restore — see §7). A "reassign transactions then delete" flow would still be a nice upgrade over a disabled button. |
@@ -88,7 +88,7 @@ Two rapid `updateSettings` calls can clobber each other (last write wins over a 
 - **T4 — Dead code:** `applyKey` re-export in `AmountKeypad` (nothing imports it anymore; the logic lives in `lib/calc.ts → applyAmountKey`). `Settings.seededDefaults` is written but never read ("reserved").
 - **T5 — Dexie schema discipline.** Still on `version(1)`. New *fields* (e.g. `calculatorMode`, `keypadReach`) need no migration (defaults merge in `useSettings`/`getSettings`), but any new *index* requires `version(2).stores(…)` — document this in the class when it first happens.
 - **T6 — Error handling.** `save()`/repo writes have no try/catch; an IndexedDB failure (private-mode quota, eviction) fails silently. A tiny toast-on-rejection wrapper around repo calls, plus one React error boundary above the router, would cover the realistic failure modes.
-- **T7 — README drift.** Claims rate "online refresh" (doesn't exist), describes Insights as "Monthly/Yearly/All-time" (now Week/Month/Year/All/Custom with Overview/Categories/Labels), and predates the budget dashboard, calculator, and reach mode. Refresh when convenient.
+- **T7 — README drift.** Describes Insights as "Monthly/Yearly/All-time" (now Week/Month/Year/All/Custom with Overview/Categories/Labels), and predates the budget dashboard, calculator, reach mode, and locked-in transaction rates (§2 B2). The "online refresh" claim is accurate (see U6 correction) — no fix needed there. Refresh the rest when convenient.
 
 ---
 
@@ -111,14 +111,14 @@ Two rapid `updateSettings` calls can clobber each other (last write wins over a 
 
 ## 8. Suggested priority order
 
-1. **B1** income-vs-last-year ranges (visible-wrong numbers) + regression tests.
-2. **B2** base-currency change re-denomination (silent data corruption).
-3. **T1** Vitest setup with tests for `calc.ts`, `budgetMath.ts`, `date.ts` (locks in 1 & 2).
+1. ~~**B1** income-vs-last-year ranges~~ — still open, see §2 (not touched by the B2 fix; different root cause, same "raw `new Date(iso)`" family of bug).
+2. ~~**B2** base-currency change re-denomination~~ — **resolved in v0.9.2**, see §2.
+3. **T1** Vitest setup with tests for `calc.ts`, `budgetMath.ts`, `date.ts` (would have caught B1, and now protects the B2 fix's rounding/rescale math).
 4. **B3** week proration `firstDayOfWeek`.
 5. **P1/P2** BudgetPanel memoization + `currencyDecimals` cache (do together, both in the keystroke path).
 6. **U1/U2** calculator-sheet polish; **B5/B6** decimal edge cases.
 7. **T6** error boundary + write-failure toasts.
-8. **U6/T7** rates story + README refresh; then the bigger product items (U7 recurring, U3/U4 parity).
+8. **T7** README refresh (Insights sections, budget dashboard, calculator, reach mode, locked-in rates); then the bigger product items (U7 recurring, U3/U4 parity).
 
 ---
 

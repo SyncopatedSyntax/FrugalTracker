@@ -2,7 +2,7 @@ import { Fragment, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import Segmented from '@/components/Segmented'
 import { ChevronRightIcon, PencilIcon, TagIcon } from '@/components/icons'
-import { useAllTransactions, useCategoryMap, useRateMap, useSettings } from '@/hooks'
+import { useAllTransactions, useCategoryMap, useSettings } from '@/hooks'
 import type { TxType } from '@/db/types'
 import { formatMoney, formatMoneyCompact } from '@/lib/currency'
 import { addDays, todayISO, toISO } from '@/lib/date'
@@ -33,7 +33,6 @@ function alignLen(arr: number[], len: number): Array<number | null> {
 export default function InsightsScreen() {
   const all = useAllTransactions()
   const categoryMap = useCategoryMap()
-  const rates = useRateMap()
   const settings = useSettings()
   const base = settings.baseCurrency
 
@@ -68,8 +67,8 @@ export default function InsightsScreen() {
     [all, period],
   )
 
-  const totalExpense = useMemo(() => sumFlow(periodTxs, 'expense', rates), [periodTxs, rates])
-  const totalIncome = useMemo(() => sumFlow(periodTxs, 'income', rates), [periodTxs, rates])
+  const totalExpense = useMemo(() => sumFlow(periodTxs, 'expense'), [periodTxs])
+  const totalIncome = useMemo(() => sumFlow(periodTxs, 'income'), [periodTxs])
   const net = totalIncome - totalExpense
 
   /* --------------------------- Overview series --------------------------- */
@@ -81,20 +80,20 @@ export default function InsightsScreen() {
   const overview = useMemo(() => {
     const isWealth = metric === 'wealth'
     const curRaw = isWealth
-      ? balanceSeries(all, period.buckets, settings.openingBalance, settings.openingBalanceDate, rates)
-      : cashflowSeries(periodTxs, period.buckets, rates)
+      ? balanceSeries(all, period.buckets, settings.openingBalance, settings.openingBalanceDate)
+      : cashflowSeries(periodTxs, period.buckets)
     const cur = curRaw.map((v, i) => (i <= lastIdx ? v : null))
     const prev = period.prev
       ? alignLen(
           isWealth
-            ? balanceSeries(all, period.prev.buckets, settings.openingBalance, settings.openingBalanceDate, rates)
-            : cashflowSeries(prevTxs, period.prev.buckets, rates),
+            ? balanceSeries(all, period.prev.buckets, settings.openingBalance, settings.openingBalanceDate)
+            : cashflowSeries(prevTxs, period.prev.buckets),
           nBuckets,
         )
       : null
     const wealthNow = lastIdx >= 0 ? curRaw[lastIdx] : (curRaw[curRaw.length - 1] ?? settings.openingBalance)
     return { cur, prev, wealthNow }
-  }, [metric, all, periodTxs, prevTxs, period, rates, settings.openingBalance, settings.openingBalanceDate, lastIdx, nBuckets])
+  }, [metric, all, periodTxs, prevTxs, period, settings.openingBalance, settings.openingBalanceDate, lastIdx, nBuckets])
 
   const series: LineSeries[] = useMemo(() => {
     const color = metric === 'wealth' ? 'rgb(var(--c-income))' : 'rgb(var(--c-primary))'
@@ -116,10 +115,10 @@ export default function InsightsScreen() {
 
   /* ----------------------------- Breakdowns ------------------------------ */
   const catSlices = useMemo(
-    () => categoryBreakdown(periodTxs, flow, rates, categoryMap),
-    [periodTxs, flow, rates, categoryMap],
+    () => categoryBreakdown(periodTxs, flow, categoryMap),
+    [periodTxs, flow, categoryMap],
   )
-  const labelSlices = useMemo(() => labelBreakdown(periodTxs, flow, rates), [periodTxs, flow, rates])
+  const labelSlices = useMemo(() => labelBreakdown(periodTxs, flow), [periodTxs, flow])
   const flowTotal = flow === 'expense' ? totalExpense : totalIncome
   const selected = selectedCat ? catSlices.find((s) => s.key === selectedCat) : undefined
   const selectedLbl = selectedLabel ? labelSlices.find((s) => s.key === selectedLabel) : undefined

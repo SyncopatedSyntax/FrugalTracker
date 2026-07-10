@@ -237,6 +237,15 @@ export async function runImport(
   const valid = preview.filter((r) => r.valid)
   const invalid = preview.length - valid.length
 
+  // Historical per-transaction rates aren't available, so imported rows lock
+  // in their base-currency value using today's rate table — the best
+  // approximation there is, same caveat as a fresh backfill.
+  const settings = await db.settings.get('app')
+  const baseCurrency = settings?.baseCurrency ?? 'USD'
+  const rateRows = await db.rates.toArray()
+  const rateOf = new Map(rateRows.map((r) => [r.currency, r.rate]))
+  const rateFor = (currency: string) => (currency === baseCurrency ? 1 : rateOf.get(currency) ?? 1)
+
   const categories = await db.categories.toArray()
   const catKey = (name: string, type: TxType) => `${type}|${name.trim().toLowerCase()}`
   const catByKey = new Map(categories.map((c) => [catKey(c.name, c.type), c]))
@@ -301,6 +310,7 @@ export async function runImport(
       }
     }
 
+    const rate = rateFor(r.currency)
     newTxs.push({
       id: uid(),
       type: r.type,
@@ -312,6 +322,8 @@ export async function runImport(
       date: r.date,
       createdAt: now,
       updatedAt: now,
+      baseRate: rate,
+      baseAmount: Math.round(r.amount * rate * 1e6) / 1e6,
     })
     imported++
     catUsage.set(cat.id, (catUsage.get(cat.id) ?? 0) + 1)

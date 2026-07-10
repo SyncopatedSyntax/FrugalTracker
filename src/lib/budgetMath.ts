@@ -1,5 +1,4 @@
 import type { Transaction } from '@/db/types'
-import { toBase, type RateMap } from './convert'
 import {
   addMonths,
   addYears,
@@ -69,7 +68,6 @@ export function rollingMonthlyAverage(
   txs: Transaction[],
   categoryId: string | null,
   now: Date,
-  rates: RateMap,
 ): number {
   const windowEnd = endOfMonth(addMonths(now, -1))
   const earliestWanted = startOfMonth(addMonths(now, -12))
@@ -90,7 +88,7 @@ export function rollingMonthlyAverage(
   const inWindow = matches.filter((t) => t.date >= startISO && t.date <= endISO)
   if (inWindow.length === 0) return 0
 
-  const total = inWindow.reduce((sum, t) => sum + toBase(t.amount, t.currency, rates), 0)
+  const total = inWindow.reduce((sum, t) => sum + t.baseAmount, 0)
   const monthsSpanned =
     (windowEnd.getFullYear() - windowStart.getFullYear()) * 12 +
     (windowEnd.getMonth() - windowStart.getMonth()) +
@@ -104,14 +102,13 @@ export function sumInRange(
   range: Range,
   type: Transaction['type'],
   categoryId: string | null,
-  rates: RateMap,
 ): number {
   let total = 0
   for (const t of txs) {
     if (t.type !== type) continue
     if (categoryId !== null && t.categoryId !== categoryId) continue
     if (t.date < range.startISO || t.date > range.endISO) continue
-    total += toBase(t.amount, t.currency, rates)
+    total += t.baseAmount
   }
   return total
 }

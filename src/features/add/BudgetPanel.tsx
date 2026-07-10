@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { useAllTransactions, useBudgets, useCategoryMap, useRateMap, useSettings } from '@/hooks'
+import { useAllTransactions, useBudgets, useCategoryMap, useSettings } from '@/hooks'
 import type { TxType } from '@/db/types'
 import { formatMoneyCompact } from '@/lib/currency'
 import { cn } from '@/lib/cn'
@@ -24,24 +24,17 @@ export default function BudgetPanel({ type, categoryId }: Props) {
   const settings = useSettings()
   const base = settings.baseCurrency
   const txs = useAllTransactions()
-  const rates = useRateMap()
   const budgets = useBudgets()
   const categoryMap = useCategoryMap()
 
   return (
     <div className="mx-4 mt-2 rounded-[22px] bg-surface p-5">
       {type === 'income' ? (
-        <IncomeCompare
-          txs={txs}
-          rates={rates}
-          base={base}
-          firstDayOfWeek={settings.firstDayOfWeek}
-        />
+        <IncomeCompare txs={txs} base={base} firstDayOfWeek={settings.firstDayOfWeek} />
       ) : (
         <ExpenseCompare
           categoryId={categoryId}
           txs={txs}
-          rates={rates}
           budgets={budgets}
           categoryMap={categoryMap}
           base={base}
@@ -66,7 +59,6 @@ function ringColor(ratio: number, hasComparison: boolean, base: string, isIncome
 function ExpenseCompare({
   categoryId,
   txs,
-  rates,
   budgets,
   categoryMap,
   base,
@@ -74,7 +66,6 @@ function ExpenseCompare({
 }: {
   categoryId: string | null
   txs: ReturnType<typeof useAllTransactions>
-  rates: ReturnType<typeof useRateMap>
   budgets: ReturnType<typeof useBudgets>
   categoryMap: ReturnType<typeof useCategoryMap>
   base: string
@@ -90,7 +81,7 @@ function ExpenseCompare({
   if (budget) {
     monthly = budget.amount
   } else {
-    const avg = rollingMonthlyAverage(txs, categoryId, now, rates)
+    const avg = rollingMonthlyAverage(txs, categoryId, now)
     if (avg > 0) {
       monthly = avg
       isAvg = true
@@ -102,7 +93,7 @@ function ExpenseCompare({
   const categoryColor = category?.color ?? 'rgb(var(--c-primary))'
   const rings = TIMEFRAMES.map((tf) => {
     const range = periodRange(tf, now, firstDayOfWeek)
-    const spent = sumInRange(txs, range, 'expense', categoryId, rates)
+    const spent = sumInRange(txs, range, 'expense', categoryId)
     const target = hasComparison ? prorateMonthly(monthly, tf, now) : 0
     const ratio = target > 0 ? spent / target : 0
     return { tf, spent, target, ratio }
@@ -156,20 +147,18 @@ function ExpenseCompare({
 
 function IncomeCompare({
   txs,
-  rates,
   base,
   firstDayOfWeek,
 }: {
   txs: ReturnType<typeof useAllTransactions>
-  rates: ReturnType<typeof useRateMap>
   base: string
   firstDayOfWeek: 0 | 1
 }) {
   const now = new Date()
   const rings = TIMEFRAMES.map((tf) => {
     const range = periodRange(tf, now, firstDayOfWeek)
-    const current = sumInRange(txs, range, 'income', null, rates)
-    const lastYear = sumInRange(txs, sameRangeLastYear(range), 'income', null, rates)
+    const current = sumInRange(txs, range, 'income', null)
+    const lastYear = sumInRange(txs, sameRangeLastYear(range), 'income', null)
     const hasLastYear = lastYear > 0
     const ratio = hasLastYear ? current / lastYear : 0
     return { tf, current, hasLastYear, ratio }

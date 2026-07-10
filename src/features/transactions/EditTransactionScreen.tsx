@@ -8,9 +8,9 @@ import CategoryFormSheet from '@/features/categories/CategoryFormSheet'
 import CategoryGrid from '@/features/add/CategoryGrid'
 import AmountKeypad from '@/features/add/AmountKeypad'
 import { ArrowLeftIcon, CalendarIcon, PencilIcon, TagIcon, TrashIcon } from '@/components/icons'
-import { useCategoriesByType, useTags, useTransaction } from '@/hooks'
+import { useCategoriesByType, useRateMap, useSettings, useTags, useTransaction } from '@/hooks'
 import { deleteTransaction, updateTransaction } from '@/db/repo'
-import { currencyDecimals, currencySymbol } from '@/lib/currency'
+import { currencyDecimals, currencySymbol, formatMoney } from '@/lib/currency'
 import { formatTypedAmount, numberToTyped, parseAmount } from '@/lib/amount'
 import { formatShortDate, todayISO } from '@/lib/date'
 import type { TxType } from '@/db/types'
@@ -21,6 +21,8 @@ export default function EditTransactionScreen() {
   const navigate = useNavigate()
   const tx = useTransaction(id)
   const tagSuggestions = useTags().map((t) => t.name)
+  const settings = useSettings()
+  const rates = useRateMap()
 
   const [type, setType] = useState<TxType>('expense')
   const [amount, setAmount] = useState('')
@@ -29,6 +31,11 @@ export default function EditTransactionScreen() {
   const [note, setNote] = useState('')
   const [tags, setTags] = useState<string[]>([])
   const [date, setDate] = useState(todayISO())
+  // The exchange rate locked in for this entry (1 unit of `currency` in the
+  // base currency). Defaults to the transaction's originally-locked rate so
+  // editing the amount alone doesn't drift it; editable so the user can
+  // correct it explicitly. See Transaction.baseRate.
+  const [rateText, setRateText] = useState('1')
 
   const [currencyOpen, setCurrencyOpen] = useState(false)
   const [detailsOpen, setDetailsOpen] = useState(false)
@@ -46,8 +53,17 @@ export default function EditTransactionScreen() {
       setNote(tx.note)
       setTags(tx.tags)
       setDate(tx.date)
+      setRateText(String(tx.baseRate ?? 1))
     }
   }, [tx])
+
+  /** The currency picker changed currency — the previously-locked rate
+   * belongs to the old currency, so suggest today's live rate for the new
+   * one (still editable) instead of carrying over a meaningless number. */
+  const changeCurrency = (code: string) => {
+    setCurrency(code)
+    setRateText(code === settings.baseCurrency ? '1' : String(rates.get(code) ?? 1))
+  }
 
   const decimals = currencyDecimals(currency)
   const symbol = currencySymbol(currency)
@@ -68,15 +84,21 @@ export default function EditTransactionScreen() {
 
   const save = async () => {
     if (!canSave || !categoryId || !id) return
-    await updateTransaction(id, {
-      type,
-      amount: amt,
-      currency,
-      categoryId,
-      note: note.trim(),
-      tags,
-      date,
-    })
+    const isBase = currency === settings.baseCurrency
+    const parsedRate = parseFloat(rateText)
+    await updateTransaction(
+      id,
+      {
+        type,
+        amount: amt,
+        currency,
+        categoryId,
+        note: note.trim(),
+        tags,
+        date,
+      },
+      { baseRateOverride: isBase ? 1 : Number.isFinite(parsedRate) && parsedRate > 0 ? parsedRate : undefined },
+    )
     navigate(-1)
   }
 
@@ -146,6 +168,25 @@ export default function EditTransactionScreen() {
             {formatTypedAmount(amount)}
           </span>
         </div>
+        {currency !== settings.baseCurrency && (
+          <div className="mt-1.5 flex flex-col items-center gap-0.5">
+            <div className="flex items-center gap-1.5 text-xs text-muted">
+              <span>1 {currency} =</span>
+              <input
+                type="number"
+                inputMode="decimal"
+                value={rateText}
+                onChange={(e) => setRateText(e.target.value)}
+                className="w-20 rounded-lg border border-border bg-surface2 px-2 py-1 text-center text-xs tabular-nums outline-none focus:border-primary"
+                aria-label="Exchange rate"
+              />
+              <span>{settings.baseCurrency}</span>
+            </div>
+            <span className="text-[11px] text-muted">
+              ≈ {formatMoney(amt * (parseFloat(rateText) || 0), settings.baseCurrency)} locked in
+            </span>
+          </div>
+        )}
       </div>
 
       <div className="mt-3 flex items-center justify-center gap-2 px-4">
@@ -189,7 +230,7 @@ export default function EditTransactionScreen() {
         open={currencyOpen}
         onClose={() => setCurrencyOpen(false)}
         value={currency}
-        onSelect={setCurrency}
+        onSelect={changeCurrency}
       />
 
       <CategoryFormSheet

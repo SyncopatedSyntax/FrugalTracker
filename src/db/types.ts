@@ -29,6 +29,15 @@ export interface Transaction {
   date: string
   createdAt: number
   updatedAt: number
+  /** `amount` converted to the base currency, locked in at save/edit time so
+   * later exchange-rate changes never rewrite historical totals. Kept in
+   * `currency`'s own base-relative units — rescaled in place if the base
+   * currency itself changes (see `changeBaseCurrency`). Equals `amount` when
+   * `currency` is already the base. */
+  baseAmount: number
+  /** The rate applied to produce `baseAmount`: 1 unit of `currency` = baseRate
+   * units of the base currency, at lock-in time. 1 when currency is base. */
+  baseRate: number
 }
 
 export interface Tag {

@@ -6,13 +6,11 @@ import {
   useBudgets,
   useCategoriesByType,
   useCategoryMap,
-  useRateMap,
   useSettings,
   useTransactionsInRange,
 } from '@/hooks'
 import { deleteBudget, setBudget } from '@/db/repo'
 import type { Budget } from '@/db/types'
-import { toBase } from '@/lib/convert'
 import { currencySymbol, formatMoney } from '@/lib/currency'
 import { endOfMonth, monthLabel, startOfMonth, toISO } from '@/lib/date'
 import { cn } from '@/lib/cn'
@@ -23,7 +21,6 @@ export default function BudgetsScreen() {
   const budgets = useBudgets()
   const categoryMap = useCategoryMap()
   const expenseCats = useCategoriesByType('expense')
-  const rates = useRateMap()
 
   const now = new Date()
   const monthTxs = useTransactionsInRange(toISO(startOfMonth(now)), toISO(endOfMonth(now)))
@@ -33,12 +30,11 @@ export default function BudgetsScreen() {
     let total = 0
     for (const t of monthTxs) {
       if (t.type !== 'expense') continue
-      const v = toBase(t.amount, t.currency, rates)
-      map.set(t.categoryId, (map.get(t.categoryId) ?? 0) + v)
-      total += v
+      map.set(t.categoryId, (map.get(t.categoryId) ?? 0) + t.baseAmount)
+      total += t.baseAmount
     }
     return { spentByCat: map, totalSpent: total }
-  }, [monthTxs, rates])
+  }, [monthTxs])
 
   const [open, setOpen] = useState(false)
   const [editing, setEditing] = useState<Budget | undefined>()
