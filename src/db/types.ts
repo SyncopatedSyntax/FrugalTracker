@@ -83,6 +83,9 @@ export interface Settings {
   calculatorMode: CalculatorMode
   /** One-handed keypad alignment for large screens. */
   keypadReach: KeypadReach
+  /** Emoji the user has added to the category icon picker, beyond the
+   * built-in starting set — grows over time, included in backups. */
+  customEmojis: string[]
 }
 
 export interface Rate {

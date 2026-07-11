@@ -3,9 +3,14 @@ import Sheet from '@/components/Sheet'
 import Segmented from '@/components/Segmented'
 import { cn } from '@/lib/cn'
 import type { Category, TxType } from '@/db/types'
-import { addCategory, updateCategory } from '@/db/repo'
+import { addCategory, updateCategory, updateSettings } from '@/db/repo'
+import { useSettings } from '@/hooks'
 import { CATEGORY_PALETTE } from '@/lib/palette'
+import { firstGrapheme } from '@/lib/emoji'
 
+/** Starting set of common budgeting icons. Users can add their own beyond
+ * this via the "Add your own" field below the grid — those are persisted in
+ * Settings.customEmojis so the picker grows over time. */
 const EMOJIS = [
   '🍔', '🛒', '🚗', '☕', '🛍️', '💡', '🏠', '🎬', '🏥', '✈️',
   '📱', '🏋️', '💇', '🎁', '📚', '🐾', '📦', '🍺', '🍕', '🍜',
@@ -35,6 +40,10 @@ export default function CategoryFormSheet({
   const [icon, setIcon] = useState('📦')
   const [color, setColor] = useState('#767B70')
   const [type, setType] = useState<TxType>(defaultType)
+  const [customEmojiText, setCustomEmojiText] = useState('')
+
+  const settings = useSettings()
+  const customEmojis = settings.customEmojis.filter((e) => !EMOJIS.includes(e))
 
   useEffect(() => {
     if (!open) return
@@ -49,7 +58,18 @@ export default function CategoryFormSheet({
       setColor('#767B70')
       setType(defaultType)
     }
+    setCustomEmojiText('')
   }, [open, editing, defaultType])
+
+  const addCustomEmoji = () => {
+    const value = firstGrapheme(customEmojiText.trim())
+    if (!value) return
+    setIcon(value)
+    setCustomEmojiText('')
+    if (!EMOJIS.includes(value) && !settings.customEmojis.includes(value)) {
+      updateSettings({ customEmojis: [...settings.customEmojis, value] })
+    }
+  }
 
   const canSave = name.trim().length > 0
 
@@ -110,6 +130,52 @@ export default function CategoryFormSheet({
                 {e}
               </button>
             ))}
+          </div>
+
+          {customEmojis.length > 0 && (
+            <>
+              <p className="mb-2 mt-3 text-xs font-semibold uppercase tracking-wide text-muted">
+                Your custom icons
+              </p>
+              <div className="grid grid-cols-8 gap-1">
+                {customEmojis.map((e) => (
+                  <button
+                    key={e}
+                    onClick={() => setIcon(e)}
+                    className={cn(
+                      'grid h-9 place-items-center rounded-lg text-xl',
+                      icon === e ? 'bg-primary/15 ring-1 ring-primary' : 'hover:bg-surface2',
+                    )}
+                  >
+                    {e}
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
+
+          <div className="mt-3 flex items-center gap-2">
+            <input
+              value={customEmojiText}
+              onChange={(e) => setCustomEmojiText(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault()
+                  addCustomEmoji()
+                }
+              }}
+              placeholder="Add your own emoji…"
+              maxLength={16}
+              className="min-w-0 flex-1 rounded-lg border border-border bg-surface2 px-2.5 py-2 text-sm outline-none focus:border-primary"
+            />
+            <button
+              type="button"
+              onClick={addCustomEmoji}
+              disabled={!customEmojiText.trim()}
+              className="flex-shrink-0 rounded-lg bg-primary px-3 py-2 text-xs font-semibold text-primary-fg disabled:opacity-40"
+            >
+              Add
+            </button>
           </div>
         </div>
 

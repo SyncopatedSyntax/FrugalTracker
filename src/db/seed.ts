@@ -61,6 +61,7 @@ export const DEFAULT_SETTINGS: Settings = {
   openingBalanceDate: '',
   calculatorMode: 'inline',
   keypadReach: 'center',
+  customEmojis: [],
 }
 
 /**
