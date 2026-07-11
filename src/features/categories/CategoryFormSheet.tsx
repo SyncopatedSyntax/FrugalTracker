@@ -5,7 +5,7 @@ import { cn } from '@/lib/cn'
 import type { Category, TxType } from '@/db/types'
 import { addCategory, updateCategory, updateSettings } from '@/db/repo'
 import { useSettings } from '@/hooks'
-import { CATEGORY_PALETTE } from '@/lib/palette'
+import { categoryPalette } from '@/lib/palette'
 import { firstGrapheme } from '@/lib/emoji'
 
 /** Starting set of common budgeting icons. Users can add their own beyond
@@ -18,8 +18,6 @@ const EMOJIS = [
   '💵', '💼', '📈', '➕', '🏦', '👕', '👟', '💄', '🧴', '🧻',
   '🔧', '💻', '📷', '🎟️', '🍷', '🌮', '🥗', '🍦', '🚿', '🌐',
 ]
-
-const COLORS = CATEGORY_PALETTE
 
 interface Props {
   open: boolean
@@ -36,13 +34,16 @@ export default function CategoryFormSheet({
   editing,
   onSaved,
 }: Props) {
+  const settings = useSettings()
+  const COLORS = categoryPalette(settings.appTheme)
+  const defaultColor = COLORS[COLORS.length - 1]
+
   const [name, setName] = useState('')
   const [icon, setIcon] = useState('📦')
-  const [color, setColor] = useState('#767B70')
+  const [color, setColor] = useState(defaultColor)
   const [type, setType] = useState<TxType>(defaultType)
   const [customEmojiText, setCustomEmojiText] = useState('')
 
-  const settings = useSettings()
   const customEmojis = settings.customEmojis.filter((e) => !EMOJIS.includes(e))
 
   useEffect(() => {
@@ -55,10 +56,11 @@ export default function CategoryFormSheet({
     } else {
       setName('')
       setIcon('📦')
-      setColor('#767B70')
+      setColor(defaultColor)
       setType(defaultType)
     }
     setCustomEmojiText('')
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, editing, defaultType])
 
   const addCustomEmoji = () => {

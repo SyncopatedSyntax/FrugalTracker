@@ -7,6 +7,7 @@ import type { TxType } from '@/db/types'
 import { formatMoney, formatMoneyCompact } from '@/lib/currency'
 import { addDays, todayISO, toISO } from '@/lib/date'
 import { cn } from '@/lib/cn'
+import { categoryPalette } from '@/lib/palette'
 import PeriodBar from './PeriodBar'
 import LineChart, { type LineSeries } from './LineChart'
 import DonutChart from './DonutChart'
@@ -118,7 +119,10 @@ export default function InsightsScreen() {
     () => categoryBreakdown(periodTxs, flow, categoryMap),
     [periodTxs, flow, categoryMap],
   )
-  const labelSlices = useMemo(() => labelBreakdown(periodTxs, flow), [periodTxs, flow])
+  const labelSlices = useMemo(
+    () => labelBreakdown(periodTxs, flow, categoryPalette(settings.appTheme)),
+    [periodTxs, flow, settings.appTheme],
+  )
   const flowTotal = flow === 'expense' ? totalExpense : totalIncome
   const selected = selectedCat ? catSlices.find((s) => s.key === selectedCat) : undefined
   const selectedLbl = selectedLabel ? labelSlices.find((s) => s.key === selectedLabel) : undefined

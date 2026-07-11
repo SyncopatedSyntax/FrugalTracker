@@ -1,3 +1,5 @@
+import type { AppTheme } from '@/lib/palette'
+
 export type TxType = 'expense' | 'income'
 
 export interface Category {
@@ -86,6 +88,10 @@ export interface Settings {
   /** Emoji the user has added to the category icon picker, beyond the
    * built-in starting set — grows over time, included in backups. */
   customEmojis: string[]
+  /** App-wide color theme — both the app's own surface/accent colors and the
+   * category color palette offered when picking a category color. Doesn't
+   * retroactively recolor already-assigned categories. */
+  appTheme: AppTheme
 }
 
 export interface Rate {

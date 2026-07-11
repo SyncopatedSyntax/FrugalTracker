@@ -1,5 +1,4 @@
 import type { Category, Transaction, TxType } from '@/db/types'
-import { CATEGORY_PALETTE } from '@/lib/palette'
 import type { Bucket } from './period'
 
 /** Signed value in base currency, using each transaction's locked-in
@@ -26,8 +25,6 @@ export interface Slice {
   value: number
   count: number
 }
-
-const LABEL_COLORS = CATEGORY_PALETTE
 
 export function categoryBreakdown(
   txs: Transaction[],
@@ -57,7 +54,14 @@ export function categoryBreakdown(
     .sort((a, b) => b.value - a.value)
 }
 
-export function labelBreakdown(txs: Transaction[], flow: TxType): Slice[] {
+/** Tags have no stored color (unlike categories), so each is colored by its
+ * rank in the current theme's category palette — `palette` should be
+ * `categoryPalette(settings.appTheme)` from the caller. */
+export function labelBreakdown(
+  txs: Transaction[],
+  flow: TxType,
+  palette: readonly string[],
+): Slice[] {
   const agg = new Map<string, { value: number; count: number; display: string }>()
   for (const t of txs) {
     if (t.type !== flow) continue
@@ -72,7 +76,7 @@ export function labelBreakdown(txs: Transaction[], flow: TxType): Slice[] {
   return [...agg.entries()]
     .map(([key, { value, count, display }]) => ({ key, name: display, value, count }))
     .sort((a, b) => b.value - a.value)
-    .map((s, i) => ({ ...s, color: LABEL_COLORS[i % LABEL_COLORS.length] }))
+    .map((s, i) => ({ ...s, color: palette[i % palette.length] }))
 }
 
 const byDate = (a: Transaction, b: Transaction) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0)

@@ -1,5 +1,5 @@
 import { useLiveQuery } from 'dexie-react-hooks'
-import { useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { db } from '@/db/db'
 import { DEFAULT_SETTINGS } from '@/db/seed'
 import type { Category, Settings, TxType } from '@/db/types'
@@ -11,6 +11,29 @@ export function useSettings(): Settings {
   const s = useLiveQuery(() => db.settings.get('app'), [])
   // Merge defaults so settings saved before newer fields existed still resolve.
   return s ? { ...DEFAULT_SETTINGS, ...s } : DEFAULT_SETTINGS
+}
+
+/** Whether dark mode is currently in effect (resolving `theme: 'system'`
+ * against the OS preference) — for previews that need to match what the
+ * user is actually seeing, independent of the app's own `.dark` class. */
+export function useIsDark(): boolean {
+  const settings = useSettings()
+  const resolve = () =>
+    settings.theme === 'dark' ||
+    (settings.theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches)
+  const [isDark, setIsDark] = useState(resolve)
+
+  useEffect(() => {
+    setIsDark(resolve())
+    if (settings.theme !== 'system') return
+    const mq = window.matchMedia('(prefers-color-scheme: dark)')
+    const onChange = () => setIsDark(mq.matches)
+    mq.addEventListener('change', onChange)
+    return () => mq.removeEventListener('change', onChange)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [settings.theme])
+
+  return isDark
 }
 
 /* ------------------------------- Categories ------------------------------ */

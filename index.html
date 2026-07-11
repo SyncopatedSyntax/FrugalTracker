@@ -14,7 +14,7 @@
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <title>FrugalTracker</title>
     <script>
-      // Apply persisted theme before paint to avoid flash.
+      // Apply persisted theme (light/dark + color theme) before paint to avoid flash.
       (function () {
         try {
           var t = localStorage.getItem('ft-theme');
@@ -22,6 +22,8 @@
             t === 'dark' ||
             (!t && window.matchMedia('(prefers-color-scheme: dark)').matches);
           if (dark) document.documentElement.classList.add('dark');
+          var appTheme = localStorage.getItem('ft-app-theme');
+          if (appTheme) document.documentElement.setAttribute('data-app-theme', appTheme);
         } catch (e) {}
       })();
     </script>

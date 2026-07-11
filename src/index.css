@@ -2,7 +2,15 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
+/* App color themes. Selectable in More → Appearance (Settings.appTheme).
+   The bare `:root`/`.dark` selectors are also always kept in sync with
+   "sage" so the app never renders unthemed before data-app-theme is set
+   (first paint, or a theme preview swatch that doesn't set the attribute).
+   Plain attribute selectors (not `:root`-qualified) so the same rules also
+   scope a themed preview swatch nested anywhere in the page, not just the
+   real app root. */
+:root,
+[data-app-theme='sage'] {
   /* Light theme — "Sage Ledger": warm porcelain ground, botanical sage accent,
      clay (not alarm-red) for spending, so money-out reads as information. */
   --c-bg: 244 244 238; /* #F4F4EE porcelain */
@@ -17,7 +25,8 @@
   --c-income: 71 121 93; /* #47795D */
 }
 
-.dark {
+.dark,
+[data-app-theme='sage'].dark {
   /* Dark theme — a warm dark olive-charcoal night variant of the same
      identity (not a generic navy), so the accent and semantics carry over. */
   --c-bg: 27 29 24; /* #1B1D18 */
@@ -30,6 +39,90 @@
   --c-primary-fg: 20 22 17; /* #141611 */
   --c-expense: 224 152 138; /* #E0988A lightened clay */
   --c-income: 143 199 154; /* #8FC79A */
+}
+
+[data-app-theme='botanical'] {
+  /* Botanical Bold — the same organic family as Sage Ledger, pushed to
+     deeper, higher-contrast shades so category color pops off the surface. */
+  --c-bg: 247 245 238; /* #F7F5EE */
+  --c-surface: 255 255 255;
+  --c-surface2: 236 231 216; /* #ECE7D8 */
+  --c-border: 222 216 196; /* #DED8C4 */
+  --c-content: 33 31 22; /* #211F16 */
+  --c-muted: 107 102 86; /* #6B6656 */
+  --c-primary: 31 122 77; /* #1F7A4D */
+  --c-primary-fg: 255 255 255;
+  --c-expense: 185 28 28; /* #B91C1C */
+  --c-income: 21 128 61; /* #15803D */
+}
+
+[data-app-theme='botanical'].dark {
+  --c-bg: 20 21 15; /* #14150F */
+  --c-surface: 29 31 23; /* #1D1F17 */
+  --c-surface2: 38 41 32; /* #262920 */
+  --c-border: 56 59 46; /* #383B2E */
+  --c-content: 239 238 226; /* #EFEEE2 */
+  --c-muted: 167 168 150; /* #A7A896 */
+  --c-primary: 74 222 128; /* #4ADE80 */
+  --c-primary-fg: 11 26 14; /* #0B1A0E */
+  --c-expense: 252 165 165; /* #FCA5A5 */
+  --c-income: 134 239 172; /* #86EFAC */
+}
+
+[data-app-theme='coral'] {
+  /* Coral Contrast — twelve category hues spaced evenly around the wheel;
+     cooler, cleaner neutrals so nothing competes with them. */
+  --c-bg: 250 250 250; /* #FAFAFA */
+  --c-surface: 255 255 255;
+  --c-surface2: 240 240 238; /* #F0F0EE */
+  --c-border: 226 226 223; /* #E2E2DF */
+  --c-content: 23 23 26; /* #17171A */
+  --c-muted: 111 111 118; /* #6F6F76 */
+  --c-primary: 15 118 110; /* #0F766E */
+  --c-primary-fg: 255 255 255;
+  --c-expense: 225 29 72; /* #E11D48 */
+  --c-income: 22 163 74; /* #16A34A */
+}
+
+[data-app-theme='coral'].dark {
+  --c-bg: 18 19 22; /* #121316 */
+  --c-surface: 28 29 33; /* #1C1D21 */
+  --c-surface2: 37 38 43; /* #25262B */
+  --c-border: 51 52 56; /* #333438 */
+  --c-content: 243 243 244; /* #F3F3F4 */
+  --c-muted: 158 158 166; /* #9E9EA6 */
+  --c-primary: 94 234 212; /* #5EEAD4 */
+  --c-primary-fg: 5 46 43; /* #052E2B */
+  --c-expense: 251 113 133; /* #FB7185 */
+  --c-income: 74 222 128; /* #4ADE80 */
+}
+
+[data-app-theme='ocean'] {
+  /* Ocean Punch — cool blues and teals carry the identity; a punchy warm
+     rose is reserved almost entirely for spend. */
+  --c-bg: 246 250 251; /* #F6FAFB */
+  --c-surface: 255 255 255;
+  --c-surface2: 232 240 242; /* #E8F0F2 */
+  --c-border: 215 227 230; /* #D7E3E6 */
+  --c-content: 15 35 42; /* #0F232A */
+  --c-muted: 91 117 128; /* #5B7580 */
+  --c-primary: 3 105 161; /* #0369A1 */
+  --c-primary-fg: 255 255 255;
+  --c-expense: 244 63 94; /* #F43F5E */
+  --c-income: 13 148 136; /* #0D9488 */
+}
+
+[data-app-theme='ocean'].dark {
+  --c-bg: 10 19 23; /* #0A1317 */
+  --c-surface: 19 31 38; /* #131F26 */
+  --c-surface2: 26 43 51; /* #1A2B33 */
+  --c-border: 39 64 72; /* #274048 */
+  --c-content: 230 240 243; /* #E6F0F3 */
+  --c-muted: 140 167 177; /* #8CA7B1 */
+  --c-primary: 56 189 248; /* #38BDF8 */
+  --c-primary-fg: 5 39 51; /* #052733 */
+  --c-expense: 251 113 133; /* #FB7185 */
+  --c-income: 45 212 191; /* #2DD4BF */
 }
 
 * {

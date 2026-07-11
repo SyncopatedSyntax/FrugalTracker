@@ -2,7 +2,7 @@ import Papa from 'papaparse'
 import { db } from '@/db/db'
 import type { Category, Transaction, TxType } from '@/db/types'
 import { uid } from './id'
-import { CATEGORY_PALETTE } from './palette'
+import { categoryPalette } from './palette'
 
 export type FieldKey = 'date' | 'amount' | 'category' | 'currency' | 'note' | 'labels' | 'type'
 
@@ -22,8 +22,6 @@ export interface ParsedCsv {
   headers: string[]
   rows: Record<string, string>[]
 }
-
-const CAT_COLORS = CATEGORY_PALETTE
 
 export function parseCsv(text: string): ParsedCsv {
   const result = Papa.parse<Record<string, string>>(text, {
@@ -245,6 +243,7 @@ export async function runImport(
   const rateRows = await db.rates.toArray()
   const rateOf = new Map(rateRows.map((r) => [r.currency, r.rate]))
   const rateFor = (currency: string) => (currency === baseCurrency ? 1 : rateOf.get(currency) ?? 1)
+  const CAT_COLORS = categoryPalette(settings?.appTheme ?? 'sage')
 
   const categories = await db.categories.toArray()
   const catKey = (name: string, type: TxType) => `${type}|${name.trim().toLowerCase()}`

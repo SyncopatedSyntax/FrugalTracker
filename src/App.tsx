@@ -2,7 +2,7 @@ import { useEffect } from 'react'
 import { Outlet, Route, Routes } from 'react-router-dom'
 import TabBar from './components/TabBar'
 import { useSettings } from './hooks'
-import { applyTheme } from './lib/theme'
+import { applyAppTheme, applyTheme } from './lib/theme'
 
 import AddScreen from './features/add/AddScreen'
 import TransactionsScreen from './features/transactions/TransactionsScreen'
@@ -39,6 +39,10 @@ export default function App() {
     mq.addEventListener('change', onChange)
     return () => mq.removeEventListener('change', onChange)
   }, [settings.theme])
+
+  useEffect(() => {
+    applyAppTheme(settings.appTheme)
+  }, [settings.appTheme])
 
   return (
     <Routes>

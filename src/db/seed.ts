@@ -62,6 +62,7 @@ export const DEFAULT_SETTINGS: Settings = {
   calculatorMode: 'inline',
   keypadReach: 'center',
   customEmojis: [],
+  appTheme: 'sage',
 }
 
 /**
