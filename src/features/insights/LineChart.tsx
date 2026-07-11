@@ -1,5 +1,6 @@
-import { useEffect, useId, useRef, useState } from 'react'
+import { useEffect, useId, useState } from 'react'
 import { cn } from '@/lib/cn'
+import { useChartWidth } from './useChartWidth'
 
 export interface LineSeries {
   name: string
@@ -19,23 +20,8 @@ interface Props {
   height?: number
 }
 
-function useWidth(): [React.RefObject<HTMLDivElement>, number] {
-  const ref = useRef<HTMLDivElement>(null)
-  const [w, setW] = useState(320)
-  useEffect(() => {
-    if (!ref.current) return
-    const ro = new ResizeObserver((entries) => {
-      const cw = entries[0]?.contentRect.width
-      if (cw) setW(cw)
-    })
-    ro.observe(ref.current)
-    return () => ro.disconnect()
-  }, [])
-  return [ref, w]
-}
-
 export default function LineChart({ series, labels, formatY, height = 190 }: Props) {
-  const [ref, width] = useWidth()
+  const [ref, width] = useChartWidth()
   const gid = useId().replace(/[:]/g, '')
 
   const n = labels.length

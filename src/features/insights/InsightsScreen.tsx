@@ -10,12 +10,13 @@ import { cn } from '@/lib/cn'
 import { categoryPalette } from '@/lib/palette'
 import PeriodBar from './PeriodBar'
 import LineChart, { type LineSeries } from './LineChart'
+import CashflowBarChart from './CashflowBarChart'
 import DonutChart from './DonutChart'
 import OpeningBalanceSheet from './OpeningBalanceSheet'
-import { resolvePeriod, stepAnchor, type CustomRange, type Granularity } from './period'
+import { barBuckets, resolvePeriod, stepAnchor, type CustomRange, type Granularity } from './period'
 import {
   balanceSeries,
-  cashflowSeries,
+  cashflowByBucket,
   categoryBreakdown,
   earliestDate,
   labelBreakdown,
@@ -60,59 +61,57 @@ export default function InsightsScreen() {
     () => all.filter((t) => t.date >= period.startISO && t.date <= period.endISO),
     [all, period],
   )
-  const prevTxs = useMemo(
-    () =>
-      period.prev
-        ? all.filter((t) => t.date >= period.prev!.startISO && t.date <= period.prev!.endISO)
-        : [],
-    [all, period],
-  )
 
   const totalExpense = useMemo(() => sumFlow(periodTxs, 'expense'), [periodTxs])
   const totalIncome = useMemo(() => sumFlow(periodTxs, 'income'), [periodTxs])
   const net = totalIncome - totalExpense
 
-  /* --------------------------- Overview series --------------------------- */
+  /* ----------------------------- Wealth series ---------------------------- */
   const today = todayISO()
   const lastIdx = lastStartedIndex(period.buckets, today)
   const nBuckets = period.buckets.length
   const hasOpening = settings.openingBalance !== 0 || settings.openingBalanceDate !== ''
 
-  const overview = useMemo(() => {
-    const isWealth = metric === 'wealth'
-    const curRaw = isWealth
-      ? balanceSeries(all, period.buckets, settings.openingBalance, settings.openingBalanceDate)
-      : cashflowSeries(periodTxs, period.buckets)
-    const cur = curRaw.map((v, i) => (i <= lastIdx ? v : null))
+  // Always computed regardless of which tab is active — the "Total Wealth"
+  // mini-stat shows real current net worth even while viewing the cash-flow
+  // chart, so it can't be derived from whichever series that tab happens to use.
+  const wealth = useMemo(() => {
+    const raw = balanceSeries(all, period.buckets, settings.openingBalance, settings.openingBalanceDate)
+    const cur = raw.map((v, i) => (i <= lastIdx ? v : null))
     const prev = period.prev
       ? alignLen(
-          isWealth
-            ? balanceSeries(all, period.prev.buckets, settings.openingBalance, settings.openingBalanceDate)
-            : cashflowSeries(prevTxs, period.prev.buckets),
+          balanceSeries(all, period.prev.buckets, settings.openingBalance, settings.openingBalanceDate),
           nBuckets,
         )
       : null
-    const wealthNow = lastIdx >= 0 ? curRaw[lastIdx] : (curRaw[curRaw.length - 1] ?? settings.openingBalance)
-    return { cur, prev, wealthNow }
-  }, [metric, all, periodTxs, prevTxs, period, settings.openingBalance, settings.openingBalanceDate, lastIdx, nBuckets])
+    const now = lastIdx >= 0 ? raw[lastIdx] : (raw[raw.length - 1] ?? settings.openingBalance)
+    return { cur, prev, now }
+  }, [all, period, settings.openingBalance, settings.openingBalanceDate, lastIdx, nBuckets])
 
-  const series: LineSeries[] = useMemo(() => {
-    const color = metric === 'wealth' ? 'rgb(var(--c-income))' : 'rgb(var(--c-primary))'
+  const wealthSeries: LineSeries[] = useMemo(() => {
     const nameCur =
       granularity === 'year' ? period.label : granularity === 'all' ? 'All time' : 'Current'
     const out: LineSeries[] = [
-      { name: nameCur, points: overview.cur, color, fill: true, dot: true },
+      { name: nameCur, points: wealth.cur, color: 'rgb(var(--c-income))', fill: true, dot: true },
     ]
-    if (overview.prev) {
+    if (wealth.prev) {
       out.push({
         name: granularity === 'year' && period.prev ? period.prev.label : 'Previous',
-        points: overview.prev,
+        points: wealth.prev,
         color: 'rgb(var(--c-muted))',
         dashed: true,
       })
     }
     return out
-  }, [overview, metric, granularity, period])
+  }, [wealth, granularity, period])
+
+  /* ---------------------------- Cash flow bars ---------------------------- */
+  // Its own (coarser, for the year view) bucket resolution so bars stay
+  // legible — see barBuckets() — rather than reusing the wealth line's
+  // finer weekly checkpoints.
+  const cfBuckets = useMemo(() => barBuckets(period), [period])
+  const cfLastIdx = lastStartedIndex(cfBuckets, today)
+  const cashflow = useMemo(() => cashflowByBucket(periodTxs, cfBuckets), [periodTxs, cfBuckets])
 
   /* ----------------------------- Breakdowns ------------------------------ */
   const catSlices = useMemo(
@@ -173,13 +172,18 @@ export default function InsightsScreen() {
           <OverviewView
             metric={metric}
             setMetric={setMetric}
-            wealthNow={overview.wealthNow}
+            wealthNow={wealth.now}
             net={net}
             income={totalIncome}
             expense={totalExpense}
             base={base}
-            series={series}
-            labels={period.buckets.map((b) => b.label)}
+            wealthSeries={wealthSeries}
+            wealthLabels={period.buckets.map((b) => b.label)}
+            cashflowIncome={cashflow.income}
+            cashflowExpense={cashflow.expense}
+            cashflowNet={cashflow.net}
+            cashflowLabels={cfBuckets.map((b) => b.label)}
+            cashflowLastIdx={cfLastIdx}
             hasOpening={hasOpening}
             onEditOpening={() => setObOpen(true)}
             empty={periodTxs.length === 0}
@@ -239,8 +243,13 @@ function OverviewView({
   income,
   expense,
   base,
-  series,
-  labels,
+  wealthSeries,
+  wealthLabels,
+  cashflowIncome,
+  cashflowExpense,
+  cashflowNet,
+  cashflowLabels,
+  cashflowLastIdx,
   hasOpening,
   onEditOpening,
   empty,
@@ -254,8 +263,13 @@ function OverviewView({
   income: number
   expense: number
   base: string
-  series: LineSeries[]
-  labels: string[]
+  wealthSeries: LineSeries[]
+  wealthLabels: string[]
+  cashflowIncome: number[]
+  cashflowExpense: number[]
+  cashflowNet: number[]
+  cashflowLabels: string[]
+  cashflowLastIdx: number
   hasOpening: boolean
   onEditOpening: () => void
   empty: boolean
@@ -324,10 +338,19 @@ function OverviewView({
       <div className="mt-4 rounded-[22px] bg-surface p-4">
         {empty ? (
           <p className="py-12 text-center text-sm text-muted">No activity in this period.</p>
-        ) : (
+        ) : metric === 'wealth' ? (
           <LineChart
-            series={series}
-            labels={labels}
+            series={wealthSeries}
+            labels={wealthLabels}
+            formatY={(n) => formatMoneyCompact(n, base)}
+          />
+        ) : (
+          <CashflowBarChart
+            income={cashflowIncome}
+            expense={cashflowExpense}
+            net={cashflowNet}
+            labels={cashflowLabels}
+            lastIdx={cashflowLastIdx}
             formatY={(n) => formatMoneyCompact(n, base)}
           />
         )}

@@ -104,20 +104,33 @@ export function balanceSeries(
   return out
 }
 
-/** Cumulative cash flow (starting at 0) at the end of each bucket. */
-export function cashflowSeries(periodTxs: Transaction[], buckets: Bucket[]): number[] {
+export interface CashflowBuckets {
+  income: number[]
+  expense: number[]
+  /** income − expense *within that bucket* — not a running total. */
+  net: number[]
+}
+
+/** Per-bucket (not cumulative) income, expense, and net, in base currency. */
+export function cashflowByBucket(periodTxs: Transaction[], buckets: Bucket[]): CashflowBuckets {
   const txs = periodTxs.slice().sort(byDate)
-  const out: number[] = []
-  let acc = 0
+  const income: number[] = []
+  const expense: number[] = []
+  const net: number[] = []
   let i = 0
   for (const b of buckets) {
+    let inc = 0
+    let exp = 0
     while (i < txs.length && txs[i].date <= b.endISO) {
-      acc += signedBase(txs[i])
+      if (txs[i].type === 'income') inc += txs[i].baseAmount
+      else exp += txs[i].baseAmount
       i++
     }
-    out.push(acc)
+    income.push(inc)
+    expense.push(exp)
+    net.push(inc - exp)
   }
-  return out
+  return { income, expense, net }
 }
 
 /** Index of the last bucket that has already started (<= today); -1 if none. */

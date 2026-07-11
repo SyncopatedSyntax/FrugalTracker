@@ -242,6 +242,15 @@ export function resolvePeriod(
   }
 }
 
+/** Bucket resolution for the cash-flow bar chart specifically — coarser than
+ * the line chart's own buckets where those would be too fine-grained to read
+ * as distinct bars (the year view's ~52 weekly checkpoints become one bar
+ * per month instead; every other granularity's buckets are fine as-is). */
+export function barBuckets(period: PeriodInfo): Bucket[] {
+  if (period.granularity === 'year') return buildBuckets('month', period.startISO, period.endISO)
+  return period.buckets
+}
+
 export function stepAnchor(granularity: Granularity, anchor: Date, dir: -1 | 1): Date {
   switch (granularity) {
     case 'week':
