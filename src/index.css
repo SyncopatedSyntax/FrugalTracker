@@ -23,6 +23,7 @@
   --c-primary-fg: 255 255 255;
   --c-expense: 181 106 91; /* #B56A5B clay */
   --c-income: 71 121 93; /* #47795D */
+  --c-net: 79 115 150; /* #4F7396 denim — the cash-flow chart's net line */
 }
 
 .dark,
@@ -39,6 +40,7 @@
   --c-primary-fg: 20 22 17; /* #141611 */
   --c-expense: 224 152 138; /* #E0988A lightened clay */
   --c-income: 143 199 154; /* #8FC79A */
+  --c-net: 156 195 224; /* #9CC3E0 sky blue */
 }
 
 [data-app-theme='botanical'] {
@@ -54,6 +56,7 @@
   --c-primary-fg: 255 255 255;
   --c-expense: 185 28 28; /* #B91C1C */
   --c-income: 21 128 61; /* #15803D */
+  --c-net: 55 48 163; /* #3730A3 indigo */
 }
 
 [data-app-theme='botanical'].dark {
@@ -67,6 +70,7 @@
   --c-primary-fg: 11 26 14; /* #0B1A0E */
   --c-expense: 252 165 165; /* #FCA5A5 */
   --c-income: 134 239 172; /* #86EFAC */
+  --c-net: 129 140 248; /* #818CF8 violet */
 }
 
 [data-app-theme='coral'] {
@@ -82,6 +86,7 @@
   --c-primary-fg: 255 255 255;
   --c-expense: 225 29 72; /* #E11D48 */
   --c-income: 22 163 74; /* #16A34A */
+  --c-net: 79 70 229; /* #4F46E5 indigo */
 }
 
 [data-app-theme='coral'].dark {
@@ -95,6 +100,7 @@
   --c-primary-fg: 5 46 43; /* #052E2B */
   --c-expense: 251 113 133; /* #FB7185 */
   --c-income: 74 222 128; /* #4ADE80 */
+  --c-net: 165 180 252; /* #A5B4FC violet */
 }
 
 [data-app-theme='ocean'] {
@@ -110,6 +116,7 @@
   --c-primary-fg: 255 255 255;
   --c-expense: 244 63 94; /* #F43F5E */
   --c-income: 13 148 136; /* #0D9488 */
+  --c-net: 147 51 234; /* #9333EA purple */
 }
 
 [data-app-theme='ocean'].dark {
@@ -123,6 +130,7 @@
   --c-primary-fg: 5 39 51; /* #052733 */
   --c-expense: 251 113 133; /* #FB7185 */
   --c-income: 45 212 191; /* #2DD4BF */
+  --c-net: 192 132 252; /* #C084FC purple */
 }
 
 * {

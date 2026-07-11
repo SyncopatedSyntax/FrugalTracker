@@ -15,6 +15,7 @@ export default {
         'primary-fg': 'rgb(var(--c-primary-fg) / <alpha-value>)',
         expense: 'rgb(var(--c-expense) / <alpha-value>)',
         income: 'rgb(var(--c-income) / <alpha-value>)',
+        net: 'rgb(var(--c-net) / <alpha-value>)',
       },
       fontFamily: {
         sans: ['system-ui', '-apple-system', 'Segoe UI', 'Roboto', 'sans-serif'],

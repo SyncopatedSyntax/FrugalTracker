@@ -1,5 +1,6 @@
 import { useEffect, useId, useState } from 'react'
 import { cn } from '@/lib/cn'
+import { niceStep } from './niceTicks'
 import { useChartWidth } from './useChartWidth'
 
 export interface LineSeries {
@@ -25,23 +26,25 @@ export default function LineChart({ series, labels, formatY, height = 190 }: Pro
   const gid = useId().replace(/[:]/g, '')
 
   const n = labels.length
-  const padL = 6
-  const padR = 6
+  // padL reserves a gutter for the y-axis labels, sized generously enough for
+  // compact currency labels (e.g. "$12.3K"), so they never sit on the curve.
+  const padL = 40
+  const padR = 8
   const padT = 16
   const padB = 20
   const innerW = Math.max(1, width - padL - padR)
   const innerH = Math.max(1, height - padT - padB)
 
   const all = series.flatMap((s) => s.points.filter((p): p is number => p != null))
-  let min = all.length ? Math.min(...all) : 0
-  let max = all.length ? Math.max(...all) : 1
-  if (min === max) {
-    min -= 1
-    max += 1
+  let rawMin = all.length ? Math.min(...all) : 0
+  let rawMax = all.length ? Math.max(...all) : 1
+  if (rawMin === rawMax) {
+    rawMin -= 1
+    rawMax += 1
   }
-  const pad = (max - min) * 0.08
-  min -= pad
-  max += pad
+  const step = niceStep((rawMax - rawMin) / 4)
+  const min = Math.floor(rawMin / step) * step
+  const max = Math.ceil(rawMax / step) * step
 
   const x = (i: number) => padL + (n <= 1 ? innerW / 2 : (i / (n - 1)) * innerW)
   const y = (v: number) => padT + (1 - (v - min) / (max - min)) * innerH
@@ -109,7 +112,8 @@ export default function LineChart({ series, labels, formatY, height = 190 }: Pro
     return `M${x(first).toFixed(1)} ${(height - padB).toFixed(1)} ${curve} L${x(last).toFixed(1)} ${(height - padB).toFixed(1)} Z`
   }
 
-  const gridVals = [max - pad, (min + max) / 2, min + pad]
+  const gridVals: number[] = []
+  for (let v = max; v >= min - 1e-9; v -= step) gridVals.push(v)
 
   const labelStep = n > 6 ? Math.ceil(n / 5) : 1
   const selValid = sel >= 0 && sel < n
@@ -149,7 +153,9 @@ export default function LineChart({ series, labels, formatY, height = 190 }: Pro
               </linearGradient>
             </defs>
 
-            {/* Gridlines + y labels */}
+            {/* Gridlines + y labels — labels sit in the padL gutter, to the
+                left of where the plot itself starts, so they never overlap
+                the curve. */}
             {gridVals.map((gv, i) => (
               <g key={i}>
                 <line
@@ -161,7 +167,7 @@ export default function LineChart({ series, labels, formatY, height = 190 }: Pro
                   strokeWidth={1}
                   strokeDasharray="3 5"
                 />
-                <text x={padL} y={y(gv) - 3} className="fill-muted" style={{ fontSize: 10 }}>
+                <text x={padL - 6} y={y(gv) - 3} textAnchor="end" className="fill-muted" style={{ fontSize: 10 }}>
                   {formatY(gv)}
                 </text>
               </g>

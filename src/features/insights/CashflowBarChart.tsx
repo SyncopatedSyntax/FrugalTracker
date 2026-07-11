@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { niceStep } from './niceTicks'
 import { useChartWidth } from './useChartWidth'
 
 interface Props {
@@ -31,8 +32,10 @@ export default function CashflowBarChart({
   const [ref, width] = useChartWidth()
 
   const n = labels.length
-  const padL = 6
-  const padR = 6
+  // padL reserves a gutter for the y-axis labels (wider than LineChart's,
+  // since these labels can carry a "-" sign), so bars never sit under them.
+  const padL = 44
+  const padR = 8
   const padT = 16
   const padB = 20
   const innerW = Math.max(1, width - padL - padR)
@@ -42,14 +45,18 @@ export default function CashflowBarChart({
   const realExpense = expense.slice(0, lastIdx + 1)
   const realNet = net.slice(0, lastIdx + 1)
   const maxAbs = Math.max(1, ...realIncome, ...realExpense, ...realNet.map(Math.abs))
-  const domain = maxAbs * 1.12
+  const step = niceStep(maxAbs / 2)
+  const domain = step * 2
 
-  const x = (i: number) => padL + (n <= 1 ? innerW / 2 : (i / Math.max(1, n - 1)) * innerW)
+  // A band scale (each bar centered in its own slot) rather than a point
+  // scale — a point scale puts the first/last bar centers exactly on the
+  // plot edges, so a wide bar there would overhang into the label gutter.
+  const slot = n > 0 ? innerW / n : innerW
+  const x = (i: number) => padL + (i + 0.5) * slot
   const y = (v: number) => padT + (1 - (v + domain) / (domain * 2)) * innerH
   const zeroY = y(0)
 
-  const slot = n > 0 ? innerW / n : innerW
-  const barW = Math.min(26, slot * 0.5)
+  const barW = Math.min(34, slot * 0.82)
   const placeholderH = innerH * 0.05
 
   const lastActual = lastIdx
@@ -60,7 +67,7 @@ export default function CashflowBarChart({
     if (!ref.current || n <= 1) return
     const rect = ref.current.getBoundingClientRect()
     const rel = clientX - rect.left - padL
-    const idx = Math.round((rel / innerW) * (n - 1))
+    const idx = Math.floor(rel / slot)
     setSel(Math.max(0, Math.min(n - 1, idx)))
   }
 
@@ -68,7 +75,7 @@ export default function CashflowBarChart({
     .map((v, i) => `${i === 0 ? 'M' : 'L'}${x(i).toFixed(1)} ${y(v).toFixed(1)}`)
     .join(' ')
 
-  const gridVals = [domain, 0, -domain]
+  const gridVals = [2, 1, 0, -1, -2].map((k) => k * step)
   const labelStep = n > 6 ? Math.ceil(n / 5) : 1
   const selValid = sel >= 0 && sel < n
   const selReal = selValid && sel <= lastIdx
@@ -92,7 +99,7 @@ export default function CashflowBarChart({
             </span>
           </span>
           <span className="flex items-center gap-1">
-            <span className="h-2 w-2 rounded-full" style={{ backgroundColor: 'rgb(var(--c-primary))' }} />
+            <span className="h-2 w-2 rounded-full" style={{ backgroundColor: 'rgb(var(--c-net))' }} />
             <span className="font-semibold tabular-nums text-content">
               {selReal ? formatY(net[sel]) : '—'}
             </span>
@@ -108,7 +115,9 @@ export default function CashflowBarChart({
             onPointerDown={(e) => pickFromClientX(e.clientX)}
             onPointerMove={(e) => e.buttons === 1 && pickFromClientX(e.clientX)}
           >
-            {/* Gridlines + y labels */}
+            {/* Gridlines + y labels — labels sit in the padL gutter, to the
+                left of where the plot itself starts, so they never overlap
+                a bar. */}
             {gridVals.map((gv, i) => (
               <g key={i}>
                 <line
@@ -120,7 +129,7 @@ export default function CashflowBarChart({
                   strokeWidth={1}
                   strokeDasharray="3 5"
                 />
-                <text x={padL} y={y(gv) - 3} className="fill-muted" style={{ fontSize: 10 }}>
+                <text x={padL - 6} y={y(gv) - 3} textAnchor="end" className="fill-muted" style={{ fontSize: 10 }}>
                   {formatY(gv)}
                 </text>
               </g>
@@ -192,12 +201,25 @@ export default function CashflowBarChart({
               strokeOpacity={0.5}
             />
 
-            {/* Net cash flow line (per-bucket, not cumulative) */}
+            {/* Net cash flow line (per-bucket, not cumulative). A background
+                casing in the card's own surface color is drawn first, so the
+                line keeps a clean edge whichever bar color it crosses, then
+                the real line on top — that contrast, not a louder color, is
+                what keeps the net line legible against every bar. */}
             <path
               d={netPath}
               fill="none"
-              stroke="rgb(var(--c-primary))"
-              strokeWidth={2}
+              stroke="rgb(var(--c-surface))"
+              strokeWidth={6}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeOpacity={0.9}
+            />
+            <path
+              d={netPath}
+              fill="none"
+              stroke="rgb(var(--c-net))"
+              strokeWidth={3}
               strokeLinecap="round"
               strokeLinejoin="round"
             />
@@ -206,10 +228,10 @@ export default function CashflowBarChart({
                 key={i}
                 cx={x(i)}
                 cy={y(v)}
-                r={2.5}
-                fill="rgb(var(--c-primary))"
+                r={4}
+                fill="rgb(var(--c-net))"
                 stroke="rgb(var(--c-surface))"
-                strokeWidth={1}
+                strokeWidth={2}
               />
             ))}
 
@@ -246,7 +268,7 @@ export default function CashflowBarChart({
                   key={i}
                   x={x(i)}
                   y={height - 6}
-                  textAnchor={i === 0 ? 'start' : i === n - 1 ? 'end' : 'middle'}
+                  textAnchor="middle"
                   className="fill-muted"
                   style={{ fontSize: 10 }}
                 >
@@ -268,7 +290,7 @@ export default function CashflowBarChart({
           Expense
         </span>
         <span className="flex items-center gap-1.5">
-          <span className="inline-block h-0.5 w-4" style={{ backgroundColor: 'rgb(var(--c-primary))' }} />
+          <span className="inline-block h-0.5 w-4" style={{ backgroundColor: 'rgb(var(--c-net))' }} />
           Net
         </span>
       </div>
