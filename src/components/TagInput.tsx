@@ -21,6 +21,10 @@ interface Props {
    * space and scrolls internally as needed, with no inline text input —
    * for hosts that offer a separate "new tag" entry point elsewhere. */
   fill?: boolean
+  /** List every unused suggestion instead of capping to a short recent
+   * list — for a dedicated tag-browsing host (e.g. a "Tags" sheet) where
+   * seeing the full tag set is the point. */
+  showAll?: boolean
 }
 
 export default function TagInput({
@@ -29,6 +33,7 @@ export default function TagInput({
   suggestions = [],
   placeholder,
   fill,
+  showAll,
 }: Props) {
   const [text, setText] = useState('')
 
@@ -91,8 +96,10 @@ export default function TagInput({
 
   const lower = text.trim().toLowerCase()
   const matches = lower
-    ? unused.filter((s) => s.toLowerCase().includes(lower)).slice(0, 6)
-    : unused.slice(0, 8)
+    ? unused.filter((s) => s.toLowerCase().includes(lower)).slice(0, showAll ? undefined : 6)
+    : showAll
+      ? unused
+      : unused.slice(0, 8)
 
   const inputRow = (
     <div className="flex flex-shrink-0 flex-wrap items-center gap-1.5 rounded-xl border border-border bg-surface2 px-2 py-2">
@@ -131,7 +138,7 @@ export default function TagInput({
         <div className="mt-2">
           {!lower && (
             <p className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-muted">
-              Recent
+              {showAll ? 'All tags' : 'Recent'}
             </p>
           )}
           <div className="flex flex-wrap gap-1.5">

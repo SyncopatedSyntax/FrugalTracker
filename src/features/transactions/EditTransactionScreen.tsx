@@ -142,138 +142,147 @@ export default function EditTransactionScreen() {
 
   return (
     <div className="mx-auto flex h-full max-w-lg flex-col bg-bg">
-      <header className="safe-top flex items-center gap-1 border-b border-border bg-surface/95 px-2 py-2 backdrop-blur">
-        <button
-          onClick={() => navigate(-1)}
-          className="grid h-10 w-10 place-items-center rounded-full hover:bg-surface2"
-          aria-label="Back"
-        >
-          <ArrowLeftIcon size={22} />
-        </button>
-        <h1 className="flex-1 text-lg font-semibold">Edit transaction</h1>
-        <button
-          onClick={() => setConfirmDelete(true)}
-          className="grid h-10 w-10 place-items-center rounded-full text-expense hover:bg-expense/10"
-          aria-label="Delete"
-        >
-          <TrashIcon size={20} />
-        </button>
-      </header>
+      <div className="safe-top flex min-h-0 flex-1 flex-col">
+        <div className="min-h-0 flex-1 space-y-3 overflow-y-auto px-4 py-4 no-scrollbar">
+          {/* Amount, type, currency & locked rate — back/delete live here too,
+              so there's no separate header bar above it. */}
+          <section className="rounded-[22px] bg-surface p-5">
+            <div className="mb-3 flex items-center justify-between">
+              <button
+                onClick={() => navigate(-1)}
+                className="-ml-1.5 grid h-9 w-9 place-items-center rounded-full hover:bg-surface2"
+                aria-label="Back"
+              >
+                <ArrowLeftIcon size={20} />
+              </button>
+              <span className="text-sm font-semibold text-muted">Edit transaction</span>
+              <button
+                onClick={() => setConfirmDelete(true)}
+                className="-mr-1.5 grid h-9 w-9 place-items-center rounded-full text-expense hover:bg-expense/10"
+                aria-label="Delete"
+              >
+                <TrashIcon size={18} />
+              </button>
+            </div>
 
-      <div className="min-h-0 flex-1 space-y-3 overflow-y-auto px-4 py-4 no-scrollbar">
-        {/* Amount, type, currency & locked rate */}
-        <section className="rounded-[22px] bg-surface p-5">
-          <div className="flex justify-center">
-            <Segmented
-              options={[
-                { value: 'expense', label: 'Expense' },
-                { value: 'income', label: 'Income' },
-              ]}
-              value={type}
-              onChange={setType}
-              activeClass={cn('text-white shadow', type === 'expense' ? 'bg-expense' : 'bg-income')}
-            />
-          </div>
-
-          <div className="mt-4 flex flex-col items-center">
-            <button
-              onClick={() => setCurrencyOpen(true)}
-              className="mb-1.5 rounded-full bg-surface2 px-3 py-1 text-xs font-semibold text-muted active:scale-95"
-            >
-              {currency}
-            </button>
-            <div className="flex items-baseline gap-1">
-              <span className="text-2xl font-medium text-muted">{symbol}</span>
-              <input
-                value={amount}
-                onChange={(e) => onAmountInput(e.target.value)}
-                inputMode="decimal"
-                placeholder="0"
-                aria-label="Amount"
-                style={{ width: `${Math.max(1, amount.length) + 0.5}ch` }}
-                className={cn(
-                  'min-w-[1ch] max-w-full bg-transparent text-center text-5xl font-bold tabular-nums outline-none placeholder:text-muted/50',
-                  amt > 0 ? 'text-content' : 'text-muted/60',
-                )}
+            <div className="flex justify-center">
+              <Segmented
+                options={[
+                  { value: 'expense', label: 'Expense' },
+                  { value: 'income', label: 'Income' },
+                ]}
+                value={type}
+                onChange={setType}
+                activeClass={cn('text-white shadow', type === 'expense' ? 'bg-expense' : 'bg-income')}
               />
             </div>
 
-            {!isBase && (
+            <div className="mt-4 flex flex-col items-center">
+              <button
+                onClick={() => setCurrencyOpen(true)}
+                className="mb-1.5 rounded-full bg-surface2 px-3 py-1 text-xs font-semibold text-muted active:scale-95"
+              >
+                {currency}
+              </button>
+              <div className="flex items-baseline gap-1">
+                <span className="text-2xl font-medium text-muted">{symbol}</span>
+                <input
+                  value={amount}
+                  onChange={(e) => onAmountInput(e.target.value)}
+                  inputMode="decimal"
+                  placeholder="0"
+                  aria-label="Amount"
+                  style={{ width: `${Math.max(1, amount.length) + 0.5}ch` }}
+                  className={cn(
+                    'min-w-[1ch] max-w-full bg-transparent text-center text-5xl font-bold tabular-nums outline-none placeholder:text-muted/50',
+                    amt > 0 ? 'text-content' : 'text-muted/60',
+                  )}
+                />
+              </div>
+
+              {/* Currency & locked rate stay visible even when the entry is
+                  already in the base currency — the rate is then fixed at 1
+                  (nothing to convert) so the input is disabled, but the row
+                  itself is never hidden. */}
               <div className="mt-2.5 flex flex-col items-center gap-0.5">
-                <div className="flex items-center gap-1.5 text-xs text-muted">
+                <div className={cn('flex items-center gap-1.5 text-xs', isBase ? 'text-muted/60' : 'text-muted')}>
                   <span>1 {currency} =</span>
                   <input
                     type="number"
                     inputMode="decimal"
                     value={rateText}
                     onChange={(e) => setRateText(e.target.value)}
-                    className="w-20 rounded-lg border border-border bg-surface2 px-2 py-1 text-center text-xs tabular-nums outline-none focus:border-primary"
+                    disabled={isBase}
+                    className={cn(
+                      'w-20 rounded-lg border border-border bg-surface2 px-2 py-1 text-center text-xs tabular-nums outline-none focus:border-primary',
+                      isBase && 'cursor-not-allowed opacity-60',
+                    )}
                     aria-label="Exchange rate"
                   />
                   <span>{settings.baseCurrency}</span>
                 </div>
                 <span className="text-[11px] text-muted">
-                  ≈ {formatMoney(amt * (parseFloat(rateText) || 0), settings.baseCurrency)} locked in
+                  ≈ {formatMoney(amt * (isBase ? 1 : parseFloat(rateText) || 0), settings.baseCurrency)} locked in
                 </span>
               </div>
-            )}
-          </div>
-        </section>
+            </div>
+          </section>
 
-        {/* Category, date & tags: current value only — tap to pop up the
-            picker, so the screen stays clean while still showing every
-            field's current value at a glance. Note is last since it can run
-            longer and wrap to multiple lines. */}
-        <section className="space-y-2.5 rounded-[22px] bg-surface p-4">
-          <Row
-            leading={
-              <span
-                className="grid h-9 w-9 flex-shrink-0 place-items-center rounded-full text-lg"
-                style={{ backgroundColor: (category?.color ?? '#767B70') + '22' }}
-              >
-                {category ? category.icon : '❓'}
-              </span>
-            }
-            label="Category"
-            value={category ? category.name : 'Choose a category'}
-            onClick={() => setCatPickerOpen(true)}
-          />
-
-          <Row
-            leading={
-              <span className="grid h-9 w-9 flex-shrink-0 place-items-center rounded-full bg-primary/10 text-primary">
-                <CalendarIcon size={16} />
-              </span>
-            }
-            label="Date"
-            value={dateLabel(date)}
-            onClick={() => setDateOpen(true)}
-          />
-
-          <Row
-            leading={
-              <span className="grid h-9 w-9 flex-shrink-0 place-items-center rounded-full bg-primary/10 text-primary">
-                <TagIcon size={16} />
-              </span>
-            }
-            label="Tags"
-            value={tags.length ? tags.map((t) => '#' + t).join(' ') : 'Add tags'}
-            onClick={() => setTagsOpen(true)}
-          />
-
-          <label className="block pt-1">
-            <span className="mb-1.5 block px-1 text-xs font-semibold uppercase tracking-wide text-muted">
-              Note
-            </span>
-            <textarea
-              value={note}
-              onChange={(e) => setNote(e.target.value)}
-              placeholder="What was it for?"
-              rows={3}
-              className="w-full resize-none rounded-xl border border-border bg-surface2 px-3 py-2.5 text-sm outline-none focus:border-primary"
+          {/* Category, date & tags: current value only — tap to pop up the
+              picker, so the screen stays clean while still showing every
+              field's current value at a glance. Note is last since it can run
+              longer and wrap to multiple lines. */}
+          <section className="space-y-2.5 rounded-[22px] bg-surface p-4">
+            <Row
+              leading={
+                <span
+                  className="grid h-9 w-9 flex-shrink-0 place-items-center rounded-full text-lg"
+                  style={{ backgroundColor: (category?.color ?? '#767B70') + '22' }}
+                >
+                  {category ? category.icon : '❓'}
+                </span>
+              }
+              label="Category"
+              value={category ? category.name : 'Choose a category'}
+              onClick={() => setCatPickerOpen(true)}
             />
-          </label>
-        </section>
+
+            <Row
+              leading={
+                <span className="grid h-9 w-9 flex-shrink-0 place-items-center rounded-full bg-primary/10 text-primary">
+                  <CalendarIcon size={16} />
+                </span>
+              }
+              label="Date"
+              value={dateLabel(date)}
+              onClick={() => setDateOpen(true)}
+            />
+
+            <Row
+              leading={
+                <span className="grid h-9 w-9 flex-shrink-0 place-items-center rounded-full bg-primary/10 text-primary">
+                  <TagIcon size={16} />
+                </span>
+              }
+              label="Tags"
+              value={tags.length ? tags.map((t) => '#' + t).join(' ') : 'Add tags'}
+              onClick={() => setTagsOpen(true)}
+            />
+
+            <label className="block pt-1">
+              <span className="mb-1.5 block px-1 text-xs font-semibold uppercase tracking-wide text-muted">
+                Note
+              </span>
+              <textarea
+                value={note}
+                onChange={(e) => setNote(e.target.value)}
+                placeholder="What was it for?"
+                rows={3}
+                className="w-full resize-none rounded-xl border border-border bg-surface2 px-3 py-2.5 text-sm outline-none focus:border-primary"
+              />
+            </label>
+          </section>
+        </div>
       </div>
 
       <div className="safe-bottom border-t border-border bg-surface/60 px-4 py-3">
@@ -326,22 +335,35 @@ export default function EditTransactionScreen() {
       </Sheet>
 
       <Sheet open={dateOpen} onClose={() => setDateOpen(false)} title="Date">
-        <input
-          type="date"
-          autoFocus
-          value={date}
-          max={todayISO()}
-          onChange={(e) => {
-            setDate(e.target.value || todayISO())
-            setDateOpen(false)
-          }}
-          className="w-full rounded-xl border border-border bg-surface2 px-3 py-3 text-base outline-none focus:border-primary"
-        />
+        {/* The native date input's own box (segments + calendar icon) doesn't
+            reliably respect a tight custom border-radius across browsers —
+            that was the "out of the border" glitch. So the visible pill here
+            is entirely our own markup, and the real <input> sits on top,
+            invisible and exactly the same size, just to capture the tap and
+            drive the OS picker. */}
+        <div className="relative">
+          <div className="pointer-events-none flex items-center justify-between rounded-xl border border-border bg-surface2 px-3 py-3 text-base">
+            <span>{dateLabel(date)}</span>
+            <CalendarIcon size={18} className="text-muted" />
+          </div>
+          <input
+            type="date"
+            autoFocus
+            value={date}
+            max={todayISO()}
+            onChange={(e) => {
+              setDate(e.target.value || todayISO())
+              setDateOpen(false)
+            }}
+            aria-label="Date"
+            className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+          />
+        </div>
       </Sheet>
 
       <Sheet open={tagsOpen} onClose={() => setTagsOpen(false)} title="Tags">
         <div className="space-y-4">
-          <TagInput tags={tags} onChange={setTags} suggestions={tagSuggestions} />
+          <TagInput tags={tags} onChange={setTags} suggestions={tagSuggestions} showAll />
           <button
             type="button"
             onClick={() => setTagsOpen(false)}
