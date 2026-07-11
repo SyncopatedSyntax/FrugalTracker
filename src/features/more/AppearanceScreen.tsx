@@ -1,7 +1,10 @@
+import { useState } from 'react'
 import SubScreen from '@/components/SubScreen'
-import { CheckIcon, MoonIcon, PaletteIcon, SunIcon } from '@/components/icons'
+import Sheet from '@/components/Sheet'
+import { Toast, useToast } from '@/components/Toast'
+import { CheckIcon, MoonIcon, PaletteIcon, RefreshIcon, SunIcon } from '@/components/icons'
 import { useIsDark, useSettings } from '@/hooks'
-import { updateSettings } from '@/db/repo'
+import { recolorCategories, updateSettings } from '@/db/repo'
 import type { ThemePref } from '@/db/types'
 import { APP_THEMES, categoryPalette, type AppTheme } from '@/lib/palette'
 import { cn } from '@/lib/cn'
@@ -15,6 +18,16 @@ const options: { value: ThemePref; label: string; Icon: typeof SunIcon }[] = [
 export default function AppearanceScreen() {
   const settings = useSettings()
   const isDark = useIsDark()
+  const { message, show } = useToast()
+  const [confirmRecolor, setConfirmRecolor] = useState(false)
+
+  const activeTheme = APP_THEMES.find((t) => t.id === settings.appTheme) ?? APP_THEMES[0]
+
+  const doRecolor = async () => {
+    await recolorCategories(settings.appTheme)
+    setConfirmRecolor(false)
+    show(`Categories recolored to ${activeTheme.name}`)
+  }
 
   return (
     <SubScreen title="Appearance">
@@ -76,7 +89,44 @@ export default function AppearanceScreen() {
             )
           })}
         </div>
+
+        <button
+          type="button"
+          onClick={() => setConfirmRecolor(true)}
+          className="mt-3 flex w-full items-center justify-center gap-2 rounded-[22px] border border-dashed border-border py-3 text-sm font-medium text-muted active:bg-surface2"
+        >
+          <RefreshIcon size={16} />
+          Recolor categories to match {activeTheme.name}
+        </button>
       </div>
+
+      <Toast message={message} />
+
+      <Sheet
+        open={confirmRecolor}
+        onClose={() => setConfirmRecolor(false)}
+        title="Recolor all categories?"
+      >
+        <p className="text-sm text-muted">
+          Every category's color will be reassigned from {activeTheme.name}'s palette, in list
+          order — including any you've customized by hand. You can always change a category's
+          color again afterward.
+        </p>
+        <div className="mt-4 flex gap-2">
+          <button
+            onClick={() => setConfirmRecolor(false)}
+            className="flex-1 rounded-[22px] border border-border py-3 text-sm font-semibold"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={doRecolor}
+            className="flex-1 rounded-[22px] bg-primary py-3 text-sm font-semibold text-primary-fg"
+          >
+            Recolor
+          </button>
+        </div>
+      </Sheet>
     </SubScreen>
   )
 }

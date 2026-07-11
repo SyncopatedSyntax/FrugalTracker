@@ -2,6 +2,7 @@ import { db } from './db'
 import type { Budget, Category, Settings, Transaction, TxType } from './types'
 import { uid } from '@/lib/id'
 import { DEFAULT_SETTINGS } from './seed'
+import { categoryPalette, type AppTheme } from '@/lib/palette'
 
 export type NewTransaction = Omit<
   Transaction,
@@ -207,6 +208,19 @@ export async function reorderCategories(orderedIds: string[]): Promise<void> {
   await db.transaction('rw', db.categories, async () => {
     for (let i = 0; i < orderedIds.length; i++) {
       await db.categories.update(orderedIds[i], { sortOrder: i })
+    }
+  })
+}
+
+/** On-demand, explicit action (never automatic on a theme switch): reassigns
+ * every category's color from `theme`'s palette, cycling in list order.
+ * Overwrites any colors the user picked manually. */
+export async function recolorCategories(theme: AppTheme): Promise<void> {
+  const palette = categoryPalette(theme)
+  await db.transaction('rw', db.categories, async () => {
+    const all = await db.categories.orderBy('sortOrder').toArray()
+    for (let i = 0; i < all.length; i++) {
+      await db.categories.update(all[i].id, { color: palette[i % palette.length] })
     }
   })
 }
