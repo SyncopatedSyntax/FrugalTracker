@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import Segmented from '@/components/Segmented'
 import Sheet from '@/components/Sheet'
@@ -6,14 +6,25 @@ import CurrencyPickerSheet from '@/components/CurrencyPickerSheet'
 import TagInput from '@/components/TagInput'
 import CategoryFormSheet from '@/features/categories/CategoryFormSheet'
 import CategoryGrid from '@/features/add/CategoryGrid'
-import { ArrowLeftIcon, CheckIcon, TrashIcon } from '@/components/icons'
+import {
+  ArrowLeftIcon,
+  CalendarIcon,
+  CheckIcon,
+  ChevronRightIcon,
+  TagIcon,
+  TrashIcon,
+} from '@/components/icons'
 import { useCategoriesByType, useRateMap, useSettings, useTags, useTransaction } from '@/hooks'
 import { deleteTransaction, updateTransaction } from '@/db/repo'
 import { currencyDecimals, currencySymbol, formatMoney } from '@/lib/currency'
 import { numberToTyped, parseAmount } from '@/lib/amount'
-import { todayISO } from '@/lib/date'
+import { formatShortDate, todayISO } from '@/lib/date'
 import type { TxType } from '@/db/types'
 import { cn } from '@/lib/cn'
+
+function dateLabel(iso: string): string {
+  return iso === todayISO() ? 'Today' : formatShortDate(iso)
+}
 
 /** Correcting an existing entry is a different job from logging a new one:
  * every field should be visible and editable at a glance, not walked through
@@ -42,7 +53,10 @@ export default function EditTransactionScreen() {
   const [rateText, setRateText] = useState('1')
 
   const [currencyOpen, setCurrencyOpen] = useState(false)
+  const [catPickerOpen, setCatPickerOpen] = useState(false)
   const [catFormOpen, setCatFormOpen] = useState(false)
+  const [dateOpen, setDateOpen] = useState(false)
+  const [tagsOpen, setTagsOpen] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
 
   const seeded = useRef(false)
@@ -77,6 +91,7 @@ export default function EditTransactionScreen() {
     () => [...cats].sort((a, b) => b.usageCount - a.usageCount || a.sortOrder - b.sortOrder),
     [cats],
   )
+  const category = categoryId ? cats.find((c) => c.id === categoryId) : undefined
 
   useEffect(() => {
     if (categoryId && cats.length && !cats.some((c) => c.id === categoryId)) {
@@ -205,59 +220,59 @@ export default function EditTransactionScreen() {
           </div>
         </section>
 
-        {/* Category */}
-        <section className="rounded-[22px] bg-surface p-4">
-          <p className="mb-2.5 px-1 text-xs font-semibold uppercase tracking-wide text-muted">
-            Category
-          </p>
-          {sortedCats.length === 0 ? (
-            <p className="py-3 text-center text-sm text-muted">
-              No {type} categories yet. Tap “New” to create one.
-            </p>
-          ) : (
-            <CategoryGrid
-              categories={sortedCats}
-              selectedId={categoryId}
-              onSelect={setCategoryId}
-              onAddNew={() => setCatFormOpen(true)}
-            />
-          )}
-        </section>
+        {/* Category, date & tags: current value only — tap to pop up the
+            picker, so the screen stays clean while still showing every
+            field's current value at a glance. Note is last since it can run
+            longer and wrap to multiple lines. */}
+        <section className="space-y-2.5 rounded-[22px] bg-surface p-4">
+          <Row
+            leading={
+              <span
+                className="grid h-9 w-9 flex-shrink-0 place-items-center rounded-full text-lg"
+                style={{ backgroundColor: (category?.color ?? '#767B70') + '22' }}
+              >
+                {category ? category.icon : '❓'}
+              </span>
+            }
+            label="Category"
+            value={category ? category.name : 'Choose a category'}
+            onClick={() => setCatPickerOpen(true)}
+          />
 
-        {/* Date, note & tags */}
-        <section className="space-y-4 rounded-[22px] bg-surface p-4">
-          <label className="block">
-            <span className="mb-1.5 block px-1 text-xs font-semibold uppercase tracking-wide text-muted">
-              Date
-            </span>
-            <input
-              type="date"
-              value={date}
-              max={todayISO()}
-              onChange={(e) => setDate(e.target.value || todayISO())}
-              className="w-full rounded-xl border border-border bg-surface2 px-3 py-2.5 text-sm outline-none focus:border-primary"
-            />
-          </label>
+          <Row
+            leading={
+              <span className="grid h-9 w-9 flex-shrink-0 place-items-center rounded-full bg-primary/10 text-primary">
+                <CalendarIcon size={16} />
+              </span>
+            }
+            label="Date"
+            value={dateLabel(date)}
+            onClick={() => setDateOpen(true)}
+          />
 
-          <label className="block">
+          <Row
+            leading={
+              <span className="grid h-9 w-9 flex-shrink-0 place-items-center rounded-full bg-primary/10 text-primary">
+                <TagIcon size={16} />
+              </span>
+            }
+            label="Tags"
+            value={tags.length ? tags.map((t) => '#' + t).join(' ') : 'Add tags'}
+            onClick={() => setTagsOpen(true)}
+          />
+
+          <label className="block pt-1">
             <span className="mb-1.5 block px-1 text-xs font-semibold uppercase tracking-wide text-muted">
               Note
             </span>
-            <input
-              type="text"
+            <textarea
               value={note}
               onChange={(e) => setNote(e.target.value)}
               placeholder="What was it for?"
-              className="w-full rounded-xl border border-border bg-surface2 px-3 py-2.5 text-sm outline-none focus:border-primary"
+              rows={3}
+              className="w-full resize-none rounded-xl border border-border bg-surface2 px-3 py-2.5 text-sm outline-none focus:border-primary"
             />
           </label>
-
-          <div>
-            <span className="mb-1.5 block px-1 text-xs font-semibold uppercase tracking-wide text-muted">
-              Tags
-            </span>
-            <TagInput tags={tags} onChange={setTags} suggestions={tagSuggestions} />
-          </div>
         </section>
       </div>
 
@@ -286,8 +301,56 @@ export default function EditTransactionScreen() {
         open={catFormOpen}
         onClose={() => setCatFormOpen(false)}
         defaultType={type}
-        onSaved={(cid) => setCategoryId(cid)}
+        onSaved={(cid) => {
+          setCategoryId(cid)
+          setCatPickerOpen(false)
+        }}
       />
+
+      <Sheet open={catPickerOpen} onClose={() => setCatPickerOpen(false)} title="Category">
+        {sortedCats.length === 0 ? (
+          <p className="py-3 text-center text-sm text-muted">
+            No {type} categories yet. Tap “New” to create one.
+          </p>
+        ) : (
+          <CategoryGrid
+            categories={sortedCats}
+            selectedId={categoryId}
+            onSelect={(cid) => {
+              setCategoryId(cid)
+              setCatPickerOpen(false)
+            }}
+            onAddNew={() => setCatFormOpen(true)}
+          />
+        )}
+      </Sheet>
+
+      <Sheet open={dateOpen} onClose={() => setDateOpen(false)} title="Date">
+        <input
+          type="date"
+          autoFocus
+          value={date}
+          max={todayISO()}
+          onChange={(e) => {
+            setDate(e.target.value || todayISO())
+            setDateOpen(false)
+          }}
+          className="w-full rounded-xl border border-border bg-surface2 px-3 py-3 text-base outline-none focus:border-primary"
+        />
+      </Sheet>
+
+      <Sheet open={tagsOpen} onClose={() => setTagsOpen(false)} title="Tags">
+        <div className="space-y-4">
+          <TagInput tags={tags} onChange={setTags} suggestions={tagSuggestions} />
+          <button
+            type="button"
+            onClick={() => setTagsOpen(false)}
+            className="w-full rounded-[22px] bg-primary py-3 text-base font-semibold text-primary-fg"
+          >
+            Done
+          </button>
+        </div>
+      </Sheet>
 
       <Sheet open={confirmDelete} onClose={() => setConfirmDelete(false)} title="Delete transaction?">
         <p className="text-sm text-muted">This can’t be undone.</p>
@@ -307,6 +370,38 @@ export default function EditTransactionScreen() {
         </div>
       </Sheet>
     </div>
+  )
+}
+
+/** A summary row showing a field's current value — tap to pop up its picker.
+ * Keeps the screen showing every field at a glance without the pickers
+ * themselves (category grid, tag suggestions) taking up permanent space. */
+function Row({
+  leading,
+  label,
+  value,
+  onClick,
+}: {
+  leading: ReactNode
+  label: string
+  value: string
+  onClick: () => void
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="flex w-full items-center gap-3 rounded-xl border border-border bg-surface2 px-3 py-2.5 text-left active:scale-[0.99]"
+    >
+      {leading}
+      <span className="min-w-0 flex-1">
+        <span className="block text-[11px] font-semibold uppercase tracking-wide text-muted">
+          {label}
+        </span>
+        <span className="block truncate text-sm font-semibold text-content">{value}</span>
+      </span>
+      <ChevronRightIcon size={18} className="flex-shrink-0 text-muted" />
+    </button>
   )
 }
 
