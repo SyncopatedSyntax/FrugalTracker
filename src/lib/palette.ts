@@ -83,18 +83,18 @@ export const CATEGORY_PALETTES: Record<AppTheme, readonly string[]> = {
     '#DB2777', // rose
   ],
   ocean: [
-    '#F97316', // orange
-    '#CA8A04', // gold
-    '#0369A1', // ocean blue
-    '#78350F', // brown
-    '#9333EA', // purple
-    '#DC2626', // red
-    '#7C3AED', // violet
-    '#4F46E5', // indigo
-    '#059669', // emerald
-    '#0891B2', // cyan
-    '#0D9488', // teal
-    '#65A30D', // lime
+    '#F48434', // orange
+    '#F0AC19', // gold
+    '#129AE2', // ocean blue
+    '#A05022', // brown
+    '#A155E7', // purple
+    '#E44444', // red
+    '#905CEB', // violet
+    '#6861E5', // indigo
+    '#11D497', // emerald
+    '#17BEE8', // cyan
+    '#1EB8AB', // teal
+    '#8AD61F', // lime
   ],
 }
 

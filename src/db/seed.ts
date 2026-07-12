@@ -9,32 +9,35 @@ interface SeedCat {
   type: TxType
 }
 
+// Colors are drawn from the Ocean Punch category palette (lib/palette.ts's
+// default appTheme) so a fresh install's categories match the app's default
+// theme out of the box, not left over from an earlier default theme.
 export const DEFAULT_EXPENSE_CATEGORIES: SeedCat[] = [
-  { name: 'Food & Drink', icon: '🍔', color: '#C08268', type: 'expense' }, // terracotta
-  { name: 'Groceries', icon: '🛒', color: '#BFA05A', type: 'expense' }, // olive gold
-  { name: 'Transport', icon: '🚗', color: '#7D93A8', type: 'expense' }, // dusty blue
-  { name: 'Coffee', icon: '☕', color: '#8A6E55', type: 'expense' }, // brown
-  { name: 'Shopping', icon: '🛍️', color: '#A78BA0', type: 'expense' }, // mauve
-  { name: 'Bills', icon: '💡', color: '#D1A54E', type: 'expense' }, // honey
-  { name: 'Rent', icon: '🏠', color: '#8F7396', type: 'expense' }, // plum
-  { name: 'Entertainment', icon: '🎬', color: '#5E9490', type: 'expense' }, // teal
-  { name: 'Health', icon: '🏥', color: '#6C8F6E', type: 'expense' }, // sage
-  { name: 'Travel', icon: '✈️', color: '#82A9BD', type: 'expense' }, // sky
-  { name: 'Subscriptions', icon: '📱', color: '#6E85A0', type: 'expense' }, // denim
-  { name: 'Fitness', icon: '🏋️', color: '#7C9473', type: 'expense' }, // moss
-  { name: 'Personal Care', icon: '💇', color: '#C08A93', type: 'expense' }, // rose
-  { name: 'Gifts', icon: '🎁', color: '#B56A5B', type: 'expense' }, // clay
-  { name: 'Education', icon: '📚', color: '#C9A876', type: 'expense' }, // sand
-  { name: 'Pets', icon: '🐾', color: '#6F9B7B', type: 'expense' }, // fern
-  { name: 'Other', icon: '📦', color: '#767B70', type: 'expense' }, // slate
+  { name: 'Food & Drink', icon: '🍔', color: '#F48434', type: 'expense' }, // orange
+  { name: 'Groceries', icon: '🛒', color: '#8AD61F', type: 'expense' }, // lime
+  { name: 'Transport', icon: '🚗', color: '#129AE2', type: 'expense' }, // ocean blue
+  { name: 'Coffee', icon: '☕', color: '#A05022', type: 'expense' }, // brown
+  { name: 'Shopping', icon: '🛍️', color: '#A155E7', type: 'expense' }, // purple
+  { name: 'Bills', icon: '💡', color: '#F0AC19', type: 'expense' }, // gold
+  { name: 'Rent', icon: '🏠', color: '#905CEB', type: 'expense' }, // violet
+  { name: 'Entertainment', icon: '🎬', color: '#E44444', type: 'expense' }, // red
+  { name: 'Health', icon: '🏥', color: '#11D497', type: 'expense' }, // emerald
+  { name: 'Travel', icon: '✈️', color: '#17BEE8', type: 'expense' }, // cyan
+  { name: 'Subscriptions', icon: '📱', color: '#6861E5', type: 'expense' }, // indigo
+  { name: 'Fitness', icon: '🏋️', color: '#1EB8AB', type: 'expense' }, // teal
+  { name: 'Personal Care', icon: '💇', color: '#A155E7', type: 'expense' }, // purple
+  { name: 'Gifts', icon: '🎁', color: '#E44444', type: 'expense' }, // red
+  { name: 'Education', icon: '📚', color: '#6861E5', type: 'expense' }, // indigo
+  { name: 'Pets', icon: '🐾', color: '#11D497', type: 'expense' }, // emerald
+  { name: 'Other', icon: '📦', color: '#A05022', type: 'expense' }, // brown
 ]
 
 export const DEFAULT_INCOME_CATEGORIES: SeedCat[] = [
-  { name: 'Salary', icon: '💵', color: '#7C9473', type: 'income' }, // moss
-  { name: 'Business', icon: '💼', color: '#6E85A0', type: 'income' }, // denim
-  { name: 'Investments', icon: '📈', color: '#5E9490', type: 'income' }, // teal
-  { name: 'Gifts', icon: '🎁', color: '#D1A54E', type: 'income' }, // honey
-  { name: 'Other Income', icon: '➕', color: '#A6A28C', type: 'income' }, // stone
+  { name: 'Salary', icon: '💵', color: '#11D497', type: 'income' }, // emerald
+  { name: 'Business', icon: '💼', color: '#6861E5', type: 'income' }, // indigo
+  { name: 'Investments', icon: '📈', color: '#1EB8AB', type: 'income' }, // teal
+  { name: 'Gifts', icon: '🎁', color: '#F0AC19', type: 'income' }, // gold
+  { name: 'Other Income', icon: '➕', color: '#129AE2', type: 'income' }, // ocean blue
 ]
 
 function buildCategories(): Category[] {
@@ -54,7 +57,7 @@ function buildCategories(): Category[] {
 export const DEFAULT_SETTINGS: Settings = {
   id: 'app',
   baseCurrency: 'USD',
-  theme: 'system',
+  theme: 'dark',
   firstDayOfWeek: 1,
   seededDefaults: 1,
   openingBalance: 0,
@@ -62,7 +65,7 @@ export const DEFAULT_SETTINGS: Settings = {
   calculatorMode: 'inline',
   keypadReach: 'center',
   customEmojis: [],
-  appTheme: 'sage',
+  appTheme: 'ocean',
 }
 
 /**
