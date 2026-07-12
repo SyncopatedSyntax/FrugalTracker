@@ -346,42 +346,43 @@ function RecurringFormSheet({
           </div>
         </div>
 
-        <div className="flex gap-2">
-          <label className="flex-1">
+        <label className="block">
+          <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-muted">
+            Starts
+          </span>
+          <input
+            type="date"
+            value={startDate}
+            onChange={(e) => setStartDate(e.target.value)}
+            className="w-full rounded-xl border border-border bg-surface2 px-3 py-3 text-sm outline-none focus:border-primary"
+          />
+        </label>
+
+        <label className="flex items-center justify-between gap-3 rounded-xl bg-surface2 px-3.5 py-3">
+          <span className="text-sm font-medium">End on a date</span>
+          <input
+            type="checkbox"
+            checked={hasEndDate}
+            onChange={(e) => setHasEndDate(e.target.checked)}
+            className="h-5 w-5 flex-shrink-0 accent-[rgb(var(--c-primary))]"
+            aria-label="Set an end date"
+          />
+        </label>
+
+        {hasEndDate && (
+          <label className="block">
             <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-muted">
-              Starts
-            </span>
-            <input
-              type="date"
-              value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
-              className="w-full rounded-xl border border-border bg-surface2 px-3 py-3 text-sm outline-none focus:border-primary"
-            />
-          </label>
-          <label className="flex-1">
-            <span className="mb-1.5 flex items-center justify-between text-xs font-semibold uppercase tracking-wide text-muted">
               Ends
-              <span className="flex items-center gap-1.5 normal-case">
-                <input
-                  type="checkbox"
-                  checked={hasEndDate}
-                  onChange={(e) => setHasEndDate(e.target.checked)}
-                  className="h-4 w-4 accent-[rgb(var(--c-primary))]"
-                  aria-label="Set an end date"
-                />
-                <span className="text-[0.6875rem] normal-case text-muted">Set date</span>
-              </span>
             </span>
             <input
               type="date"
               value={endDate}
               min={startDate}
-              disabled={!hasEndDate}
               onChange={(e) => setEndDate(e.target.value)}
-              className="w-full rounded-xl border border-border bg-surface2 px-3 py-3 text-sm outline-none focus:border-primary disabled:opacity-40"
+              className="w-full rounded-xl border border-border bg-surface2 px-3 py-3 text-sm outline-none focus:border-primary"
             />
           </label>
-        </div>
+        )}
 
         <label className="block">
           <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-muted">
