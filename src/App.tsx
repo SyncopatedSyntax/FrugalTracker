@@ -4,6 +4,7 @@ import DemoBanner from './components/DemoBanner'
 import TabBar from './components/TabBar'
 import { useSettings } from './hooks'
 import { applyAppTheme, applyTheme } from './lib/theme'
+import { maybeAutoBackup } from './lib/githubBackup'
 
 import AddScreen from './features/add/AddScreen'
 import TransactionsScreen from './features/transactions/TransactionsScreen'
@@ -18,6 +19,7 @@ import BudgetsScreen from './features/budgets/BudgetsScreen'
 import CurrenciesScreen from './features/settings/CurrenciesScreen'
 import ImportScreen from './features/import/ImportScreen'
 import DataScreen from './features/data/DataScreen'
+import GitHubBackupScreen from './features/data/GitHubBackupScreen'
 
 function Layout() {
   return (
@@ -47,6 +49,10 @@ export default function App() {
     applyAppTheme(settings.appTheme)
   }, [settings.appTheme])
 
+  useEffect(() => {
+    void maybeAutoBackup()
+  }, [])
+
   return (
     <Routes>
       <Route element={<Layout />}>
@@ -63,6 +69,7 @@ export default function App() {
       <Route path="/more/keypad" element={<KeypadScreen />} />
       <Route path="/more/import" element={<ImportScreen />} />
       <Route path="/more/data" element={<DataScreen />} />
+      <Route path="/more/github-backup" element={<GitHubBackupScreen />} />
       <Route path="/more/demo" element={<DemoScreen />} />
     </Routes>
   )

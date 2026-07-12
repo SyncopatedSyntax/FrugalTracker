@@ -211,3 +211,9 @@ export const SparkleIcon = (p: IconProps) => (
     <path d="M12 3v4M12 17v4M3 12h4M17 12h4M6 6l2.5 2.5M15.5 15.5 18 18M18 6l-2.5 2.5M8.5 15.5 6 18" />
   </Base>
 )
+
+export const CloudIcon = (p: IconProps) => (
+  <Base {...p}>
+    <path d="M17.5 19a4.5 4.5 0 0 0 0-9 6 6 0 0 0-11.4-1.5A5 5 0 0 0 6.5 19h11Z" />
+  </Base>
+)

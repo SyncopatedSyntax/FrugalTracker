@@ -111,3 +111,21 @@ export interface DemoSnapshot {
   data: BackupFile
   savedAt: number
 }
+
+/** GitHub-repo backup connection & credentials (see `lib/githubBackup.ts`) —
+ * a single row, kept in its own table so the token is never included in
+ * `buildBackup()`/`restoreBackup()`'s JSON, which would otherwise leak it
+ * into the very repo it grants write access to. */
+export interface GithubBackupConfig {
+  id: 'default'
+  token: string
+  owner: string
+  repo: string
+  branch: string
+  path: string
+  autoBackupEnabled: boolean
+  autoBackupIntervalHours: number
+  lastBackupAt?: string
+  lastBackupStatus?: 'success' | 'error'
+  lastBackupError?: string
+}

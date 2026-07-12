@@ -37,6 +37,12 @@ export function useIsDark(): boolean {
   return isDark
 }
 
+/** The GitHub backup connection, or `undefined` when not connected — see
+ * `lib/githubBackup.ts`. */
+export function useGithubConfig() {
+  return useLiveQuery(() => db.githubConfig.get('default'), [])
+}
+
 /** Whether Demo Mode is currently active — backed by a localStorage flag
  * (not Dexie, since it needs to survive the very table-clearing it triggers),
  * so components subscribe to it explicitly rather than via useLiveQuery. */

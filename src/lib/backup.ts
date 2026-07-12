@@ -58,11 +58,7 @@ export async function exportJSON(): Promise<void> {
   )
 }
 
-export async function exportCSV(): Promise<void> {
-  const [categories, transactions] = await Promise.all([
-    db.categories.toArray(),
-    db.transactions.toArray(),
-  ])
+export function buildTransactionsCSV(transactions: Transaction[], categories: Category[]): string {
   const catName = new Map(categories.map((c) => [c.id, c.name]))
   const rows = transactions
     .slice()
@@ -76,9 +72,17 @@ export async function exportCSV(): Promise<void> {
       Note: t.note,
       Tags: t.tags.join(', '),
     }))
+  return Papa.unparse(rows)
+}
+
+export async function exportCSV(): Promise<void> {
+  const [categories, transactions] = await Promise.all([
+    db.categories.toArray(),
+    db.transactions.toArray(),
+  ])
   downloadFile(
     `frugaltracker-${toISO(new Date())}.csv`,
-    Papa.unparse(rows),
+    buildTransactionsCSV(transactions, categories),
     'text/csv;charset=utf-8',
   )
 }

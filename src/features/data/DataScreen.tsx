@@ -1,8 +1,9 @@
 import { useRef, useState } from 'react'
+import { Link } from 'react-router-dom'
 import SubScreen from '@/components/SubScreen'
 import Sheet from '@/components/Sheet'
 import { Toast, useToast } from '@/components/Toast'
-import { DownloadIcon, UploadIcon, TrashIcon } from '@/components/icons'
+import { ChevronRightIcon, CloudIcon, DownloadIcon, UploadIcon, TrashIcon } from '@/components/icons'
 import { exportCSV, exportJSON, isValidBackup, restoreBackup, type BackupFile } from '@/lib/backup'
 import { db } from '@/db/db'
 import { ensureSeeded } from '@/db/seed'
@@ -77,6 +78,25 @@ export default function DataScreen() {
             border
             onClick={() => exportCSV().then(() => show('CSV downloaded'))}
           />
+        </div>
+
+        <p className="mb-2 mt-6 text-xs font-semibold uppercase tracking-wide text-muted">Off-device</p>
+        <div className="overflow-hidden rounded-[22px] bg-surface">
+          <Link
+            to="/more/github-backup"
+            className="flex items-center gap-3 px-4 py-3.5 text-left active:bg-surface2"
+          >
+            <span className="grid h-9 w-9 flex-shrink-0 place-items-center rounded-full bg-primary/10 text-primary">
+              <CloudIcon size={20} />
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block text-sm font-medium">GitHub backup</span>
+              <span className="block truncate text-xs text-muted">
+                Back up &amp; restore via your own private repo
+              </span>
+            </span>
+            <ChevronRightIcon size={18} className="text-muted" />
+          </Link>
         </div>
 
         <p className="mb-2 mt-6 text-xs font-semibold uppercase tracking-wide text-muted">Restore</p>
