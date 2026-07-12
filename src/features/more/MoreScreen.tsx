@@ -8,6 +8,7 @@ import {
   ListIcon,
   PaletteIcon,
   RefreshIcon,
+  RepeatIcon,
   SparkleIcon,
   TargetIcon,
   UploadIcon,
@@ -19,6 +20,7 @@ import { APP_VERSION, forceUpdate, formattedBuildDate } from '@/lib/pwa'
 const items = [
   { to: '/more/categories', label: 'Categories', desc: 'Add, edit & reorder', Icon: ListIcon },
   { to: '/more/budgets', label: 'Budgets', desc: 'Monthly spending limits', Icon: TargetIcon },
+  { to: '/more/recurring', label: 'Recurring', desc: 'Rent, subscriptions, salary — on autopilot', Icon: RepeatIcon },
   { to: '/more/currencies', label: 'Currency & rates', desc: 'Base currency & exchange rates', Icon: CoinsIcon },
   { to: '/more/keypad', label: 'Keypad & calculator', desc: 'Calculator style & one-handed reach', Icon: CalculatorIcon },
   { to: '/more/appearance', label: 'Appearance', desc: 'Light, dark or system', Icon: PaletteIcon },

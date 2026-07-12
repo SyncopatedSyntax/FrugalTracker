@@ -133,3 +133,30 @@ export interface GithubBackupConfig {
   lastBackupStatus?: 'success' | 'error'
   lastBackupError?: string
 }
+
+export type RecurrenceFrequency = 'daily' | 'weekly' | 'biweekly' | 'monthly' | 'yearly'
+
+/** A template that materializes into a real `Transaction` on/after each due
+ * date — see `lib/recurrence.ts` (frequency math) and `db/repo.ts`'s
+ * `generateDueRecurringTransactions()`. Not itself part of the transaction
+ * log; nothing exists in `db.transactions` until a due date is reached. */
+export interface RecurringTransaction {
+  id: string
+  type: TxType
+  amount: number
+  currency: string
+  categoryId: string
+  note: string
+  tags: string[]
+  frequency: RecurrenceFrequency
+  /** Local calendar date, "YYYY-MM-DD" — anchors the day-of-week/day-of-month
+   * used for every future occurrence. */
+  startDate: string
+  /** Local calendar date; null = runs forever. */
+  endDate: string | null
+  /** Local calendar date this rule is next due to generate a transaction —
+   * advances after each generation. Starts equal to `startDate`. */
+  nextDueDate: string
+  createdAt: number
+  updatedAt: number
+}

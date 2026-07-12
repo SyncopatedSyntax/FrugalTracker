@@ -2,9 +2,11 @@ import { useEffect } from 'react'
 import { Outlet, Route, Routes } from 'react-router-dom'
 import DemoBanner from './components/DemoBanner'
 import TabBar from './components/TabBar'
+import { Toast, useToast } from './components/Toast'
 import { useSettings } from './hooks'
 import { applyAppTheme, applyTheme } from './lib/theme'
 import { maybeAutoBackup } from './lib/githubBackup'
+import { generateDueRecurringTransactions } from './db/recurring'
 
 import AddScreen from './features/add/AddScreen'
 import TransactionsScreen from './features/transactions/TransactionsScreen'
@@ -20,8 +22,9 @@ import CurrenciesScreen from './features/settings/CurrenciesScreen'
 import ImportScreen from './features/import/ImportScreen'
 import DataScreen from './features/data/DataScreen'
 import GitHubBackupScreen from './features/data/GitHubBackupScreen'
+import RecurringScreen from './features/more/RecurringScreen'
 
-function Layout() {
+function Layout({ toastMessage }: { toastMessage: string | null }) {
   return (
     <div className="mx-auto flex h-full max-w-lg flex-col bg-bg">
       <DemoBanner />
@@ -29,12 +32,14 @@ function Layout() {
         <Outlet />
       </main>
       <TabBar />
+      <Toast message={toastMessage} />
     </div>
   )
 }
 
 export default function App() {
   const settings = useSettings()
+  const { message, show } = useToast()
 
   useEffect(() => {
     applyTheme(settings.theme)
@@ -51,11 +56,15 @@ export default function App() {
 
   useEffect(() => {
     void maybeAutoBackup()
+    void generateDueRecurringTransactions().then((count) => {
+      if (count > 0) show(`Added ${count} recurring transaction${count === 1 ? '' : 's'}`)
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   return (
     <Routes>
-      <Route element={<Layout />}>
+      <Route element={<Layout toastMessage={message} />}>
         <Route path="/" element={<AddScreen />} />
         <Route path="/transactions" element={<TransactionsScreen />} />
         <Route path="/insights" element={<InsightsScreen />} />
@@ -64,6 +73,7 @@ export default function App() {
       <Route path="/tx/:id/edit" element={<EditTransactionScreen />} />
       <Route path="/more/categories" element={<CategoriesScreen />} />
       <Route path="/more/budgets" element={<BudgetsScreen />} />
+      <Route path="/more/recurring" element={<RecurringScreen />} />
       <Route path="/more/currencies" element={<CurrenciesScreen />} />
       <Route path="/more/appearance" element={<AppearanceScreen />} />
       <Route path="/more/keypad" element={<KeypadScreen />} />

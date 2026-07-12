@@ -47,6 +47,7 @@ export default function DataScreen() {
       db.budgets.clear(),
       db.rates.clear(),
       db.settings.clear(),
+      db.recurringTransactions.clear(),
     ])
     await ensureSeeded()
     setConfirmClear(false)

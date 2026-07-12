@@ -101,6 +101,18 @@ export function useBudgets() {
   return useLiveQuery(() => db.budgets.toArray(), []) ?? []
 }
 
+/* --------------------------- Recurring transactions ----------------------- */
+
+/** Recurring rules, soonest next occurrence first. */
+export function useRecurringTransactions() {
+  return (
+    useLiveQuery(async () => {
+      const all = await db.recurringTransactions.toArray()
+      return all.sort((a, b) => (a.nextDueDate < b.nextDueDate ? -1 : 1))
+    }, []) ?? []
+  )
+}
+
 /* ------------------------------ Transactions ----------------------------- */
 
 /** All transactions, newest first (by date then creation time). */

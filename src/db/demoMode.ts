@@ -46,7 +46,15 @@ export async function enterDemoMode(): Promise<void> {
   await db.snapshot.put({ id: 'realData', data: backup, savedAt: Date.now() })
   await db.transaction(
     'rw',
-    [db.settings, db.categories, db.tags, db.budgets, db.rates, db.transactions],
+    [
+      db.settings,
+      db.categories,
+      db.tags,
+      db.budgets,
+      db.rates,
+      db.transactions,
+      db.recurringTransactions,
+    ],
     async () => {
       await Promise.all([
         db.categories.clear(),
@@ -54,6 +62,9 @@ export async function enterDemoMode(): Promise<void> {
         db.budgets.clear(),
         db.rates.clear(),
         db.transactions.clear(),
+        // No demo recurring rules are generated — real ones are simply set
+        // aside for the duration, same as everything else here.
+        db.recurringTransactions.clear(),
       ])
       await db.categories.bulkAdd(demo.categories)
       if (demo.tags.length) await db.tags.bulkAdd(demo.tags)
@@ -86,6 +97,7 @@ export async function exitDemoMode(): Promise<void> {
       db.budgets.clear(),
       db.rates.clear(),
       db.transactions.clear(),
+      db.recurringTransactions.clear(),
       db.settings.clear(),
     ])
     await ensureSeeded()

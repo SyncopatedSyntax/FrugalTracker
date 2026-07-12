@@ -54,6 +54,16 @@ export function addDays(d: Date, n: number): Date {
   return new Date(d.getFullYear(), d.getMonth(), d.getDate() + n)
 }
 
+/** Shift a date by whole months, preserving day-of-month (clamping to the
+ * last day of the target month when it's shorter, e.g. Jan 31 -> Feb 28) —
+ * the monthly analog of `shiftYears`. Use this for monthly recurrence. */
+export function shiftMonths(d: Date, n: number): Date {
+  const day = d.getDate()
+  const shifted = new Date(d.getFullYear(), d.getMonth() + n, day)
+  if (shifted.getDate() !== day) return new Date(d.getFullYear(), d.getMonth() + n + 1, 0)
+  return shifted
+}
+
 /** Start of the week containing d, honouring firstDayOfWeek (0=Sun, 1=Mon). */
 export function startOfWeek(d: Date, firstDay: 0 | 1 = 1): Date {
   const day = d.getDay()

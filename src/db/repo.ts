@@ -135,7 +135,7 @@ export async function deleteTransaction(id: string): Promise<void> {
   })
 }
 
-function normalizeTags(tags: string[]): string[] {
+export function normalizeTags(tags: string[]): string[] {
   const seen = new Set<string>()
   const out: string[] = []
   for (const raw of tags) {

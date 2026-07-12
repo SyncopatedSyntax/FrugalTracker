@@ -5,6 +5,7 @@ import type {
   DemoSnapshot,
   GithubBackupConfig,
   Rate,
+  RecurringTransaction,
   Settings,
   Tag,
   Transaction,
@@ -22,6 +23,9 @@ export class FrugalDB extends Dexie {
   /** GitHub backup connection & token — intentionally excluded from
    * `buildBackup()`/`restoreBackup()`, see `lib/githubBackup.ts`. */
   githubConfig!: Table<GithubBackupConfig, string>
+  /** Recurring transaction rules — see `lib/recurrence.ts` and `db/repo.ts`'s
+   * `generateDueRecurringTransactions()`. */
+  recurringTransactions!: Table<RecurringTransaction, string>
 
   constructor() {
     super('frugaltracker')
@@ -55,6 +59,18 @@ export class FrugalDB extends Dexie {
       rates: 'currency',
       snapshot: 'id',
       githubConfig: 'id',
+    })
+    this.version(4).stores({
+      transactions:
+        'id, type, currency, categoryId, date, createdAt, *tags, [type+date]',
+      categories: 'id, type, sortOrder, isArchived',
+      tags: 'id, &name, usageCount',
+      budgets: 'id, categoryId',
+      settings: 'id',
+      rates: 'currency',
+      snapshot: 'id',
+      githubConfig: 'id',
+      recurringTransactions: 'id, nextDueDate',
     })
   }
 }

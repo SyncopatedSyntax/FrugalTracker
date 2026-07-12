@@ -1,6 +1,8 @@
-import { describe, expect, it } from 'vitest'
-import type { Category, Transaction } from '@/db/types'
-import { buildTransactionsCSV, isValidBackup } from './backup'
+import 'fake-indexeddb/auto'
+import { beforeEach, describe, expect, it } from 'vitest'
+import { db } from '@/db/db'
+import type { Category, RecurringTransaction, Transaction } from '@/db/types'
+import { buildBackup, buildTransactionsCSV, isValidBackup, restoreBackup, type BackupFile } from './backup'
 
 const categories: Category[] = [
   {
@@ -75,5 +77,61 @@ describe('isValidBackup', () => {
   it('rejects non-object input', () => {
     expect(isValidBackup(null)).toBe(false)
     expect(isValidBackup('backup')).toBe(false)
+  })
+})
+
+describe('buildBackup / restoreBackup — recurring transactions', () => {
+  const rule: RecurringTransaction = {
+    id: 'r1',
+    type: 'expense',
+    amount: 1450,
+    currency: 'USD',
+    categoryId: 'c1',
+    note: 'Rent',
+    tags: [],
+    frequency: 'monthly',
+    startDate: '2026-01-01',
+    endDate: null,
+    nextDueDate: '2026-08-01',
+    createdAt: 1,
+    updatedAt: 1,
+  }
+
+  beforeEach(async () => {
+    await Promise.all([
+      db.recurringTransactions.clear(),
+      db.transactions.clear(),
+      db.categories.clear(),
+      db.settings.clear(),
+      db.tags.clear(),
+      db.budgets.clear(),
+      db.rates.clear(),
+    ])
+  })
+
+  it('round-trips recurring rules through build/restore', async () => {
+    await db.recurringTransactions.add(rule)
+    const backup = await buildBackup()
+    expect(backup.recurringTransactions).toEqual([rule])
+
+    await db.recurringTransactions.clear()
+    await restoreBackup(backup)
+    expect(await db.recurringTransactions.toArray()).toEqual([rule])
+  })
+
+  it('restoring a legacy backup with no recurringTransactions field does not throw', async () => {
+    const legacy: BackupFile = {
+      app: 'frugaltracker',
+      version: 1,
+      exportedAt: '2025-01-01T00:00:00.000Z',
+      settings: undefined,
+      categories: [],
+      tags: [],
+      budgets: [],
+      rates: [],
+      transactions: [],
+    }
+    await expect(restoreBackup(legacy)).resolves.not.toThrow()
+    expect(await db.recurringTransactions.toArray()).toEqual([])
   })
 })

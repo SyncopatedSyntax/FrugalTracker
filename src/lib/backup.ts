@@ -1,6 +1,14 @@
 import Papa from 'papaparse'
 import { db } from '@/db/db'
-import type { Budget, Category, Rate, Settings, Tag, Transaction } from '@/db/types'
+import type {
+  Budget,
+  Category,
+  Rate,
+  RecurringTransaction,
+  Settings,
+  Tag,
+  Transaction,
+} from '@/db/types'
 import { toISO } from './date'
 
 export interface BackupFile {
@@ -13,17 +21,21 @@ export interface BackupFile {
   budgets: Budget[]
   rates: Rate[]
   transactions: Transaction[]
+  /** Optional: absent in backups made before this field existed. */
+  recurringTransactions?: RecurringTransaction[]
 }
 
 export async function buildBackup(): Promise<BackupFile> {
-  const [settings, categories, tags, budgets, rates, transactions] = await Promise.all([
-    db.settings.get('app'),
-    db.categories.toArray(),
-    db.tags.toArray(),
-    db.budgets.toArray(),
-    db.rates.toArray(),
-    db.transactions.toArray(),
-  ])
+  const [settings, categories, tags, budgets, rates, transactions, recurringTransactions] =
+    await Promise.all([
+      db.settings.get('app'),
+      db.categories.toArray(),
+      db.tags.toArray(),
+      db.budgets.toArray(),
+      db.rates.toArray(),
+      db.transactions.toArray(),
+      db.recurringTransactions.toArray(),
+    ])
   return {
     app: 'frugaltracker',
     version: 1,
@@ -34,6 +46,7 @@ export async function buildBackup(): Promise<BackupFile> {
     budgets,
     rates,
     transactions,
+    recurringTransactions,
   }
 }
 
@@ -102,7 +115,15 @@ export function isValidBackup(data: unknown): data is BackupFile {
 export async function restoreBackup(data: BackupFile): Promise<void> {
   await db.transaction(
     'rw',
-    [db.settings, db.categories, db.tags, db.budgets, db.rates, db.transactions],
+    [
+      db.settings,
+      db.categories,
+      db.tags,
+      db.budgets,
+      db.rates,
+      db.transactions,
+      db.recurringTransactions,
+    ],
     async () => {
       await Promise.all([
         db.settings.clear(),
@@ -111,6 +132,7 @@ export async function restoreBackup(data: BackupFile): Promise<void> {
         db.budgets.clear(),
         db.rates.clear(),
         db.transactions.clear(),
+        db.recurringTransactions.clear(),
       ])
       if (data.settings) await db.settings.put(data.settings)
       await db.categories.bulkAdd(data.categories)
@@ -118,6 +140,9 @@ export async function restoreBackup(data: BackupFile): Promise<void> {
       if (data.budgets?.length) await db.budgets.bulkAdd(data.budgets)
       await db.rates.bulkAdd(data.rates)
       await db.transactions.bulkAdd(data.transactions)
+      if (data.recurringTransactions?.length) {
+        await db.recurringTransactions.bulkAdd(data.recurringTransactions)
+      }
     },
   )
 }
