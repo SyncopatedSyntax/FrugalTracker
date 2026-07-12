@@ -354,7 +354,7 @@ function RecurringFormSheet({
             type="date"
             value={startDate}
             onChange={(e) => setStartDate(e.target.value)}
-            className="w-full rounded-xl border border-border bg-surface2 px-3 py-3 text-sm outline-none focus:border-primary"
+            className="w-full min-w-0 max-w-full rounded-xl border border-border bg-surface2 px-2 py-3 text-sm outline-none focus:border-primary"
           />
         </label>
 
@@ -379,7 +379,7 @@ function RecurringFormSheet({
               value={endDate}
               min={startDate}
               onChange={(e) => setEndDate(e.target.value)}
-              className="w-full rounded-xl border border-border bg-surface2 px-3 py-3 text-sm outline-none focus:border-primary"
+              className="w-full min-w-0 max-w-full rounded-xl border border-border bg-surface2 px-2 py-3 text-sm outline-none focus:border-primary"
             />
           </label>
         )}

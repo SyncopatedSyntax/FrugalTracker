@@ -646,3 +646,17 @@ Scoped this to `TransactionRow.tsx` only, as asked — the same `color + '22'` l
 Replaced the side-by-side pair with a single-column layout that can't ever be squeezed: a full-width "Starts" date field, a separate full-width toggle row ("End on a date" + a checkbox), and — only when that toggle is on — a full-width "Ends" date field below it, rendered conditionally instead of as a permanently-visible disabled input. No two date pickers ever have to share a row, so there's nothing left to overflow at any width.
 
 **Verified:** `npm run build` and `npx vitest run` (139 tests) both clean — pure layout change, no logic touched. Checked the form in headless Chromium at four widths (320px — narrower than any real phone, 393px, 440px, and 512px — the app's own max column width), with the end-date toggle turned on so both date fields render at once: zero horizontal overflow on the sheet or the page body at every width, confirmed visually via screenshots at the extremes (320px and 512px) that both fields sit full-width and legible with no clipping. Bumped to **v1.0.0** (major version, per request) and committed, pushed.
+
+---
+
+## 62. The date boxes still overflowed on a real device — harden `Sheet` itself
+
+> the start and the end date box are still too long it caused the app to scroll horizontally
+
+**Result:** #61's layout fix (stacking the date fields instead of squeezing them side by side) checked out clean in headless Chromium at every width tested, so this had to be a rendering difference headless Chromium can't reproduce — most likely native `<input type="date">` in real mobile Safari/WebKit rendering its internal day/month/year/calendar-icon control wider than the box it's given, which is a well-known cross-browser inconsistency independent of the CSS `width: 100%` set on the element.
+
+Rather than guess further at Safari-specific internals I can't directly test here, hardened the actual containment: added `overflow-x-hidden` to `Sheet.tsx`'s outer dialog panel and its scrollable content area — a defensive floor so *no* child, in this form or any other sheet in the app, can ever push the sheet (and by extension the page) into horizontal scroll, regardless of which browser's native control is responsible. Also tightened the two date inputs themselves (`min-w-0 max-w-full`, slightly less horizontal padding) to reduce how likely the internal control is to need clipping in the first place.
+
+Checked that this doesn't clip anything that needs the room: no sheet in the app relies on intentional horizontal scrolling (confirmed via a repo-wide search for `overflow-x-auto`, both hits are full-screen views, not sheets), and the category-color-picker sheet's emoji grid (the most visually dense sheet content in the app) still renders in full at 320px.
+
+**Verified:** `npm run build` and `npx vitest run` (139 tests) both clean. Re-checked in headless Chromium at 320px (narrower than any real phone) across three different sheets — the recurring form with both date fields visible, the currency picker, and the category emoji-grid sheet — zero horizontal overflow on the dialog or the page body in all three, confirmed visually via screenshots that nothing is clipped. The real fix can only be confirmed on the reporter's actual device, since headless Chromium doesn't reproduce the underlying Safari behavior — but the containment now guarantees the page itself can't scroll sideways regardless. Bumped to **v1.0.1**, committed, pushed.

@@ -32,7 +32,7 @@ export default function Sheet({ open, onClose, title, children, className }: She
         role="dialog"
         aria-modal="true"
         className={cn(
-          'relative z-10 mx-auto flex max-h-[88vh] w-full max-w-lg flex-col rounded-t-3xl bg-surface shadow-sheet animate-slide-up safe-bottom',
+          'relative z-10 mx-auto flex max-h-[88vh] w-full max-w-lg flex-col overflow-x-hidden rounded-t-3xl bg-surface shadow-sheet animate-slide-up safe-bottom',
           className,
         )}
       >
@@ -51,7 +51,11 @@ export default function Sheet({ open, onClose, title, children, className }: She
             </button>
           </div>
         )}
-        <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-4">{children}</div>
+        {/* overflow-x-hidden: a defensive floor against any child ever
+            pushing the sheet sideways — e.g. native <input type="date">
+            controls, which some browsers render wider than their box at
+            small font sizes regardless of the width:100% we give them. */}
+        <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden px-4 pb-4">{children}</div>
       </div>
     </div>
   )
