@@ -104,6 +104,16 @@ export function categoryPalette(theme: AppTheme): readonly string[] {
   return CATEGORY_PALETTES[theme] ?? CATEGORY_PALETTES.sage
 }
 
+/** Converts a 0-100 opacity percentage (Settings.categoryIconAlpha) into the
+ * 2-digit hex suffix appended to a 6-digit hex color, e.g. `alphaHex(25)` →
+ * `'40'` for use as `category.color + alphaHex(pct)`. */
+export function alphaHex(pct: number): string {
+  const clamped = Math.max(0, Math.min(100, pct))
+  return Math.round((clamped / 100) * 255)
+    .toString(16)
+    .padStart(2, '0')
+}
+
 export function paletteColor(theme: AppTheme, index: number): string {
   const p = categoryPalette(theme)
   return p[index % p.length]

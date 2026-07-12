@@ -4,12 +4,15 @@ import Segmented from '@/components/Segmented'
 import Sheet from '@/components/Sheet'
 import CategoryFormSheet from './CategoryFormSheet'
 import { ChevronDownIcon, PencilIcon, PlusIcon, TrashIcon } from '@/components/icons'
-import { useCategories } from '@/hooks'
+import { useCategories, useSettings } from '@/hooks'
 import { categoryTxCount, deleteCategory, updateCategory } from '@/db/repo'
 import type { Category, TxType } from '@/db/types'
+import { alphaHex } from '@/lib/palette'
 
 export default function CategoriesScreen() {
   const categories = useCategories(true)
+  const settings = useSettings()
+  const chipAlpha = alphaHex(settings.categoryIconAlpha)
   const [type, setType] = useState<TxType>('expense')
   const [formOpen, setFormOpen] = useState(false)
   const [editing, setEditing] = useState<Category | undefined>()
@@ -103,7 +106,7 @@ export default function CategoriesScreen() {
               </div>
               <span
                 className="grid h-9 w-9 flex-shrink-0 place-items-center rounded-full text-lg"
-                style={{ backgroundColor: c.color + '80' }}
+                style={{ backgroundColor: c.color + chipAlpha }}
               >
                 {c.icon}
               </span>
@@ -145,7 +148,7 @@ export default function CategoriesScreen() {
                 >
                   <span
                     className="grid h-9 w-9 flex-shrink-0 place-items-center rounded-full text-lg opacity-60"
-                    style={{ backgroundColor: c.color + '80' }}
+                    style={{ backgroundColor: c.color + chipAlpha }}
                   >
                     {c.icon}
                   </span>

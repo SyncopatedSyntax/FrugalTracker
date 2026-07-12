@@ -7,7 +7,7 @@ import type { TxType } from '@/db/types'
 import { formatMoney, formatMoneyCompact } from '@/lib/currency'
 import { addDays, todayISO, toISO } from '@/lib/date'
 import { cn } from '@/lib/cn'
-import { categoryPalette } from '@/lib/palette'
+import { alphaHex, categoryPalette } from '@/lib/palette'
 import PeriodBar from './PeriodBar'
 import LineChart, { type LineSeries } from './LineChart'
 import CashflowBarChart from './CashflowBarChart'
@@ -211,6 +211,7 @@ export default function InsightsScreen() {
             slices={catSlices}
             total={flowTotal}
             base={base}
+            chipAlpha={alphaHex(settings.categoryIconAlpha)}
             selectedKey={selectedCat}
             onSelect={setSelectedCat}
             selected={selected}
@@ -225,6 +226,7 @@ export default function InsightsScreen() {
             slices={labelSlices}
             total={flowTotal}
             base={base}
+            chipAlpha={alphaHex(settings.categoryIconAlpha)}
             selectedKey={selectedLabel}
             onSelect={setSelectedLabel}
             selected={selectedLbl}
@@ -417,6 +419,7 @@ function BreakdownView({
   slices,
   total,
   base,
+  chipAlpha,
   selectedKey,
   onSelect,
   selected,
@@ -429,6 +432,7 @@ function BreakdownView({
   slices: Slice[]
   total: number
   base: string
+  chipAlpha: string
   selectedKey: string | null
   onSelect: (k: string | null) => void
   selected?: Slice
@@ -520,7 +524,7 @@ function BreakdownView({
                   >
                     <span
                       className="grid h-9 w-9 flex-shrink-0 place-items-center rounded-full text-base"
-                      style={{ backgroundColor: s.color + '80' }}
+                      style={{ backgroundColor: s.color + chipAlpha }}
                     >
                       {kind === 'category' ? (
                         s.icon

@@ -63,6 +63,7 @@ export const DEFAULT_SETTINGS: Settings = {
   keypadReach: 'center',
   customEmojis: [],
   appTheme: 'ocean',
+  categoryIconAlpha: 25,
 }
 
 /**

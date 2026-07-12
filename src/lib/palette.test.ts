@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest'
-import { APP_THEMES, CATEGORY_PALETTES, categoryPalette, paletteColor, type AppTheme } from './palette'
+import {
+  alphaHex,
+  APP_THEMES,
+  CATEGORY_PALETTES,
+  categoryPalette,
+  paletteColor,
+  type AppTheme,
+} from './palette'
 
 describe('APP_THEMES / CATEGORY_PALETTES', () => {
   it('has a category palette for every listed theme', () => {
@@ -37,5 +44,27 @@ describe('paletteColor', () => {
     const len = CATEGORY_PALETTES.ocean.length
     expect(paletteColor('ocean', len)).toBe(CATEGORY_PALETTES.ocean[0])
     expect(paletteColor('ocean', len + 3)).toBe(CATEGORY_PALETTES.ocean[3])
+  })
+})
+
+describe('alphaHex', () => {
+  it('matches the app default (25% -> "40")', () => {
+    expect(alphaHex(25)).toBe('40')
+  })
+
+  it('maps 0 and 100 to the hex extremes', () => {
+    expect(alphaHex(0)).toBe('00')
+    expect(alphaHex(100)).toBe('ff')
+  })
+
+  it('clamps out-of-range input', () => {
+    expect(alphaHex(-20)).toBe('00')
+    expect(alphaHex(150)).toBe('ff')
+  })
+
+  it('always returns a 2-digit hex string', () => {
+    for (let pct = 0; pct <= 100; pct += 7) {
+      expect(alphaHex(pct)).toMatch(/^[0-9a-f]{2}$/)
+    }
   })
 })

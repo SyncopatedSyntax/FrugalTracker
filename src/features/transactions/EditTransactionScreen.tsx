@@ -21,6 +21,7 @@ import { currencyDecimals, currencySymbol, formatMoney } from '@/lib/currency'
 import { numberToTyped, parseAmount } from '@/lib/amount'
 import { formatShortDate, todayISO } from '@/lib/date'
 import type { TxType } from '@/db/types'
+import { alphaHex } from '@/lib/palette'
 import { cn } from '@/lib/cn'
 
 function dateLabel(iso: string): string {
@@ -239,7 +240,7 @@ export default function EditTransactionScreen() {
               leading={
                 <span
                   className="grid h-9 w-9 flex-shrink-0 place-items-center rounded-full text-lg"
-                  style={{ backgroundColor: (category?.color ?? '#767B70') + '80' }}
+                  style={{ backgroundColor: (category?.color ?? '#767B70') + alphaHex(settings.categoryIconAlpha) }}
                 >
                   {category ? category.icon : '❓'}
                 </span>

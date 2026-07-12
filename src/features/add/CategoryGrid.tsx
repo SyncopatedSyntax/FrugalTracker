@@ -1,4 +1,6 @@
 import type { Category } from '@/db/types'
+import { useSettings } from '@/hooks'
+import { alphaHex } from '@/lib/palette'
 import { cn } from '@/lib/cn'
 import { PlusIcon } from '@/components/icons'
 
@@ -10,6 +12,8 @@ interface Props {
 }
 
 export default function CategoryGrid({ categories, selectedId, onSelect, onAddNew }: Props) {
+  const settings = useSettings()
+  const chipAlpha = alphaHex(settings.categoryIconAlpha)
   return (
     <div className="grid grid-cols-4 gap-x-1 gap-y-2 sm:grid-cols-5">
       {categories.map((c) => {
@@ -27,7 +31,7 @@ export default function CategoryGrid({ categories, selectedId, onSelect, onAddNe
                 active ? 'ring-2 ring-offset-2 ring-offset-bg' : 'opacity-95',
               )}
               style={{
-                backgroundColor: active ? c.color : c.color + '80',
+                backgroundColor: active ? c.color : c.color + chipAlpha,
                 ...(active ? ({ ['--tw-ring-color']: c.color } as React.CSSProperties) : {}),
               }}
             >

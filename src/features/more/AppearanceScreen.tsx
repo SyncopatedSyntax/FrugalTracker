@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import SubScreen from '@/components/SubScreen'
 import Sheet from '@/components/Sheet'
 import { Toast, useToast } from '@/components/Toast'
@@ -6,8 +6,12 @@ import { CheckIcon, MoonIcon, PaletteIcon, RefreshIcon, SunIcon } from '@/compon
 import { useIsDark, useSettings } from '@/hooks'
 import { recolorCategories, updateSettings } from '@/db/repo'
 import type { ThemePref } from '@/db/types'
-import { APP_THEMES, categoryPalette, type AppTheme } from '@/lib/palette'
+import { alphaHex, APP_THEMES, categoryPalette, type AppTheme } from '@/lib/palette'
 import { cn } from '@/lib/cn'
+
+/** A few representative icon+color pairs, cycled against the active theme's
+ * own palette, to preview the icon-chip alpha live without leaving this screen. */
+const PREVIEW_ICONS = ['🛒', '☕', '🎬', '🏠', '✈️']
 
 const options: { value: ThemePref; label: string; Icon: typeof SunIcon }[] = [
   { value: 'light', label: 'Light', Icon: SunIcon },
@@ -22,6 +26,12 @@ export default function AppearanceScreen() {
   const [confirmRecolor, setConfirmRecolor] = useState(false)
 
   const activeTheme = APP_THEMES.find((t) => t.id === settings.appTheme) ?? APP_THEMES[0]
+
+  // Local state so the slider and preview chips track the drag instantly,
+  // rather than waiting on the round-trip through Dexie's live query.
+  const [previewAlpha, setPreviewAlpha] = useState(settings.categoryIconAlpha)
+  useEffect(() => setPreviewAlpha(settings.categoryIconAlpha), [settings.categoryIconAlpha])
+  const previewPalette = categoryPalette(settings.appTheme)
 
   const doRecolor = async () => {
     await recolorCategories(settings.appTheme)
@@ -98,6 +108,49 @@ export default function AppearanceScreen() {
           <RefreshIcon size={16} />
           Recolor categories to match {activeTheme.name}
         </button>
+
+        <p className="mb-2 mt-6 px-1 text-xs font-semibold uppercase tracking-wide text-muted">
+          Category icon boldness
+        </p>
+        <p className="mb-3 px-1 text-xs text-muted">
+          How strongly a category's color shows through its round icon background on Activity,
+          Categories, Budgets, the Edit screen, and Insights.
+        </p>
+        <div className="rounded-[1.375rem] bg-surface p-4">
+          <div className="mb-3 flex items-center justify-center gap-2.5">
+            {PREVIEW_ICONS.map((icon, i) => (
+              <span
+                key={icon}
+                className="grid h-10 w-10 flex-shrink-0 place-items-center rounded-full text-lg"
+                style={{
+                  backgroundColor:
+                    previewPalette[i % previewPalette.length] + alphaHex(previewAlpha),
+                }}
+              >
+                {icon}
+              </span>
+            ))}
+          </div>
+          <div className="flex items-center gap-3">
+            <input
+              type="range"
+              min={0}
+              max={100}
+              step={1}
+              value={previewAlpha}
+              onChange={(e) => {
+                const v = Number(e.target.value)
+                setPreviewAlpha(v)
+                void updateSettings({ categoryIconAlpha: v })
+              }}
+              className="h-1.5 flex-1 accent-[rgb(var(--c-primary))]"
+              aria-label="Category icon boldness"
+            />
+            <span className="w-10 flex-shrink-0 text-right text-sm font-semibold tabular-nums">
+              {previewAlpha}%
+            </span>
+          </div>
+        </div>
       </div>
 
       <Toast message={message} />

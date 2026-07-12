@@ -5,7 +5,7 @@ import { cn } from '@/lib/cn'
 import type { Category, TxType } from '@/db/types'
 import { addCategory, updateCategory, updateSettings } from '@/db/repo'
 import { useSettings } from '@/hooks'
-import { categoryPalette } from '@/lib/palette'
+import { alphaHex, categoryPalette } from '@/lib/palette'
 import { firstGrapheme } from '@/lib/emoji'
 
 /** Starting set of common budgeting icons. Users can add their own beyond
@@ -93,7 +93,7 @@ export default function CategoryFormSheet({
         <div className="flex items-center gap-3">
           <span
             className="grid h-14 w-14 flex-shrink-0 place-items-center rounded-full text-3xl"
-            style={{ backgroundColor: color + '80' }}
+            style={{ backgroundColor: color + alphaHex(settings.categoryIconAlpha) }}
           >
             {icon}
           </span>

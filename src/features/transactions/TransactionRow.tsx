@@ -6,10 +6,12 @@ interface Props {
   tx: Transaction
   category?: Category
   base: string
+  /** Icon chip alpha as a 2-digit hex suffix, from `alphaHex(settings.categoryIconAlpha)`. */
+  chipAlpha: string
   onClick?: () => void
 }
 
-export default function TransactionRow({ tx, category, base, onClick }: Props) {
+export default function TransactionRow({ tx, category, base, chipAlpha, onClick }: Props) {
   const isExpense = tx.type === 'expense'
   const sign = isExpense ? '-' : '+'
   const showConverted = tx.currency !== base
@@ -21,7 +23,7 @@ export default function TransactionRow({ tx, category, base, onClick }: Props) {
     >
       <span
         className="grid h-10 w-10 flex-shrink-0 place-items-center rounded-full text-lg"
-        style={{ backgroundColor: (category?.color ?? '#64748b') + '80' }}
+        style={{ backgroundColor: (category?.color ?? '#64748b') + chipAlpha }}
       >
         {category?.icon ?? '❓'}
       </span>

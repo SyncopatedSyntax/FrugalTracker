@@ -93,6 +93,10 @@ export interface Settings {
    * category color palette offered when picking a category color. Doesn't
    * retroactively recolor already-assigned categories. */
   appTheme: AppTheme
+  /** Opacity (0-100) of the round category-icon chip background used on
+   * Activity, Categories, Budgets, the Edit screen, and the Insights
+   * breakdown rows — see `lib/palette.ts`'s `alphaHex()`. */
+  categoryIconAlpha: number
 }
 
 export interface Rate {

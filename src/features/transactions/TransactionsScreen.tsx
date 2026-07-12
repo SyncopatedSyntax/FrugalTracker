@@ -5,6 +5,7 @@ import { useAllTransactions, useCategoryMap, useSettings } from '@/hooks'
 import type { Transaction, TxType } from '@/db/types'
 import { formatMoney } from '@/lib/currency'
 import { formatDayHeader } from '@/lib/date'
+import { alphaHex } from '@/lib/palette'
 import { cn } from '@/lib/cn'
 import TransactionRow from './TransactionRow'
 import FilterSheet from './FilterSheet'
@@ -35,6 +36,7 @@ export default function TransactionsScreen() {
   const categoryMap = useCategoryMap()
   const settings = useSettings()
   const base = settings.baseCurrency
+  const chipAlpha = alphaHex(settings.categoryIconAlpha)
 
   const [keyword, setKeyword] = useState('')
   const [filters, setFilters] = useState<Filters>(() => filtersFromSearchParams(searchParams))
@@ -182,6 +184,7 @@ export default function TransactionsScreen() {
                       tx={tx}
                       category={categoryMap.get(tx.categoryId)}
                       base={base}
+                      chipAlpha={chipAlpha}
                       onClick={() => navigate(`/tx/${tx.id}/edit`)}
                     />
                   ))}
