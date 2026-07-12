@@ -5,7 +5,7 @@ import Segmented from '@/components/Segmented'
 import CurrencyPickerSheet from '@/components/CurrencyPickerSheet'
 import TagInput from '@/components/TagInput'
 import { Toast, useToast } from '@/components/Toast'
-import { PlusIcon, TrashIcon } from '@/components/icons'
+import { CalendarIcon, PlusIcon, TrashIcon } from '@/components/icons'
 import {
   useCategoriesByType,
   useCategoryMap,
@@ -25,6 +25,10 @@ import { formatShortDate, todayISO } from '@/lib/date'
 import { alphaHex } from '@/lib/palette'
 import { FREQUENCIES, FREQUENCY_LABELS } from '@/lib/recurrence'
 import { cn } from '@/lib/cn'
+
+function dateLabel(iso: string): string {
+  return iso === todayISO() ? 'Today' : formatShortDate(iso)
+}
 
 export default function RecurringScreen() {
   const settings = useSettings()
@@ -346,42 +350,65 @@ function RecurringFormSheet({
           </div>
         </div>
 
-        <label className="block">
+        <div>
           <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-muted">
             Starts
           </span>
-          <input
-            type="date"
-            value={startDate}
-            onChange={(e) => setStartDate(e.target.value)}
-            className="w-full min-w-0 max-w-full rounded-xl border border-border bg-surface2 px-2 py-3 text-sm outline-none focus:border-primary"
-          />
-        </label>
+          {/* The native date input's own box (segments + calendar icon)
+              doesn't reliably respect a custom width across browsers/devices
+              — same "renders wider than its box" issue EditTransactionScreen
+              already works around. The visible pill here is entirely our own
+              markup; the real <input> sits on top, invisible and exactly the
+              same size, just to capture the tap and drive the OS picker. */}
+          <div className="relative">
+            <div className="pointer-events-none flex items-center justify-between rounded-xl border border-border bg-surface2 px-3 py-3 text-sm">
+              <span>{dateLabel(startDate)}</span>
+              <CalendarIcon size={16} className="text-muted" />
+            </div>
+            <input
+              type="date"
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+              aria-label="Starts"
+              className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+            />
+          </div>
+        </div>
 
         <label className="flex items-center justify-between gap-3 rounded-xl bg-surface2 px-3.5 py-3">
           <span className="text-sm font-medium">End on a date</span>
           <input
             type="checkbox"
             checked={hasEndDate}
-            onChange={(e) => setHasEndDate(e.target.checked)}
+            onChange={(e) => {
+              setHasEndDate(e.target.checked)
+              if (e.target.checked && !endDate) setEndDate(startDate)
+            }}
             className="h-5 w-5 flex-shrink-0 accent-[rgb(var(--c-primary))]"
             aria-label="Set an end date"
           />
         </label>
 
         {hasEndDate && (
-          <label className="block">
+          <div>
             <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-muted">
               Ends
             </span>
-            <input
-              type="date"
-              value={endDate}
-              min={startDate}
-              onChange={(e) => setEndDate(e.target.value)}
-              className="w-full min-w-0 max-w-full rounded-xl border border-border bg-surface2 px-2 py-3 text-sm outline-none focus:border-primary"
-            />
-          </label>
+            <div className="relative">
+              <div className="pointer-events-none flex items-center justify-between rounded-xl border border-border bg-surface2 px-3 py-3 text-sm">
+                <span>{endDate ? dateLabel(endDate) : 'Select date'}</span>
+                <CalendarIcon size={16} className="text-muted" />
+              </div>
+              <input
+                type="date"
+                value={endDate}
+                min={startDate}
+                onChange={(e) => setEndDate(e.target.value)}
+                aria-label="Ends"
+                className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+              />
+            </div>
+          </div>
         )}
 
         <label className="block">
