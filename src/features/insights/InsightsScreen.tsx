@@ -2,7 +2,7 @@ import { Fragment, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import Segmented from '@/components/Segmented'
 import { ChevronRightIcon, PencilIcon, TagIcon } from '@/components/icons'
-import { useAllTransactions, useCategoryMap, useSettings } from '@/hooks'
+import { useCategoryMap, useEarliestTransactionDate, useSettings, useTransactionsInRange } from '@/hooks'
 import type { TxType } from '@/db/types'
 import { formatMoney, formatMoneyCompact } from '@/lib/currency'
 import { addDays, todayISO, toISO } from '@/lib/date'
@@ -18,12 +18,18 @@ import {
   balanceSeries,
   cashflowByBucket,
   categoryBreakdown,
-  earliestDate,
   labelBreakdown,
   lastStartedIndex,
   sumFlow,
   type Slice,
 } from './compute'
+
+/** Earliest of several ISO date strings, ignoring empty ones (settings that
+ * aren't set yet). */
+function earliestOf(...dates: string[]): string {
+  const real = dates.filter(Boolean)
+  return real.length ? real.reduce((m, d) => (d < m ? d : m)) : ''
+}
 
 type View = 'overview' | 'categories' | 'labels'
 
@@ -33,7 +39,7 @@ function alignLen(arr: number[], len: number): Array<number | null> {
 }
 
 export default function InsightsScreen() {
-  const all = useAllTransactions()
+  const allStart = useEarliestTransactionDate()
   const categoryMap = useCategoryMap()
   const settings = useSettings()
   const base = settings.baseCurrency
@@ -51,11 +57,18 @@ export default function InsightsScreen() {
   const [selectedLabel, setSelectedLabel] = useState<string | null>(null)
   const [obOpen, setObOpen] = useState(false)
 
-  const allStart = useMemo(() => earliestDate(all), [all])
   const period = useMemo(
     () => resolvePeriod(granularity, anchor, custom, settings.firstDayOfWeek, allStart),
     [granularity, anchor, custom, settings.firstDayOfWeek, allStart],
   )
+
+  // The wealth chart's running balance needs everything back to the opening
+  // balance date (or the very first transaction, if that's not set) to be
+  // correct — not just the viewed period — so the fetch is widened to cover
+  // whichever of those three points is earliest, rather than loading every
+  // transaction ever recorded.
+  const fetchStart = earliestOf(period.startISO, settings.openingBalanceDate, allStart)
+  const all = useTransactionsInRange(fetchStart, period.endISO)
 
   const periodTxs = useMemo(
     () => all.filter((t) => t.date >= period.startISO && t.date <= period.endISO),

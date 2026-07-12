@@ -51,15 +51,23 @@ export default function TransactionsScreen() {
     [all, filters, keyword, categoryMap],
   )
 
+  // Search/filter still run over the full history (correctness), but only a
+  // page of rows actually mounts at a time — the DOM cost of the list, not
+  // the Dexie read, is what scales badly with years of data.
+  const PAGE = 60
+  const [visibleCount, setVisibleCount] = useState(PAGE)
+  useEffect(() => setVisibleCount(PAGE), [filtered])
+  const visible = filtered.length > visibleCount ? filtered.slice(0, visibleCount) : filtered
+
   const groups = useMemo(() => {
     const map = new Map<string, Transaction[]>()
-    for (const tx of filtered) {
+    for (const tx of visible) {
       const arr = map.get(tx.date)
       if (arr) arr.push(tx)
       else map.set(tx.date, [tx])
     }
     return [...map.entries()]
-  }, [filtered])
+  }, [visible])
 
   const net = useMemo(
     () =>
@@ -181,6 +189,14 @@ export default function TransactionsScreen() {
               </section>
             )
           })
+        )}
+        {filtered.length > visibleCount && (
+          <button
+            onClick={() => setVisibleCount((c) => c + PAGE)}
+            className="mx-4 my-3 w-[calc(100%-2rem)] rounded-[22px] border border-border py-3 text-sm font-semibold text-muted active:bg-surface2"
+          >
+            Load {Math.min(PAGE, filtered.length - visibleCount)} more
+          </button>
         )}
       </div>
 

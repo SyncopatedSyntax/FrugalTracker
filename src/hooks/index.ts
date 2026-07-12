@@ -124,6 +124,14 @@ export function useTransaction(id: string | undefined) {
   return useLiveQuery(async () => (id ? db.transactions.get(id) : undefined), [id])
 }
 
+/** Earliest transaction date across all history, or '' when there are none —
+ * a single indexed lookup (via the `date` index) rather than loading every
+ * row just to find the minimum. */
+export function useEarliestTransactionDate(): string {
+  const first = useLiveQuery(() => db.transactions.orderBy('date').first(), [])
+  return first?.date ?? ''
+}
+
 export function useTransactionCount() {
   return useLiveQuery(() => db.transactions.count(), [])
 }

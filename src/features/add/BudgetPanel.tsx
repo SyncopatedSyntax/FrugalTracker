@@ -1,7 +1,8 @@
 import { memo, type ReactNode } from 'react'
-import { useAllTransactions, useBudgets, useCategoryMap, useSettings } from '@/hooks'
+import { useBudgets, useCategoryMap, useSettings, useTransactionsInRange } from '@/hooks'
 import type { TxType } from '@/db/types'
 import { formatMoneyCompact } from '@/lib/currency'
+import { toISO, todayISO } from '@/lib/date'
 import { cn } from '@/lib/cn'
 import {
   periodRange,
@@ -23,7 +24,12 @@ interface Props {
 function BudgetPanel({ type, categoryId }: Props) {
   const settings = useSettings()
   const base = settings.baseCurrency
-  const txs = useAllTransactions()
+  // Every ring here — this year's/last year's week, month, or year to date,
+  // plus the trailing-12-month rolling average — falls within "start of last
+  // calendar year through today," so that's all this needs to fetch rather
+  // than the whole table.
+  const rangeStart = toISO(new Date(new Date().getFullYear() - 1, 0, 1))
+  const txs = useTransactionsInRange(rangeStart, todayISO())
   const budgets = useBudgets()
   const categoryMap = useCategoryMap()
 
@@ -67,7 +73,7 @@ function ExpenseCompare({
   firstDayOfWeek,
 }: {
   categoryId: string | null
-  txs: ReturnType<typeof useAllTransactions>
+  txs: ReturnType<typeof useTransactionsInRange>
   budgets: ReturnType<typeof useBudgets>
   categoryMap: ReturnType<typeof useCategoryMap>
   base: string
@@ -152,7 +158,7 @@ function IncomeCompare({
   base,
   firstDayOfWeek,
 }: {
-  txs: ReturnType<typeof useAllTransactions>
+  txs: ReturnType<typeof useTransactionsInRange>
   base: string
   firstDayOfWeek: 0 | 1
 }) {
