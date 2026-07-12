@@ -103,7 +103,7 @@ export default function CategoriesScreen() {
               </div>
               <span
                 className="grid h-9 w-9 flex-shrink-0 place-items-center rounded-full text-lg"
-                style={{ backgroundColor: c.color + '22' }}
+                style={{ backgroundColor: c.color + '80' }}
               >
                 {c.icon}
               </span>
@@ -145,7 +145,7 @@ export default function CategoriesScreen() {
                 >
                   <span
                     className="grid h-9 w-9 flex-shrink-0 place-items-center rounded-full text-lg opacity-60"
-                    style={{ backgroundColor: c.color + '22' }}
+                    style={{ backgroundColor: c.color + '80' }}
                   >
                     {c.icon}
                   </span>

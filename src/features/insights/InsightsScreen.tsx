@@ -520,7 +520,7 @@ function BreakdownView({
                   >
                     <span
                       className="grid h-9 w-9 flex-shrink-0 place-items-center rounded-full text-base"
-                      style={{ backgroundColor: kind === 'category' ? s.color + '22' : s.color + '22' }}
+                      style={{ backgroundColor: s.color + '80' }}
                     >
                       {kind === 'category' ? (
                         s.icon

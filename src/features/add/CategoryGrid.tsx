@@ -27,7 +27,7 @@ export default function CategoryGrid({ categories, selectedId, onSelect, onAddNe
                 active ? 'ring-2 ring-offset-2 ring-offset-bg' : 'opacity-95',
               )}
               style={{
-                backgroundColor: active ? c.color : c.color + '22',
+                backgroundColor: active ? c.color : c.color + '80',
                 ...(active ? ({ ['--tw-ring-color']: c.color } as React.CSSProperties) : {}),
               }}
             >

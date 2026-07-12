@@ -121,7 +121,7 @@ export default function BudgetsScreen() {
                   <div className="mb-2 flex items-center gap-2">
                     <span
                       className="grid h-8 w-8 place-items-center rounded-full text-base"
-                      style={{ backgroundColor: (cat?.color ?? '#64748b') + '22' }}
+                      style={{ backgroundColor: (cat?.color ?? '#64748b') + '80' }}
                     >
                       {cat ? cat.icon : '💰'}
                     </span>

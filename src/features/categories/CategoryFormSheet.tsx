@@ -93,7 +93,7 @@ export default function CategoryFormSheet({
         <div className="flex items-center gap-3">
           <span
             className="grid h-14 w-14 flex-shrink-0 place-items-center rounded-full text-3xl"
-            style={{ backgroundColor: color + '22' }}
+            style={{ backgroundColor: color + '80' }}
           >
             {icon}
           </span>
