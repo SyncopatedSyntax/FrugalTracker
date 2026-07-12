@@ -1,4 +1,5 @@
 import { db } from '@/db/db'
+import { isDemoModeOn } from '@/db/demoMode'
 import type { GithubBackupConfig } from '@/db/types'
 import { buildBackup, buildTransactionsCSV, isValidBackup, type BackupFile } from './backup'
 
@@ -92,6 +93,10 @@ export async function putFile(
  * configured repo (two separate commits — the Contents API has no atomic
  * multi-file commit), then records success/failure on the config row. */
 export async function backupNow(): Promise<void> {
+  // The demo dataset lives in the same tables as real data while Demo Mode
+  // is active (see `db/demoMode.ts`) — never let it overwrite the user's
+  // real backup in their repo.
+  if (isDemoModeOn()) throw new Error('Cannot back up while Demo Mode is active')
   const config = await db.githubConfig.get('default')
   if (!config) throw new Error('Not connected to GitHub')
   try {
@@ -123,6 +128,10 @@ export async function backupNow(): Promise<void> {
  * fetch-then-confirm flow as the local file restore in `DataScreen.tsx`)
  * before calling the existing `restoreBackup()` from `lib/backup.ts`. */
 export async function fetchGithubBackup(): Promise<BackupFile> {
+  // Applying a restore into the demo tables would just be discarded the
+  // moment Demo Mode exits (it unconditionally restores the pre-demo
+  // snapshot) — block it rather than let that silently swallow the result.
+  if (isDemoModeOn()) throw new Error('Cannot restore while Demo Mode is active')
   const config = await db.githubConfig.get('default')
   if (!config) throw new Error('Not connected to GitHub')
   const content = await getFileContent(config, JSON_FILENAME)
@@ -133,10 +142,11 @@ export async function fetchGithubBackup(): Promise<BackupFile> {
 
 /** Opportunistic "automatic" backup — checked on app foreground/open rather
  * than via true OS background scheduling, which isn't reliably available to
- * a PWA (especially iOS Safari). Silently no-ops when not due or not
- * connected; failures are recorded on the config row by `backupNow()` but
- * not surfaced here, since this runs unattended. */
+ * a PWA (especially iOS Safari). Silently no-ops when not due, not connected,
+ * or while Demo Mode is active; failures are recorded on the config row by
+ * `backupNow()` but not surfaced here, since this runs unattended. */
 export async function maybeAutoBackup(): Promise<void> {
+  if (isDemoModeOn()) return
   const config = await db.githubConfig.get('default')
   if (!config?.autoBackupEnabled) return
   const last = config.lastBackupAt ? new Date(config.lastBackupAt).getTime() : 0

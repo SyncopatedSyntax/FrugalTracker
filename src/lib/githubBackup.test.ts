@@ -22,6 +22,21 @@ const config: GithubBackupConfig = {
   autoBackupIntervalHours: 24,
 }
 
+/** `isDemoModeOn()` reads a `localStorage` flag, which isn't a global in the
+ * node test environment — stub a minimal store so demo-mode guards can be
+ * exercised. */
+const fakeStorage = new Map<string, string>()
+vi.stubGlobal('localStorage', {
+  getItem: (key: string) => fakeStorage.get(key) ?? null,
+  setItem: (key: string, value: string) => void fakeStorage.set(key, value),
+  removeItem: (key: string) => void fakeStorage.delete(key),
+})
+
+function setDemoMode(on: boolean): void {
+  if (on) fakeStorage.set('ft-demo-mode', '1')
+  else fakeStorage.delete('ft-demo-mode')
+}
+
 beforeEach(async () => {
   await Promise.all([
     db.githubConfig.clear(),
@@ -32,6 +47,7 @@ beforeEach(async () => {
     db.budgets.clear(),
     db.rates.clear(),
   ])
+  setDemoMode(false)
   vi.restoreAllMocks()
 })
 
@@ -251,5 +267,38 @@ describe('maybeAutoBackup', () => {
     vi.stubGlobal('fetch', vi.fn())
     await maybeAutoBackup()
     expect(fetch).not.toHaveBeenCalled()
+  })
+})
+
+describe('Demo Mode guards', () => {
+  it('backupNow throws and never calls fetch while Demo Mode is active', async () => {
+    await db.githubConfig.put(config)
+    setDemoMode(true)
+    vi.stubGlobal('fetch', vi.fn())
+    await expect(backupNow()).rejects.toThrow('Cannot back up while Demo Mode is active')
+    expect(fetch).not.toHaveBeenCalled()
+  })
+
+  it('fetchGithubBackup throws and never calls fetch while Demo Mode is active', async () => {
+    await db.githubConfig.put(config)
+    setDemoMode(true)
+    vi.stubGlobal('fetch', vi.fn())
+    await expect(fetchGithubBackup()).rejects.toThrow('Cannot restore while Demo Mode is active')
+    expect(fetch).not.toHaveBeenCalled()
+  })
+
+  it('maybeAutoBackup silently skips (no error recorded) while Demo Mode is active', async () => {
+    await db.githubConfig.put({
+      ...config,
+      autoBackupEnabled: true,
+      autoBackupIntervalHours: 24,
+      lastBackupAt: new Date(Date.now() - 25 * 3600_000).toISOString(),
+    })
+    setDemoMode(true)
+    vi.stubGlobal('fetch', vi.fn())
+    await maybeAutoBackup()
+    expect(fetch).not.toHaveBeenCalled()
+    const updated = await db.githubConfig.get('default')
+    expect(updated?.lastBackupStatus).toBeUndefined()
   })
 })

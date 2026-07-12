@@ -3,7 +3,7 @@ import SubScreen from '@/components/SubScreen'
 import Sheet from '@/components/Sheet'
 import { Toast, useToast } from '@/components/Toast'
 import { ChevronDownIcon, CloudIcon, RefreshIcon, TrashIcon, UploadIcon } from '@/components/icons'
-import { useGithubConfig } from '@/hooks'
+import { useDemoMode, useGithubConfig } from '@/hooks'
 import { db } from '@/db/db'
 import { backfillBaseAmounts } from '@/db/repo'
 import { restoreBackup, type BackupFile } from '@/lib/backup'
@@ -18,6 +18,7 @@ const INTERVAL_OPTIONS = [
 
 export default function GitHubBackupScreen() {
   const config = useGithubConfig()
+  const isDemo = useDemoMode()
   const { message, show } = useToast()
 
   const [token, setToken] = useState('')
@@ -250,9 +251,16 @@ export default function GitHubBackupScreen() {
               )}
             </div>
 
+            {isDemo && (
+              <p className="text-center text-xs text-muted">
+                Paused while Demo Mode is active — exit demo mode to back up or restore your real
+                data.
+              </p>
+            )}
+
             <button
               onClick={doBackup}
-              disabled={backingUp}
+              disabled={backingUp || isDemo}
               className="flex w-full items-center justify-center gap-2 rounded-[22px] bg-primary py-3 text-base font-semibold text-primary-fg disabled:opacity-60"
             >
               <RefreshIcon size={18} className={backingUp ? 'animate-spin' : ''} />
@@ -261,7 +269,7 @@ export default function GitHubBackupScreen() {
 
             <button
               onClick={startRestore}
-              disabled={restoring}
+              disabled={restoring || isDemo}
               className="flex w-full items-center justify-center gap-2 rounded-[22px] border border-border py-3 text-base font-semibold disabled:opacity-60"
             >
               <UploadIcon size={18} />
