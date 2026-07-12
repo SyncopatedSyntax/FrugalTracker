@@ -21,7 +21,7 @@ export default function TransactionRow({ tx, category, base, onClick }: Props) {
     >
       <span
         className="grid h-10 w-10 flex-shrink-0 place-items-center rounded-full text-lg"
-        style={{ backgroundColor: (category?.color ?? '#64748b') + '22' }}
+        style={{ backgroundColor: (category?.color ?? '#64748b') + 'CC' }}
       >
         {category?.icon ?? '❓'}
       </span>
