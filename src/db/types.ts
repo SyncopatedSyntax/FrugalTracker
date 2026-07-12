@@ -1,3 +1,4 @@
+import type { BackupFile } from '@/lib/backup'
 import type { AppTheme } from '@/lib/palette'
 
 export type TxType = 'expense' | 'income'
@@ -100,4 +101,13 @@ export interface Rate {
   /** Value of 1 unit of `currency` expressed in the base currency. */
   rate: number
   updatedAt: number
+}
+
+/** Snapshot of the user's real data, held only while Demo Mode is active (see
+ * `db/demoMode.ts`) — a single row, in its own table so it's never touched by
+ * the demo-data swap or included in JSON backups. */
+export interface DemoSnapshot {
+  id: 'realData'
+  data: BackupFile
+  savedAt: number
 }

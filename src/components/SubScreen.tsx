@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
+import DemoBanner from './DemoBanner'
 import { ArrowLeftIcon } from './icons'
 
 interface SubScreenProps {
@@ -18,6 +19,7 @@ export default function SubScreen({ title, right, children, backTo }: SubScreenP
   }
   return (
     <div className="mx-auto flex h-full max-w-lg flex-col bg-bg">
+      <DemoBanner />
       <header className="safe-top sticky top-0 z-10 flex items-center gap-1 border-b border-border bg-surface/95 px-2 py-2 backdrop-blur">
         <button
           onClick={goBack}

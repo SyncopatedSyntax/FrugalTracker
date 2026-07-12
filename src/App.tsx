@@ -1,5 +1,6 @@
 import { useEffect } from 'react'
 import { Outlet, Route, Routes } from 'react-router-dom'
+import DemoBanner from './components/DemoBanner'
 import TabBar from './components/TabBar'
 import { useSettings } from './hooks'
 import { applyAppTheme, applyTheme } from './lib/theme'
@@ -11,6 +12,7 @@ import InsightsScreen from './features/insights/InsightsScreen'
 import MoreScreen from './features/more/MoreScreen'
 import AppearanceScreen from './features/more/AppearanceScreen'
 import KeypadScreen from './features/more/KeypadScreen'
+import DemoScreen from './features/more/DemoScreen'
 import CategoriesScreen from './features/categories/CategoriesScreen'
 import BudgetsScreen from './features/budgets/BudgetsScreen'
 import CurrenciesScreen from './features/settings/CurrenciesScreen'
@@ -20,6 +22,7 @@ import DataScreen from './features/data/DataScreen'
 function Layout() {
   return (
     <div className="mx-auto flex h-full max-w-lg flex-col bg-bg">
+      <DemoBanner />
       <main className="min-h-0 flex-1 overflow-hidden">
         <Outlet />
       </main>
@@ -60,6 +63,7 @@ export default function App() {
       <Route path="/more/keypad" element={<KeypadScreen />} />
       <Route path="/more/import" element={<ImportScreen />} />
       <Route path="/more/data" element={<DataScreen />} />
+      <Route path="/more/demo" element={<DemoScreen />} />
     </Routes>
   )
 }

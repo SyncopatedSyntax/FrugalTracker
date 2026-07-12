@@ -8,6 +8,7 @@ import {
   ListIcon,
   PaletteIcon,
   RefreshIcon,
+  SparkleIcon,
   TargetIcon,
   UploadIcon,
 } from '@/components/icons'
@@ -23,6 +24,7 @@ const items = [
   { to: '/more/appearance', label: 'Appearance', desc: 'Light, dark or system', Icon: PaletteIcon },
   { to: '/more/import', label: 'Import from Spendee', desc: 'Bring in a CSV export', Icon: UploadIcon },
   { to: '/more/data', label: 'Backup & export', desc: 'Save or restore your data', Icon: DownloadIcon },
+  { to: '/more/demo', label: 'Demo mode', desc: 'Explore with sample data', Icon: SparkleIcon },
 ]
 
 export default function MoreScreen() {

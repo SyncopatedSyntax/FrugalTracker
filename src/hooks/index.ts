@@ -1,6 +1,7 @@
 import { useLiveQuery } from 'dexie-react-hooks'
 import { useEffect, useMemo, useState } from 'react'
 import { db } from '@/db/db'
+import { isDemoModeOn, subscribeDemoMode } from '@/db/demoMode'
 import { DEFAULT_SETTINGS } from '@/db/seed'
 import type { Category, Settings, TxType } from '@/db/types'
 import type { RateMap } from '@/lib/convert'
@@ -34,6 +35,15 @@ export function useIsDark(): boolean {
   }, [settings.theme])
 
   return isDark
+}
+
+/** Whether Demo Mode is currently active — backed by a localStorage flag
+ * (not Dexie, since it needs to survive the very table-clearing it triggers),
+ * so components subscribe to it explicitly rather than via useLiveQuery. */
+export function useDemoMode(): boolean {
+  const [on, setOn] = useState(isDemoModeOn)
+  useEffect(() => subscribeDemoMode(() => setOn(isDemoModeOn())), [])
+  return on
 }
 
 /* ------------------------------- Categories ------------------------------ */

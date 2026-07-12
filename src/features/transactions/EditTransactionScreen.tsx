@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 import Segmented from '@/components/Segmented'
 import Sheet from '@/components/Sheet'
 import CurrencyPickerSheet from '@/components/CurrencyPickerSheet'
+import DemoBanner from '@/components/DemoBanner'
 import TagInput from '@/components/TagInput'
 import CategoryFormSheet from '@/features/categories/CategoryFormSheet'
 import CategoryGrid from '@/features/add/CategoryGrid'
@@ -142,6 +143,7 @@ export default function EditTransactionScreen() {
 
   return (
     <div className="mx-auto flex h-full max-w-lg flex-col bg-bg">
+      <DemoBanner />
       <div className="safe-top flex min-h-0 flex-1 flex-col">
         <div className="min-h-0 flex-1 space-y-3 overflow-y-auto px-4 py-4 no-scrollbar">
           {/* Amount, type, currency & locked rate — back/delete live here too,
