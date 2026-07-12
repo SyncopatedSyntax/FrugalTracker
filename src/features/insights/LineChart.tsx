@@ -258,7 +258,7 @@ export default function LineChart({ series, labels, formatY, height = 190 }: Pro
       </div>
 
       {series.length > 1 && (
-        <div className="mt-1 flex items-center justify-center gap-4 text-[11px] text-muted">
+        <div className="mt-1 flex items-center justify-center gap-4 text-[0.6875rem] text-muted">
           {series.map((s) => (
             <span key={s.name} className="flex items-center gap-1.5">
               <span

@@ -114,7 +114,7 @@ export default function AmountKeypad({
               type="button"
               onClick={() => pressDigit(k)}
               className={cn(
-                'flex items-center justify-center rounded-[22px] border border-border bg-surface text-2xl font-medium text-content shadow-sm transition-transform active:scale-95 active:bg-surface2',
+                'flex items-center justify-center rounded-[1.375rem] border border-border bg-surface text-2xl font-medium text-content shadow-sm transition-transform active:scale-95 active:bg-surface2',
                 fill ? 'min-h-0' : 'h-16',
                 k === '.' && decimals === 0 && 'pointer-events-none opacity-30',
               )}
@@ -131,21 +131,21 @@ export default function AmountKeypad({
             <button
               type="button"
               onClick={calc.onAllClear}
-              className="flex h-14 items-center justify-center rounded-[22px] border border-border bg-surface text-lg font-bold text-expense transition-transform active:scale-95"
+              className="flex h-14 items-center justify-center rounded-[1.375rem] border border-border bg-surface text-lg font-bold text-expense transition-transform active:scale-95"
             >
               AC
             </button>
             <button
               type="button"
               onClick={calc.onPercent}
-              className="flex h-14 items-center justify-center rounded-[22px] border border-border bg-surface text-lg font-bold text-content transition-transform active:scale-95"
+              className="flex h-14 items-center justify-center rounded-[1.375rem] border border-border bg-surface text-lg font-bold text-content transition-transform active:scale-95"
             >
               %
             </button>
             <button
               type="button"
               onClick={calc.onEquals}
-              className="flex h-14 items-center justify-center rounded-[22px] bg-primary text-2xl font-bold text-primary-fg shadow-lg transition-transform active:scale-[0.98]"
+              className="flex h-14 items-center justify-center rounded-[1.375rem] bg-primary text-2xl font-bold text-primary-fg shadow-lg transition-transform active:scale-[0.98]"
             >
               =
             </button>
@@ -156,7 +156,7 @@ export default function AmountKeypad({
             onClick={onSubmit}
             disabled={submitDisabled}
             className={cn(
-              'mt-2 flex h-14 w-full flex-shrink-0 items-center justify-center gap-2 rounded-[22px] text-lg font-semibold text-white shadow-lg transition-transform active:scale-[0.98] disabled:opacity-40 disabled:shadow-none',
+              'mt-2 flex h-14 w-full flex-shrink-0 items-center justify-center gap-2 rounded-[1.375rem] text-lg font-semibold text-white shadow-lg transition-transform active:scale-[0.98] disabled:opacity-40 disabled:shadow-none',
               accentBg,
             )}
           >

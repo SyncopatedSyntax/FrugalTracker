@@ -69,7 +69,7 @@ export default function TagInput({
         <div className="min-h-0 flex-1 overflow-y-auto no-scrollbar">
           {unused.length > 0 ? (
             <>
-              <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted">
+              <p className="mb-1.5 text-[0.6875rem] font-semibold uppercase tracking-wide text-muted">
                 Recent
               </p>
               <div className="flex flex-wrap content-start gap-1.5">
@@ -137,7 +137,7 @@ export default function TagInput({
       {matches.length > 0 && (
         <div className="mt-2">
           {!lower && (
-            <p className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-muted">
+            <p className="mb-1 text-[0.6875rem] font-semibold uppercase tracking-wide text-muted">
               {showAll ? 'All tags' : 'Recent'}
             </p>
           )}

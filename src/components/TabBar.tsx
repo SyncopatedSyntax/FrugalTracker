@@ -20,7 +20,7 @@ export default function TabBar() {
             end={end}
             className={({ isActive }) =>
               cn(
-                'flex h-11 flex-1 flex-col items-center justify-center text-[9px] font-medium leading-none transition-colors',
+                'flex h-11 flex-1 flex-col items-center justify-center text-[0.5625rem] font-medium leading-none transition-colors',
                 isActive ? 'text-primary' : 'text-muted hover:text-content',
               )
             }

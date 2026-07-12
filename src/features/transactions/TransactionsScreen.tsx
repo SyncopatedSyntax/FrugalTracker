@@ -80,7 +80,7 @@ export default function TransactionsScreen() {
   return (
     <div className="flex h-full flex-col">
       <div className="safe-top pb-3">
-        <div className="mx-4 mt-2 rounded-[22px] bg-surface p-4">
+        <div className="mx-4 mt-2 rounded-[1.375rem] bg-surface p-4">
         <div className="mb-2 flex items-baseline justify-between">
           <h1 className="text-xl font-bold">Activity</h1>
           <span className="text-xs text-muted">
@@ -124,7 +124,7 @@ export default function TransactionsScreen() {
           >
             <FilterIcon size={20} />
             {fCount > 0 && (
-              <span className="absolute -right-1 -top-1 grid h-4 w-4 place-items-center rounded-full bg-primary text-[10px] font-bold text-primary-fg">
+              <span className="absolute -right-1 -top-1 grid h-4 w-4 place-items-center rounded-full bg-primary text-[0.625rem] font-bold text-primary-fg">
                 {fCount}
               </span>
             )}
@@ -193,7 +193,7 @@ export default function TransactionsScreen() {
         {filtered.length > visibleCount && (
           <button
             onClick={() => setVisibleCount((c) => c + PAGE)}
-            className="mx-4 my-3 w-[calc(100%-2rem)] rounded-[22px] border border-border py-3 text-sm font-semibold text-muted active:bg-surface2"
+            className="mx-4 my-3 w-[calc(100%-2rem)] rounded-[1.375rem] border border-border py-3 text-sm font-semibold text-muted active:bg-surface2"
           >
             Load {Math.min(PAGE, filtered.length - visibleCount)} more
           </button>

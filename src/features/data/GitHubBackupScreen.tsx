@@ -110,7 +110,7 @@ export default function GitHubBackupScreen() {
   return (
     <SubScreen title="GitHub backup">
       <div className="px-4 py-4">
-        <div className="mb-4 rounded-[22px] bg-surface p-4">
+        <div className="mb-4 rounded-[1.375rem] bg-surface p-4">
           <div className="mb-2 flex items-center gap-2 text-primary">
             <CloudIcon size={20} />
             <p className="text-sm font-semibold">Back up to your own private repo</p>
@@ -191,14 +191,14 @@ export default function GitHubBackupScreen() {
             <button
               onClick={connect}
               disabled={connecting}
-              className="w-full rounded-[22px] bg-primary py-3 text-base font-semibold text-primary-fg disabled:opacity-60"
+              className="w-full rounded-[1.375rem] bg-primary py-3 text-base font-semibold text-primary-fg disabled:opacity-60"
             >
               {connecting ? 'Connecting…' : 'Connect'}
             </button>
           </div>
         ) : (
           <div className="space-y-4">
-            <div className="overflow-hidden rounded-[22px] bg-surface">
+            <div className="overflow-hidden rounded-[1.375rem] bg-surface">
               <div className="px-4 py-3.5">
                 <p className="text-sm font-medium">
                   {config.owner}/{config.repo}
@@ -261,7 +261,7 @@ export default function GitHubBackupScreen() {
             <button
               onClick={doBackup}
               disabled={backingUp || isDemo}
-              className="flex w-full items-center justify-center gap-2 rounded-[22px] bg-primary py-3 text-base font-semibold text-primary-fg disabled:opacity-60"
+              className="flex w-full items-center justify-center gap-2 rounded-[1.375rem] bg-primary py-3 text-base font-semibold text-primary-fg disabled:opacity-60"
             >
               <RefreshIcon size={18} className={backingUp ? 'animate-spin' : ''} />
               {backingUp ? 'Backing up…' : 'Back up now'}
@@ -270,7 +270,7 @@ export default function GitHubBackupScreen() {
             <button
               onClick={startRestore}
               disabled={restoring || isDemo}
-              className="flex w-full items-center justify-center gap-2 rounded-[22px] border border-border py-3 text-base font-semibold disabled:opacity-60"
+              className="flex w-full items-center justify-center gap-2 rounded-[1.375rem] border border-border py-3 text-base font-semibold disabled:opacity-60"
             >
               <UploadIcon size={18} />
               {restoring ? 'Fetching…' : 'Restore from GitHub'}
@@ -278,7 +278,7 @@ export default function GitHubBackupScreen() {
 
             <button
               onClick={() => setConfirmDisconnect(true)}
-              className="flex w-full items-center justify-center gap-2 rounded-[22px] py-3 text-sm font-medium text-expense"
+              className="flex w-full items-center justify-center gap-2 rounded-[1.375rem] py-3 text-sm font-medium text-expense"
             >
               <TrashIcon size={16} />
               Disconnect
@@ -298,13 +298,13 @@ export default function GitHubBackupScreen() {
         <div className="mt-4 flex gap-2">
           <button
             onClick={() => setPending(null)}
-            className="flex-1 rounded-[22px] border border-border py-3 text-sm font-semibold"
+            className="flex-1 rounded-[1.375rem] border border-border py-3 text-sm font-semibold"
           >
             Cancel
           </button>
           <button
             onClick={doRestore}
-            className="flex-1 rounded-[22px] bg-primary py-3 text-sm font-semibold text-primary-fg"
+            className="flex-1 rounded-[1.375rem] bg-primary py-3 text-sm font-semibold text-primary-fg"
           >
             Restore
           </button>
@@ -323,13 +323,13 @@ export default function GitHubBackupScreen() {
         <div className="mt-4 flex gap-2">
           <button
             onClick={() => setConfirmDisconnect(false)}
-            className="flex-1 rounded-[22px] border border-border py-3 text-sm font-semibold"
+            className="flex-1 rounded-[1.375rem] border border-border py-3 text-sm font-semibold"
           >
             Cancel
           </button>
           <button
             onClick={disconnect}
-            className="flex-1 rounded-[22px] bg-expense py-3 text-sm font-semibold text-white"
+            className="flex-1 rounded-[1.375rem] bg-expense py-3 text-sm font-semibold text-white"
           >
             Disconnect
           </button>

@@ -34,7 +34,7 @@ export default function TypeSwitch({ value, onChange }: Props) {
       </span>
       <span
         className={cn(
-          'absolute left-[3px] top-[3px] grid h-[28px] w-[80px] place-items-center rounded-full text-[13px] font-bold text-white transition-transform duration-200',
+          'absolute left-[3px] top-[3px] grid h-[28px] w-[80px] place-items-center rounded-full text-[0.8125rem] font-bold text-white transition-transform duration-200',
           isIncome ? 'translate-x-[22px] bg-income' : 'translate-x-0 bg-expense',
         )}
       >

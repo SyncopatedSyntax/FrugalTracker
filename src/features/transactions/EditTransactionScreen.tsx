@@ -148,7 +148,7 @@ export default function EditTransactionScreen() {
         <div className="min-h-0 flex-1 space-y-3 overflow-y-auto px-4 py-4 no-scrollbar">
           {/* Amount, type, currency & locked rate — back/delete live here too,
               so there's no separate header bar above it. */}
-          <section className="rounded-[22px] bg-surface p-5">
+          <section className="rounded-[1.375rem] bg-surface p-5">
             <div className="mb-3 flex items-center justify-between">
               <button
                 onClick={() => navigate(-1)}
@@ -223,7 +223,7 @@ export default function EditTransactionScreen() {
                   />
                   <span>{settings.baseCurrency}</span>
                 </div>
-                <span className="text-[11px] text-muted">
+                <span className="text-[0.6875rem] text-muted">
                   ≈ {formatMoney(amt * (isBase ? 1 : parseFloat(rateText) || 0), settings.baseCurrency)} locked in
                 </span>
               </div>
@@ -234,7 +234,7 @@ export default function EditTransactionScreen() {
               picker, so the screen stays clean while still showing every
               field's current value at a glance. Note is last since it can run
               longer and wrap to multiple lines. */}
-          <section className="space-y-2.5 rounded-[22px] bg-surface p-4">
+          <section className="space-y-2.5 rounded-[1.375rem] bg-surface p-4">
             <Row
               leading={
                 <span
@@ -292,7 +292,7 @@ export default function EditTransactionScreen() {
           onClick={save}
           disabled={!canSave}
           className={cn(
-            'flex w-full items-center justify-center gap-2 rounded-[22px] py-3.5 text-base font-semibold text-white shadow-lg transition-transform active:scale-[0.98] disabled:opacity-40 disabled:shadow-none',
+            'flex w-full items-center justify-center gap-2 rounded-[1.375rem] py-3.5 text-base font-semibold text-white shadow-lg transition-transform active:scale-[0.98] disabled:opacity-40 disabled:shadow-none',
             accent,
           )}
         >
@@ -369,7 +369,7 @@ export default function EditTransactionScreen() {
           <button
             type="button"
             onClick={() => setTagsOpen(false)}
-            className="w-full rounded-[22px] bg-primary py-3 text-base font-semibold text-primary-fg"
+            className="w-full rounded-[1.375rem] bg-primary py-3 text-base font-semibold text-primary-fg"
           >
             Done
           </button>
@@ -381,13 +381,13 @@ export default function EditTransactionScreen() {
         <div className="mt-4 flex gap-2">
           <button
             onClick={() => setConfirmDelete(false)}
-            className="flex-1 rounded-[22px] border border-border py-3 text-sm font-semibold"
+            className="flex-1 rounded-[1.375rem] border border-border py-3 text-sm font-semibold"
           >
             Cancel
           </button>
           <button
             onClick={remove}
-            className="flex-1 rounded-[22px] bg-expense py-3 text-sm font-semibold text-white"
+            className="flex-1 rounded-[1.375rem] bg-expense py-3 text-sm font-semibold text-white"
           >
             Delete
           </button>
@@ -419,7 +419,7 @@ function Row({
     >
       {leading}
       <span className="min-w-0 flex-1">
-        <span className="block text-[11px] font-semibold uppercase tracking-wide text-muted">
+        <span className="block text-[0.6875rem] font-semibold uppercase tracking-wide text-muted">
           {label}
         </span>
         <span className="block truncate text-sm font-semibold text-content">{value}</span>

@@ -34,7 +34,7 @@ function BudgetPanel({ type, categoryId }: Props) {
   const categoryMap = useCategoryMap()
 
   return (
-    <div className="mx-4 mt-2 rounded-[22px] bg-surface p-5">
+    <div className="mx-4 mt-2 rounded-[1.375rem] bg-surface p-5">
       {type === 'income' ? (
         <IncomeCompare txs={txs} base={base} firstDayOfWeek={settings.firstDayOfWeek} />
       ) : (
@@ -120,7 +120,7 @@ function ExpenseCompare({
           {category ? category.name : 'All categories'}
         </span>
         {hasComparison && (
-          <span className="flex-shrink-0 rounded-full bg-surface2 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-muted">
+          <span className="flex-shrink-0 rounded-full bg-surface2 px-2.5 py-1 text-[0.6875rem] font-semibold uppercase tracking-wide text-muted">
             {isAvg ? 'Avg · 12mo' : 'Budget'}
           </span>
         )}
@@ -180,7 +180,7 @@ function IncomeCompare({
           💵
         </span>
         <span className="flex-1 truncate text-lg font-bold">Income</span>
-        <span className="flex-shrink-0 rounded-full bg-surface2 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-muted">
+        <span className="flex-shrink-0 rounded-full bg-surface2 px-2.5 py-1 text-[0.6875rem] font-semibold uppercase tracking-wide text-muted">
           vs last year
         </span>
       </div>

@@ -362,7 +362,7 @@ export default function AddScreen() {
                 onClick={save}
                 disabled={!canSave}
                 className={cn(
-                  'flex h-14 w-full items-center justify-center gap-2 rounded-[22px] text-lg font-semibold text-white shadow-lg transition-transform active:scale-[0.98] disabled:opacity-40 disabled:shadow-none',
+                  'flex h-14 w-full items-center justify-center gap-2 rounded-[1.375rem] text-lg font-semibold text-white shadow-lg transition-transform active:scale-[0.98] disabled:opacity-40 disabled:shadow-none',
                   type === 'expense' ? 'bg-expense' : 'bg-income',
                 )}
               >
@@ -428,7 +428,7 @@ export default function AddScreen() {
             setNewTagText('')
             setNewTagOpen(false)
           }}
-          className="mt-4 w-full rounded-[22px] bg-primary py-3 text-base font-semibold text-primary-fg"
+          className="mt-4 w-full rounded-[1.375rem] bg-primary py-3 text-base font-semibold text-primary-fg"
         >
           Done
         </button>
@@ -447,7 +447,7 @@ export default function AddScreen() {
         <button
           type="button"
           onClick={() => setNoteOpen(false)}
-          className="mt-4 w-full rounded-[22px] bg-primary py-3 text-base font-semibold text-primary-fg"
+          className="mt-4 w-full rounded-[1.375rem] bg-primary py-3 text-base font-semibold text-primary-fg"
         >
           Done
         </button>

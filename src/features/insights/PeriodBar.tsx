@@ -40,7 +40,7 @@ export default function PeriodBar({
             key={g.v}
             onClick={() => onGranularity(g.v)}
             className={cn(
-              'flex-1 rounded-full px-1 py-1.5 text-center text-[13px] font-semibold transition-colors',
+              'flex-1 rounded-full px-1 py-1.5 text-center text-[0.8125rem] font-semibold transition-colors',
               granularity === g.v ? 'bg-primary text-primary-fg' : 'bg-surface2 text-muted',
             )}
           >

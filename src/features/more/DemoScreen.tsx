@@ -34,7 +34,7 @@ export default function DemoScreen() {
   return (
     <SubScreen title="Demo mode">
       <div className="px-4 py-4">
-        <div className="mb-4 rounded-[22px] bg-surface p-4">
+        <div className="mb-4 rounded-[1.375rem] bg-surface p-4">
           <div className="mb-2 flex items-center gap-2 text-primary">
             <SparkleIcon size={20} />
             <p className="text-sm font-semibold">Explore with sample data</p>
@@ -50,7 +50,7 @@ export default function DemoScreen() {
           </p>
         </div>
 
-        <div className="overflow-hidden rounded-[22px] bg-surface">
+        <div className="overflow-hidden rounded-[1.375rem] bg-surface">
           <div className="flex items-center justify-between gap-3 px-4 py-3.5">
             <span className="min-w-0">
               <span className="block text-sm font-medium">Demo mode</span>
@@ -81,13 +81,13 @@ export default function DemoScreen() {
         <div className="mt-4 flex gap-2">
           <button
             onClick={() => setConfirmOn(false)}
-            className="flex-1 rounded-[22px] border border-border py-3 text-sm font-semibold"
+            className="flex-1 rounded-[1.375rem] border border-border py-3 text-sm font-semibold"
           >
             Cancel
           </button>
           <button
             onClick={doEnter}
-            className="flex-1 rounded-[22px] bg-primary py-3 text-sm font-semibold text-primary-fg"
+            className="flex-1 rounded-[1.375rem] bg-primary py-3 text-sm font-semibold text-primary-fg"
           >
             Enable
           </button>

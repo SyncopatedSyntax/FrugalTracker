@@ -137,6 +137,19 @@
   -webkit-tap-highlight-color: transparent;
 }
 
+/* The design is tuned against a 440px-wide viewport (iPhone 16 Pro Max, the
+   widest common phone). Every rem-based Tailwind size — padding, gaps, text,
+   the `rounded-[Nrem]` card radius — scales down from that baseline in
+   proportion to viewport width on narrower phones, so spacing/type/corners
+   that look right on the reference device don't read as oversized on a
+   smaller one. Unchanged (clamped to 16px) at 440px and up, so nothing
+   regresses on the reference device, desktop, or tablets; floored at 14px so
+   very narrow phones (~375px) stay comfortably legible rather than scaling
+   all the way down linearly. */
+html {
+  font-size: clamp(14px, 3.6364vw, 16px);
+}
+
 html,
 body {
   height: 100%;

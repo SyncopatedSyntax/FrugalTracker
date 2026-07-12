@@ -76,7 +76,7 @@ export default function CategoriesScreen() {
           onChange={setType}
         />
 
-        <div className="overflow-hidden rounded-[22px] bg-surface">
+        <div className="overflow-hidden rounded-[1.375rem] bg-surface">
           {active.map((c, i) => (
             <div
               key={c.id}
@@ -136,7 +136,7 @@ export default function CategoriesScreen() {
             <p className="mb-2 mt-6 text-xs font-semibold uppercase tracking-wide text-muted">
               Archived
             </p>
-            <div className="overflow-hidden rounded-[22px] bg-surface">
+            <div className="overflow-hidden rounded-[1.375rem] bg-surface">
               {archived.map((c, i) => (
                 <div
                   key={c.id}
@@ -194,7 +194,7 @@ export default function CategoriesScreen() {
         <div className="mt-4 flex gap-2">
           <button
             onClick={() => setToDelete(undefined)}
-            className="flex-1 rounded-[22px] border border-border py-3 text-sm font-semibold"
+            className="flex-1 rounded-[1.375rem] border border-border py-3 text-sm font-semibold"
           >
             Cancel
           </button>
@@ -204,7 +204,7 @@ export default function CategoriesScreen() {
               if (toDelete) await deleteCategory(toDelete.id)
               setToDelete(undefined)
             }}
-            className="flex-1 rounded-[22px] bg-expense py-3 text-sm font-semibold text-white disabled:opacity-40"
+            className="flex-1 rounded-[1.375rem] bg-expense py-3 text-sm font-semibold text-white disabled:opacity-40"
           >
             Delete
           </button>

@@ -32,7 +32,7 @@ export default function AppearanceScreen() {
   return (
     <SubScreen title="Appearance">
       <div className="px-4 py-4">
-        <div className="overflow-hidden rounded-[22px] bg-surface">
+        <div className="overflow-hidden rounded-[1.375rem] bg-surface">
           {options.map(({ value, label, Icon }, i) => (
             <button
               key={value}
@@ -64,7 +64,7 @@ export default function AppearanceScreen() {
                 key={t.id}
                 onClick={() => updateSettings({ appTheme: t.id })}
                 className={cn(
-                  'flex w-full items-start gap-3 rounded-[22px] bg-surface p-3 text-left transition-shadow',
+                  'flex w-full items-start gap-3 rounded-[1.375rem] bg-surface p-3 text-left transition-shadow',
                   active ? 'ring-2 ring-primary' : 'active:bg-surface2',
                 )}
               >
@@ -93,7 +93,7 @@ export default function AppearanceScreen() {
         <button
           type="button"
           onClick={() => setConfirmRecolor(true)}
-          className="mt-3 flex w-full items-center justify-center gap-2 rounded-[22px] border border-dashed border-border py-3 text-sm font-medium text-muted active:bg-surface2"
+          className="mt-3 flex w-full items-center justify-center gap-2 rounded-[1.375rem] border border-dashed border-border py-3 text-sm font-medium text-muted active:bg-surface2"
         >
           <RefreshIcon size={16} />
           Recolor categories to match {activeTheme.name}
@@ -115,13 +115,13 @@ export default function AppearanceScreen() {
         <div className="mt-4 flex gap-2">
           <button
             onClick={() => setConfirmRecolor(false)}
-            className="flex-1 rounded-[22px] border border-border py-3 text-sm font-semibold"
+            className="flex-1 rounded-[1.375rem] border border-border py-3 text-sm font-semibold"
           >
             Cancel
           </button>
           <button
             onClick={doRecolor}
-            className="flex-1 rounded-[22px] bg-primary py-3 text-sm font-semibold text-primary-fg"
+            className="flex-1 rounded-[1.375rem] bg-primary py-3 text-sm font-semibold text-primary-fg"
           >
             Recolor
           </button>

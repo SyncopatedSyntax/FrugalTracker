@@ -91,7 +91,7 @@ export default function CalculatorSheet({ open, onClose, base, decimals, onUse }
       </div>
 
       <div className="min-h-0 flex-1 overflow-y-auto px-4">
-        <div className="mt-2 rounded-[22px] bg-surface p-4 text-right">
+        <div className="mt-2 rounded-[1.375rem] bg-surface p-4 text-right">
           <div className="min-h-[20px] break-all font-mono text-sm text-muted">
             {toGlyphs(expr) || ' '}
           </div>
@@ -124,7 +124,7 @@ export default function CalculatorSheet({ open, onClose, base, decimals, onUse }
           <Key label="⌫" variant="fn" onClick={backspace} />
           <Key label="=" variant="eq" onClick={resolve} />
         </div>
-        <p className="mt-2 h-4 text-center text-[11px] font-medium text-muted">
+        <p className="mt-2 h-4 text-center text-[0.6875rem] font-medium text-muted">
           {disabledReason ?? ''}
         </p>
         <button

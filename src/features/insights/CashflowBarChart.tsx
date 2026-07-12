@@ -280,7 +280,7 @@ export default function CashflowBarChart({
         )}
       </div>
 
-      <div className="mt-1 flex items-center justify-center gap-4 text-[11px] text-muted">
+      <div className="mt-1 flex items-center justify-center gap-4 text-[0.6875rem] text-muted">
         <span className="flex items-center gap-1.5">
           <span className="inline-block h-2 w-2 rounded-full" style={{ backgroundColor: 'rgb(var(--c-income))' }} />
           Income

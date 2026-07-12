@@ -48,7 +48,7 @@ export default function TransactionRow({ tx, category, base, onClick }: Props) {
           {formatMoney(tx.amount, tx.currency)}
         </span>
         {showConverted && (
-          <span className="block text-[11px] text-muted tabular-nums">
+          <span className="block text-[0.6875rem] text-muted tabular-nums">
             {sign}
             {formatMoney(tx.baseAmount, base)}
           </span>

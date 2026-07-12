@@ -33,7 +33,7 @@ function Group<T extends string>({
     <div className="mb-6">
       <p className="mb-1 px-1 text-xs font-semibold uppercase tracking-wide text-muted">{title}</p>
       <p className="mb-2 px-1 text-xs text-muted">{hint}</p>
-      <div className="overflow-hidden rounded-[22px] bg-surface">
+      <div className="overflow-hidden rounded-[1.375rem] bg-surface">
         {options.map((o, i) => (
           <button
             key={o.value}

@@ -56,7 +56,7 @@ export default function DataScreen() {
   return (
     <SubScreen title="Backup & export">
       <div className="px-4 py-4">
-        <div className="mb-4 rounded-[22px] bg-surface p-4">
+        <div className="mb-4 rounded-[1.375rem] bg-surface p-4">
           <p className="text-sm text-muted">
             You have <span className="font-semibold text-content">{count}</span>{' '}
             {count === 1 ? 'transaction' : 'transactions'} stored on this device.
@@ -64,7 +64,7 @@ export default function DataScreen() {
         </div>
 
         <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted">Export</p>
-        <div className="overflow-hidden rounded-[22px] bg-surface">
+        <div className="overflow-hidden rounded-[1.375rem] bg-surface">
           <Row
             icon={<DownloadIcon size={20} />}
             title="Full backup (JSON)"
@@ -81,7 +81,7 @@ export default function DataScreen() {
         </div>
 
         <p className="mb-2 mt-6 text-xs font-semibold uppercase tracking-wide text-muted">Off-device</p>
-        <div className="overflow-hidden rounded-[22px] bg-surface">
+        <div className="overflow-hidden rounded-[1.375rem] bg-surface">
           <Link
             to="/more/github-backup"
             className="flex items-center gap-3 px-4 py-3.5 text-left active:bg-surface2"
@@ -100,7 +100,7 @@ export default function DataScreen() {
         </div>
 
         <p className="mb-2 mt-6 text-xs font-semibold uppercase tracking-wide text-muted">Restore</p>
-        <div className="overflow-hidden rounded-[22px] bg-surface">
+        <div className="overflow-hidden rounded-[1.375rem] bg-surface">
           <Row
             icon={<UploadIcon size={20} />}
             title="Restore from backup"
@@ -125,7 +125,7 @@ export default function DataScreen() {
         </p>
         <button
           onClick={() => setConfirmClear(true)}
-          className="flex w-full items-center gap-3 rounded-[22px] bg-surface p-4 text-left text-expense active:bg-surface2"
+          className="flex w-full items-center gap-3 rounded-[1.375rem] bg-surface p-4 text-left text-expense active:bg-surface2"
         >
           <TrashIcon size={20} />
           <span className="flex-1">
@@ -146,13 +146,13 @@ export default function DataScreen() {
         <div className="mt-4 flex gap-2">
           <button
             onClick={() => setPending(null)}
-            className="flex-1 rounded-[22px] border border-border py-3 text-sm font-semibold"
+            className="flex-1 rounded-[1.375rem] border border-border py-3 text-sm font-semibold"
           >
             Cancel
           </button>
           <button
             onClick={doRestore}
-            className="flex-1 rounded-[22px] bg-primary py-3 text-sm font-semibold text-primary-fg"
+            className="flex-1 rounded-[1.375rem] bg-primary py-3 text-sm font-semibold text-primary-fg"
           >
             Restore
           </button>
@@ -167,13 +167,13 @@ export default function DataScreen() {
         <div className="mt-4 flex gap-2">
           <button
             onClick={() => setConfirmClear(false)}
-            className="flex-1 rounded-[22px] border border-border py-3 text-sm font-semibold"
+            className="flex-1 rounded-[1.375rem] border border-border py-3 text-sm font-semibold"
           >
             Cancel
           </button>
           <button
             onClick={doClear}
-            className="flex-1 rounded-[22px] bg-expense py-3 text-sm font-semibold text-white"
+            className="flex-1 rounded-[1.375rem] bg-expense py-3 text-sm font-semibold text-white"
           >
             Delete everything
           </button>

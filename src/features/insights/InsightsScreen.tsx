@@ -144,7 +144,7 @@ export default function InsightsScreen() {
   return (
     <div className="flex h-full flex-col">
       <div className="safe-top">
-        <div className="mx-4 mt-2 rounded-[22px] bg-surface p-4">
+        <div className="mx-4 mt-2 rounded-[1.375rem] bg-surface p-4">
         <div className="mb-2 flex items-center justify-between">
           <h1 className="text-xl font-bold">Insights</h1>
           <span className="text-xs text-muted">in {base}</span>
@@ -299,7 +299,7 @@ function OverviewView({
   }
   return (
     <>
-      <div className="grid grid-cols-2 overflow-hidden rounded-[22px] border border-border">
+      <div className="grid grid-cols-2 overflow-hidden rounded-[1.375rem] border border-border">
         <button
           onClick={() => setMetric('wealth')}
           className={cn('p-3 text-left', metric === 'wealth' ? 'bg-surface' : 'bg-transparent')}
@@ -348,7 +348,7 @@ function OverviewView({
         </button>
       )}
 
-      <div className="mt-4 rounded-[22px] bg-surface p-4">
+      <div className="mt-4 rounded-[1.375rem] bg-surface p-4">
         {empty ? (
           <p className="py-12 text-center text-sm text-muted">No activity in this period.</p>
         ) : metric === 'wealth' ? (
@@ -399,8 +399,8 @@ function MiniStat({
   onClick: () => void
 }) {
   return (
-    <button onClick={onClick} className="rounded-[22px] bg-surface p-3 text-left active:scale-[0.98]">
-      <p className="text-[11px] font-medium uppercase tracking-wide text-muted">{label}</p>
+    <button onClick={onClick} className="rounded-[1.375rem] bg-surface p-3 text-left active:scale-[0.98]">
+      <p className="text-[0.6875rem] font-medium uppercase tracking-wide text-muted">{label}</p>
       <p className={cn('mt-0.5 truncate text-base font-bold tabular-nums', tone === 'income' ? 'text-income' : 'text-expense')}>
         {value}
       </p>
@@ -550,7 +550,7 @@ function BreakdownView({
                             style={{ width: `${maxVal > 0 ? (s.value / maxVal) * 100 : 0}%`, backgroundColor: s.color }}
                           />
                         </span>
-                        <span className="w-16 flex-shrink-0 text-right text-[11px] text-muted">
+                        <span className="w-16 flex-shrink-0 text-right text-[0.6875rem] text-muted">
                           {s.count} tx · {pct.toFixed(0)}%
                         </span>
                       </span>

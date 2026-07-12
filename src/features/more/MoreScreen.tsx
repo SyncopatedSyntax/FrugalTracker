@@ -43,7 +43,7 @@ export default function MoreScreen() {
   return (
     <div className="flex h-full flex-col">
       <div className="safe-top">
-        <div className="mx-4 mt-2 rounded-[22px] bg-surface p-4">
+        <div className="mx-4 mt-2 rounded-[1.375rem] bg-surface p-4">
           <p className="text-2xl font-bold">FrugalTracker</p>
           <p className="mt-1 text-sm text-muted">
             {count} {count === 1 ? 'transaction' : 'transactions'} · base currency {settings.baseCurrency}
@@ -51,7 +51,7 @@ export default function MoreScreen() {
         </div>
       </div>
       <div className="min-h-0 flex-1 overflow-y-auto px-4 pt-3 pb-4">
-        <div className="overflow-hidden rounded-[22px] bg-surface">
+        <div className="overflow-hidden rounded-[1.375rem] bg-surface">
           {items.map(({ to, label, desc, Icon }, i) => (
             <Link
               key={to}
@@ -71,7 +71,7 @@ export default function MoreScreen() {
           ))}
         </div>
 
-        <div className="mt-6 rounded-[22px] bg-surface p-4">
+        <div className="mt-6 rounded-[1.375rem] bg-surface p-4">
           <div className="flex items-center justify-between gap-3">
             <div className="min-w-0">
               <p className="text-sm font-medium">Version {APP_VERSION}</p>

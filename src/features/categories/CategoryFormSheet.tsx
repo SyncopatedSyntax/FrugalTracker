@@ -202,7 +202,7 @@ export default function CategoryFormSheet({
         <button
           onClick={save}
           disabled={!canSave}
-          className="w-full rounded-[22px] bg-primary py-3.5 text-base font-semibold text-primary-fg disabled:opacity-40"
+          className="w-full rounded-[1.375rem] bg-primary py-3.5 text-base font-semibold text-primary-fg disabled:opacity-40"
         >
           {editing ? 'Save changes' : 'Create category'}
         </button>

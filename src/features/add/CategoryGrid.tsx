@@ -35,7 +35,7 @@ export default function CategoryGrid({ categories, selectedId, onSelect, onAddNe
             </span>
             <span
               className={cn(
-                'w-full truncate px-0.5 text-center text-[11px] leading-tight',
+                'w-full truncate px-0.5 text-center text-[0.6875rem] leading-tight',
                 active ? 'font-semibold text-content' : 'text-muted',
               )}
             >
@@ -53,7 +53,7 @@ export default function CategoryGrid({ categories, selectedId, onSelect, onAddNe
           <span className="grid h-12 w-12 place-items-center rounded-full border-2 border-dashed border-border text-muted">
             <PlusIcon size={22} />
           </span>
-          <span className="text-[11px] leading-tight text-muted">New</span>
+          <span className="text-[0.6875rem] leading-tight text-muted">New</span>
         </button>
       )}
     </div>
