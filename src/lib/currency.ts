@@ -58,7 +58,19 @@ function formatter(currency: string, opts: Intl.NumberFormatOptions): Intl.Numbe
   let f = fmtCache.get(key)
   if (!f) {
     try {
-      f = new Intl.NumberFormat(undefined, { style: 'currency', currency, ...opts })
+      f = new Intl.NumberFormat(undefined, {
+        style: 'currency',
+        currency,
+        // Outside en-US, Intl's default currency symbol for USD is "US$" (or
+        // "$US", "USD"...), since "$" alone is ambiguous with other dollar
+        // currencies in most locales. USD is unambiguous enough in practice
+        // that the app always shows it as plain "$" regardless of locale —
+        // narrowSymbol gives exactly that. Left as the (correctly
+        // disambiguating, e.g. "CA$"/"A$") default for every other currency,
+        // so multi-currency users can still tell dollar currencies apart.
+        ...(currency === 'USD' ? { currencyDisplay: 'narrowSymbol' } : {}),
+        ...opts,
+      })
     } catch {
       f = new Intl.NumberFormat(undefined, opts)
     }
