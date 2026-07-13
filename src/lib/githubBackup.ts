@@ -34,18 +34,76 @@ function fromBase64(content: string): string {
 }
 
 function errorMessage(err: unknown): string {
-  return err instanceof Error ? err.message : 'Unknown error'
+  return err instanceof Error ? `${err.name}: ${err.message}` : 'Unknown error'
+}
+
+/** Rolling, on-device diagnostic trail for the GitHub backup feature — every
+ * network step (including ones that fail before any HTTP response comes
+ * back, e.g. the browser's own "Load failed"/"Failed to fetch") is recorded
+ * here so a user hitting a silent-looking failure has something concrete to
+ * report back, and so the (unattended) auto-backup trigger isn't a black
+ * box. Kept in localStorage (not IndexedDB) so it survives independently of
+ * app data and never gets swept up in backup/restore/Demo Mode. Never logs
+ * the token itself. */
+export interface DebugLogEntry {
+  time: string
+  step: string
+  status: 'ok' | 'error'
+  detail: string
+}
+
+const DEBUG_LOG_KEY = 'frugaltracker.githubDebugLog'
+const DEBUG_LOG_MAX = 40
+
+export function getDebugLog(): DebugLogEntry[] {
+  try {
+    const raw = localStorage.getItem(DEBUG_LOG_KEY)
+    return raw ? (JSON.parse(raw) as DebugLogEntry[]) : []
+  } catch {
+    return []
+  }
+}
+
+export function clearDebugLog(): void {
+  localStorage.removeItem(DEBUG_LOG_KEY)
+}
+
+function logStep(step: string, status: 'ok' | 'error', detail: string): void {
+  const log = getDebugLog()
+  log.push({ time: new Date().toISOString(), step, status, detail })
+  while (log.length > DEBUG_LOG_MAX) log.shift()
+  try {
+    localStorage.setItem(DEBUG_LOG_KEY, JSON.stringify(log))
+  } catch {
+    // Best-effort — a full/blocked localStorage shouldn't break the backup itself.
+  }
+}
+
+/** `fetch` wrapped so every call — including ones that throw before any
+ * response exists — lands a `logStep` entry. This is the gap that used to
+ * make a bare "Load failed" undebuggable: `getFileSha`/`getFileContent`/
+ * `putFile` didn't catch at all, so a network-layer throw propagated with no
+ * trail of which request, host, or online-state it happened under. */
+async function loggedFetch(step: string, url: string, init?: RequestInit): Promise<Response> {
+  try {
+    const res = await fetch(url, init)
+    logStep(step, res.ok || res.status === 404 ? 'ok' : 'error', `HTTP ${res.status} — ${url}`)
+    return res
+  } catch (err) {
+    logStep(step, 'error', `${errorMessage(err)} — online: ${navigator.onLine} — ${url}`)
+    throw err
+  }
 }
 
 export async function testConnection(
   config: ConnectionInfo,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
   try {
-    const res = await fetch(apiBase(config), { headers: authHeaders(config.token) })
+    const res = await loggedFetch('testConnection', apiBase(config), { headers: authHeaders(config.token) })
     if (!res.ok) return { ok: false, error: `GitHub returned ${res.status}` }
     return { ok: true }
-  } catch {
-    return { ok: false, error: 'Could not reach GitHub (offline?)' }
+  } catch (err) {
+    return { ok: false, error: `Could not reach GitHub — ${errorMessage(err)}` }
   }
 }
 
@@ -53,7 +111,7 @@ export async function testConnection(
  * `undefined` if the file doesn't exist yet. */
 export async function getFileSha(config: FileLocation, filename: string): Promise<string | undefined> {
   const url = `${apiBase(config)}/contents/${filePath(config, filename)}?ref=${encodeURIComponent(config.branch)}`
-  const res = await fetch(url, { headers: authHeaders(config.token) })
+  const res = await loggedFetch(`getFileSha:${filename}`, url, { headers: authHeaders(config.token) })
   if (res.status === 404) return undefined
   if (!res.ok) throw new Error(`GitHub returned ${res.status}`)
   const data = (await res.json()) as { sha: string }
@@ -62,7 +120,7 @@ export async function getFileSha(config: FileLocation, filename: string): Promis
 
 export async function getFileContent(config: FileLocation, filename: string): Promise<string> {
   const url = `${apiBase(config)}/contents/${filePath(config, filename)}?ref=${encodeURIComponent(config.branch)}`
-  const res = await fetch(url, { headers: authHeaders(config.token) })
+  const res = await loggedFetch(`getFileContent:${filename}`, url, { headers: authHeaders(config.token) })
   if (!res.ok) throw new Error(`GitHub returned ${res.status}`)
   const data = (await res.json()) as { content: string }
   return fromBase64(data.content)
@@ -76,7 +134,7 @@ export async function putFile(
 ): Promise<void> {
   const sha = await getFileSha(config, filename)
   const url = `${apiBase(config)}/contents/${filePath(config, filename)}`
-  const res = await fetch(url, {
+  const res = await loggedFetch(`putFile:${filename}`, url, {
     method: 'PUT',
     headers: { ...authHeaders(config.token), 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -99,6 +157,7 @@ export async function backupNow(): Promise<void> {
   if (isDemoModeOn()) throw new Error('Cannot back up while Demo Mode is active')
   const config = await db.githubConfig.get('default')
   if (!config) throw new Error('Not connected to GitHub')
+  logStep('backupNow', 'ok', `started — ${config.owner}/${config.repo}@${config.branch}`)
   try {
     const [backup, transactions, categories] = await Promise.all([
       buildBackup(),
@@ -113,7 +172,9 @@ export async function backupNow(): Promise<void> {
       lastBackupStatus: 'success',
       lastBackupError: undefined,
     })
+    logStep('backupNow', 'ok', 'completed')
   } catch (err) {
+    logStep('backupNow', 'error', errorMessage(err))
     await db.githubConfig.update('default', {
       lastBackupAt: new Date().toISOString(),
       lastBackupStatus: 'error',
@@ -134,10 +195,17 @@ export async function fetchGithubBackup(): Promise<BackupFile> {
   if (isDemoModeOn()) throw new Error('Cannot restore while Demo Mode is active')
   const config = await db.githubConfig.get('default')
   if (!config) throw new Error('Not connected to GitHub')
-  const content = await getFileContent(config, JSON_FILENAME)
-  const data = JSON.parse(content)
-  if (!isValidBackup(data)) throw new Error('Not a valid FrugalTracker backup')
-  return data
+  logStep('fetchGithubBackup', 'ok', `started — ${config.owner}/${config.repo}@${config.branch}`)
+  try {
+    const content = await getFileContent(config, JSON_FILENAME)
+    const data = JSON.parse(content)
+    if (!isValidBackup(data)) throw new Error('Not a valid FrugalTracker backup')
+    logStep('fetchGithubBackup', 'ok', 'completed')
+    return data
+  } catch (err) {
+    logStep('fetchGithubBackup', 'error', errorMessage(err))
+    throw err
+  }
 }
 
 /** Opportunistic "automatic" backup — checked on app foreground/open rather
@@ -152,9 +220,10 @@ export async function maybeAutoBackup(): Promise<void> {
   const last = config.lastBackupAt ? new Date(config.lastBackupAt).getTime() : 0
   const dueAt = last + config.autoBackupIntervalHours * 3600_000
   if (Date.now() < dueAt) return
+  logStep('maybeAutoBackup', 'ok', 'due — triggering backupNow')
   try {
     await backupNow()
   } catch {
-    // Status already recorded on the config row; nothing more to do here.
+    // Status already recorded on the config row; backupNow already logged it.
   }
 }

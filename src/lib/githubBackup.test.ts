@@ -4,7 +4,9 @@ import { db } from '@/db/db'
 import type { GithubBackupConfig } from '@/db/types'
 import {
   backupNow,
+  clearDebugLog,
   fetchGithubBackup,
+  getDebugLog,
   getFileSha,
   maybeAutoBackup,
   putFile,
@@ -49,6 +51,7 @@ beforeEach(async () => {
   ])
   setDemoMode(false)
   vi.restoreAllMocks()
+  clearDebugLog()
 })
 
 describe('testConnection', () => {
@@ -267,6 +270,43 @@ describe('maybeAutoBackup', () => {
     vi.stubGlobal('fetch', vi.fn())
     await maybeAutoBackup()
     expect(fetch).not.toHaveBeenCalled()
+  })
+})
+
+describe('debug log', () => {
+  it('starts empty and records a network-layer throw with no HTTP response', async () => {
+    expect(getDebugLog()).toEqual([])
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new TypeError('Load failed')))
+    const result = await testConnection(config)
+    expect(result.ok).toBe(false)
+    if (!result.ok) expect(result.error).toContain('Load failed')
+    const log = getDebugLog()
+    expect(log).toHaveLength(1)
+    expect(log[0].step).toBe('testConnection')
+    expect(log[0].status).toBe('error')
+    expect(log[0].detail).toContain('Load failed')
+  })
+
+  it('records getFileSha/putFile network throws even though the old code never caught them', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new TypeError('Load failed')))
+    await expect(getFileSha(config, 'file.json')).rejects.toThrow('Load failed')
+    expect(getDebugLog().some((e) => e.step === 'getFileSha:file.json' && e.status === 'error')).toBe(
+      true,
+    )
+  })
+
+  it('clearDebugLog empties the log', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true }))
+    await testConnection(config)
+    expect(getDebugLog().length).toBeGreaterThan(0)
+    clearDebugLog()
+    expect(getDebugLog()).toEqual([])
+  })
+
+  it('caps the log at 40 entries', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true }))
+    for (let i = 0; i < 45; i++) await testConnection(config)
+    expect(getDebugLog()).toHaveLength(40)
   })
 })
 

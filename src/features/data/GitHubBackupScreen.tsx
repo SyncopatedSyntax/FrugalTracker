@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import SubScreen from '@/components/SubScreen'
 import Sheet from '@/components/Sheet'
 import { Toast, useToast } from '@/components/Toast'
@@ -7,7 +7,14 @@ import { useDemoMode, useGithubConfig } from '@/hooks'
 import { db } from '@/db/db'
 import { backfillBaseAmounts } from '@/db/repo'
 import { restoreBackup, type BackupFile } from '@/lib/backup'
-import { backupNow, fetchGithubBackup, testConnection } from '@/lib/githubBackup'
+import {
+  backupNow,
+  clearDebugLog,
+  fetchGithubBackup,
+  getDebugLog,
+  testConnection,
+  type DebugLogEntry,
+} from '@/lib/githubBackup'
 
 const INTERVAL_OPTIONS = [
   { hours: 6, label: 'Every 6 hours' },
@@ -33,6 +40,36 @@ export default function GitHubBackupScreen() {
   const [restoring, setRestoring] = useState(false)
   const [pending, setPending] = useState<BackupFile | null>(null)
   const [confirmDisconnect, setConfirmDisconnect] = useState(false)
+
+  const [debugOpen, setDebugOpen] = useState(false)
+  const [debugLog, setDebugLog] = useState<DebugLogEntry[]>([])
+  const refreshDebugLog = () => setDebugLog(getDebugLog())
+
+  useEffect(() => {
+    if (debugOpen) refreshDebugLog()
+  }, [debugOpen])
+
+  const copyDebugLog = async () => {
+    const log = getDebugLog()
+    const header = [
+      `FrugalTracker GitHub backup — debug log`,
+      `Generated: ${new Date().toISOString()}`,
+      config ? `Connected: ${config.owner}/${config.repo}@${config.branch} (path: ${config.path})` : 'Connected: no',
+      `Online: ${navigator.onLine}`,
+      `User agent: ${navigator.userAgent}`,
+      '',
+    ].join('\n')
+    const body = log.length
+      ? log.map((e) => `[${e.time}] ${e.status.toUpperCase().padEnd(5)} ${e.step}  ${e.detail}`).join('\n')
+      : '(no log entries yet)'
+    const text = `${header}${body}\n`
+    try {
+      await navigator.clipboard.writeText(text)
+      show('Debug info copied')
+    } catch {
+      show('Could not copy — clipboard unavailable')
+    }
+  }
 
   const connect = async () => {
     if (!token.trim() || !owner.trim() || !repo.trim()) {
@@ -61,6 +98,7 @@ export default function GitHubBackupScreen() {
       show(result.error)
     }
     setConnecting(false)
+    refreshDebugLog()
   }
 
   const doBackup = async () => {
@@ -72,6 +110,7 @@ export default function GitHubBackupScreen() {
       show(err instanceof Error ? err.message : 'Backup failed')
     }
     setBackingUp(false)
+    refreshDebugLog()
   }
 
   const startRestore = async () => {
@@ -83,6 +122,7 @@ export default function GitHubBackupScreen() {
       show(err instanceof Error ? err.message : 'Could not fetch backup')
     }
     setRestoring(false)
+    refreshDebugLog()
   }
 
   const doRestore = async () => {
@@ -285,6 +325,70 @@ export default function GitHubBackupScreen() {
             </button>
           </div>
         )}
+
+        <div className="mt-4 overflow-hidden rounded-[1.375rem] bg-surface">
+          <button
+            onClick={() => setDebugOpen((v) => !v)}
+            className="flex w-full items-center justify-between px-4 py-3.5"
+          >
+            <span className="text-sm font-medium">Debug log</span>
+            <ChevronDownIcon
+              size={16}
+              className={debugOpen ? 'rotate-180 transition-transform' : 'transition-transform'}
+            />
+          </button>
+          {debugOpen && (
+            <div
+              className="px-4 pb-4"
+              style={{ borderTop: '1px solid rgb(var(--c-border) / 0.6)', paddingTop: '0.75rem' }}
+            >
+              <p className="mb-2 text-xs text-muted">
+                Every connect/backup/restore network step, including failures that happen before any
+                response comes back (e.g. a bare "Load failed"). Nothing here includes your token —
+                safe to copy and share.
+              </p>
+              <div className="max-h-64 overflow-y-auto rounded-xl bg-surface2 p-2.5">
+                {debugLog.length === 0 ? (
+                  <p className="text-xs text-muted">No log entries yet — try connecting or backing up.</p>
+                ) : (
+                  <ul className="space-y-1.5">
+                    {debugLog
+                      .slice()
+                      .reverse()
+                      .map((e, i) => (
+                        <li key={i} className="font-mono text-[11px] leading-snug">
+                          <span className="text-muted">{new Date(e.time).toLocaleTimeString()}</span>{' '}
+                          <span className={e.status === 'error' ? 'text-expense' : 'text-income'}>
+                            {e.status === 'error' ? 'ERR' : 'OK '}
+                          </span>{' '}
+                          <span className="text-content">{e.step}</span>
+                          <br />
+                          <span className="break-words text-muted">{e.detail}</span>
+                        </li>
+                      ))}
+                  </ul>
+                )}
+              </div>
+              <div className="mt-3 flex gap-2">
+                <button
+                  onClick={copyDebugLog}
+                  className="flex-1 rounded-xl border border-border py-2.5 text-xs font-semibold"
+                >
+                  Copy debug info
+                </button>
+                <button
+                  onClick={() => {
+                    clearDebugLog()
+                    refreshDebugLog()
+                  }}
+                  className="flex-1 rounded-xl border border-border py-2.5 text-xs font-semibold text-expense"
+                >
+                  Clear log
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
 
       <Toast message={message} />
