@@ -3,6 +3,7 @@ import type { Budget, Category, Settings, Transaction, TxType } from './types'
 import { uid } from '@/lib/id'
 import { DEFAULT_SETTINGS } from './seed'
 import { categoryPalette, type AppTheme } from '@/lib/palette'
+import { parseISO } from '@/lib/date'
 
 export type NewTransaction = Omit<
   Transaction,
@@ -43,7 +44,7 @@ export async function addTransaction(input: NewTransaction): Promise<string> {
   await db.transaction('rw', db.transactions, db.categories, db.tags, async () => {
     await db.transactions.add(tx)
     await bumpCategory(tx.categoryId, 1)
-    await bumpTags(tx.tags, 1)
+    await bumpTags(tx.tags, 1, tx.date)
   })
   return tx.id
 }
@@ -100,7 +101,7 @@ export async function updateTransaction(
       }
       if (patch.tags) {
         await bumpTags(prev.tags, -1)
-        await bumpTags(nextTags, 1)
+        await bumpTags(nextTags, 1, next.date)
       }
     },
   )
@@ -157,7 +158,15 @@ async function bumpCategory(categoryId: string, delta: number): Promise<void> {
   })
 }
 
-async function bumpTags(tags: string[], delta: number): Promise<void> {
+/** `txDate` is the transaction's own local-calendar date (its `date` field),
+ * not the wall-clock time of this write — a tag's "recently used" ordering
+ * (`useTags()`, sorted by `lastUsedAt`) must track when the transaction
+ * itself happened, not when it was entered/imported, or backdating an entry
+ * (or bulk-importing old history) would wrongly bump its tags to the top.
+ * Combined via `Math.max` with whatever's already stored, since a tag can
+ * appear on many transactions and should reflect the latest of them all. */
+async function bumpTags(tags: string[], delta: number, txDate?: string): Promise<void> {
+  const usedAt = txDate ? parseISO(txDate).getTime() : Date.now()
   for (const name of tags) {
     const key = name.toLowerCase()
     const existing = await db.tags.where('name').equals(key).first()
@@ -168,11 +177,11 @@ async function bumpTags(tags: string[], delta: number): Promise<void> {
       } else {
         await db.tags.update(existing.id, {
           usageCount: count,
-          ...(delta > 0 ? { lastUsedAt: Date.now() } : {}),
+          ...(delta > 0 ? { lastUsedAt: Math.max(existing.lastUsedAt ?? 0, usedAt) } : {}),
         })
       }
     } else if (delta > 0) {
-      await db.tags.add({ id: uid(), name: key, usageCount: delta, lastUsedAt: Date.now() })
+      await db.tags.add({ id: uid(), name: key, usageCount: delta, lastUsedAt: usedAt })
     }
   }
 }

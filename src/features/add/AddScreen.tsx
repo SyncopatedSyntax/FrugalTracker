@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import CurrencyPickerSheet from '@/components/CurrencyPickerSheet'
-import TagInput, { addTag } from '@/components/TagInput'
+import TagInput from '@/components/TagInput'
 import Sheet from '@/components/Sheet'
 import { Toast, useToast } from '@/components/Toast'
 import {
@@ -68,7 +68,6 @@ export default function AddScreen() {
   const [noteOpen, setNoteOpen] = useState(false)
   const [dateOpen, setDateOpen] = useState(false)
   const [newTagOpen, setNewTagOpen] = useState(false)
-  const [newTagText, setNewTagText] = useState('')
 
   // The 3-step thumb-zone flow: 0 = amount, 1 = category, 2 = tags/date/note.
   // `unlocked` is the highest step rendered — steps beyond it don't exist in
@@ -193,7 +192,6 @@ export default function AddScreen() {
     setCategoryId(null)
     setNote('')
     setTags([])
-    setNewTagText('')
     setDate(todayISO())
     setStep(0)
     // Let the slide-back settle before dropping steps 2 & 3 from the DOM, so
@@ -335,7 +333,7 @@ export default function AddScreen() {
                   className="flex h-11 flex-1 items-center justify-center gap-1.5 rounded-xl border border-border bg-surface2 px-2 text-sm font-medium text-content active:scale-[0.98]"
                 >
                   <TagIcon size={15} className="flex-shrink-0 text-muted" />
-                  <span className="truncate">New tag</span>
+                  <span className="truncate">Add tag</span>
                 </button>
                 <button
                   type="button"
@@ -398,36 +396,11 @@ export default function AddScreen() {
         onSaved={(id) => selectCategory(id)}
       />
 
-      <Sheet
-        open={newTagOpen}
-        onClose={() => {
-          setNewTagOpen(false)
-          setNewTagText('')
-        }}
-        title="New tag"
-      >
-        <input
-          type="text"
-          autoFocus
-          value={newTagText}
-          onChange={(e) => setNewTagText(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' || e.key === ',') {
-              e.preventDefault()
-              setTags((t) => addTag(t, newTagText))
-              setNewTagText('')
-            }
-          }}
-          placeholder="Type a tag…"
-          className="w-full rounded-xl border border-border bg-surface2 px-3.5 py-3 text-sm outline-none focus:border-primary"
-        />
+      <Sheet open={newTagOpen} onClose={() => setNewTagOpen(false)} title="Add tag">
+        <TagInput tags={tags} onChange={setTags} suggestions={tagSuggestions} showAll />
         <button
           type="button"
-          onClick={() => {
-            setTags((t) => addTag(t, newTagText))
-            setNewTagText('')
-            setNewTagOpen(false)
-          }}
+          onClick={() => setNewTagOpen(false)}
           className="mt-4 w-full rounded-[1.375rem] bg-primary py-3 text-base font-semibold text-primary-fg"
         >
           Done

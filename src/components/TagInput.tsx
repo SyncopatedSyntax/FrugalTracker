@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { cn } from '@/lib/cn'
-import { XIcon } from './icons'
+import { PlusIcon, XIcon } from './icons'
 
 /** Trims and de-dupes (case-insensitively) `raw` into `tags`; returns the
  * same array if it's blank or already present. Shared by TagInput's own
@@ -94,12 +94,20 @@ export default function TagInput({
     )
   }
 
-  const lower = text.trim().toLowerCase()
+  const trimmed = text.trim()
+  const lower = trimmed.toLowerCase()
   const matches = lower
     ? unused.filter((s) => s.toLowerCase().includes(lower)).slice(0, showAll ? undefined : 6)
     : showAll
       ? unused
       : unused.slice(0, 8)
+  // Typed text that doesn't already exist (as any case) as a tag, and isn't
+  // already selected — offer an explicit, tappable way to create it instead
+  // of relying on a mobile keyboard's Enter/return key alone.
+  const canCreate =
+    trimmed.length > 0 &&
+    !unused.some((s) => s.toLowerCase() === lower) &&
+    !tags.some((t) => t.toLowerCase() === lower)
 
   const inputRow = (
     <div className="flex flex-shrink-0 flex-wrap items-center gap-1.5 rounded-xl border border-border bg-surface2 px-2 py-2">
@@ -134,7 +142,7 @@ export default function TagInput({
   return (
     <div>
       {inputRow}
-      {matches.length > 0 && (
+      {(matches.length > 0 || canCreate) && (
         <div className="mt-2">
           {!lower && (
             <p className="mb-1 text-[0.6875rem] font-semibold uppercase tracking-wide text-muted">
@@ -154,6 +162,15 @@ export default function TagInput({
                 #{s}
               </button>
             ))}
+            {canCreate && (
+              <button
+                onClick={() => add(text)}
+                className="inline-flex items-center gap-1 rounded-full border border-dashed border-primary px-2.5 py-1 text-xs font-medium text-primary hover:bg-primary/10"
+              >
+                <PlusIcon size={12} />
+                Add “{trimmed}”
+              </button>
+            )}
           </div>
         </div>
       )}

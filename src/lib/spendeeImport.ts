@@ -3,6 +3,7 @@ import { db } from '@/db/db'
 import type { Category, Transaction, TxType } from '@/db/types'
 import { uid } from './id'
 import { categoryPalette } from './palette'
+import { parseISO } from './date'
 
 export type FieldKey = 'date' | 'amount' | 'category' | 'currency' | 'note' | 'labels' | 'type'
 
@@ -272,6 +273,12 @@ export async function runImport(
   const newTxs: Transaction[] = []
   const catUsage = new Map<string, number>()
   const tagUsage = new Map<string, number>()
+  // Latest transaction date (as "YYYY-MM-DD", comparable lexicographically)
+  // seen for each tag in this file — a tag's "recently used" ordering must
+  // track the imported transactions' own dates, not the moment the import
+  // ran, or bulk-importing years-old history would wrongly bump every tag
+  // in the file to the top of "recent".
+  const tagLastDate = new Map<string, string>()
   let created = 0
   let imported = 0
   let skipped = 0
@@ -329,6 +336,8 @@ export async function runImport(
     for (const t of r.tags) {
       const tl = t.toLowerCase()
       tagUsage.set(tl, (tagUsage.get(tl) ?? 0) + 1)
+      const prevDate = tagLastDate.get(tl)
+      if (!prevDate || r.date > prevDate) tagLastDate.set(tl, r.date)
     }
   }
 
@@ -339,11 +348,15 @@ export async function runImport(
       if (c) await db.categories.update(id, { usageCount: c.usageCount + delta })
     }
     for (const [name, delta] of tagUsage) {
+      const usedAt = parseISO(tagLastDate.get(name)!).getTime()
       const ex = await db.tags.where('name').equals(name).first()
       if (ex) {
-        await db.tags.update(ex.id, { usageCount: ex.usageCount + delta, lastUsedAt: now })
+        await db.tags.update(ex.id, {
+          usageCount: ex.usageCount + delta,
+          lastUsedAt: Math.max(ex.lastUsedAt ?? 0, usedAt),
+        })
       } else {
-        await db.tags.add({ id: uid(), name, usageCount: delta, lastUsedAt: now })
+        await db.tags.add({ id: uid(), name, usageCount: delta, lastUsedAt: usedAt })
       }
     }
     if (newTxs.length) await db.transactions.bulkAdd(newTxs)
