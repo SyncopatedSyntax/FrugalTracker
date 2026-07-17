@@ -415,14 +415,13 @@ export default function AddScreen() {
       </Sheet>
 
       <Sheet open={noteOpen} onClose={() => setNoteOpen(false)} title="Note">
-        <input
-          type="text"
+        <textarea
           autoFocus
+          rows={4}
           value={note}
           onChange={(e) => setNote(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && setNoteOpen(false)}
           placeholder="What was it for?"
-          className="w-full rounded-xl border border-border bg-surface2 px-3.5 py-3 text-sm outline-none focus:border-primary"
+          className="w-full resize-none rounded-xl border border-border bg-surface2 px-3.5 py-3 text-sm outline-none focus:border-primary"
         />
         <button
           type="button"
@@ -434,17 +433,30 @@ export default function AddScreen() {
       </Sheet>
 
       <Sheet open={dateOpen} onClose={() => setDateOpen(false)} title="Date">
-        <input
-          type="date"
-          autoFocus
-          value={date}
-          max={todayISO()}
-          onChange={(e) => {
-            setDate(e.target.value || todayISO())
-            setDateOpen(false)
-          }}
-          className="w-full rounded-xl border border-border bg-surface2 px-3.5 py-3 text-sm outline-none focus:border-primary"
-        />
+        {/* The native date input's own box (segments + calendar icon) doesn't
+            reliably respect a tight custom border-radius across browsers and
+            can render wider than the screen — see docs/DEV_REVIEW.md §2 B9.
+            So the visible pill here is entirely our own markup, and the real
+            <input> sits on top, invisible and exactly the same size, just to
+            capture the tap and drive the OS picker. */}
+        <div className="relative">
+          <div className="pointer-events-none flex items-center justify-between rounded-xl border border-border bg-surface2 px-3.5 py-3 text-sm">
+            <span>{dateLabel(date)}</span>
+            <CalendarIcon size={18} className="text-muted" />
+          </div>
+          <input
+            type="date"
+            autoFocus
+            value={date}
+            max={todayISO()}
+            onChange={(e) => {
+              setDate(e.target.value || todayISO())
+              setDateOpen(false)
+            }}
+            aria-label="Date"
+            className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+          />
+        </div>
       </Sheet>
     </div>
   )
