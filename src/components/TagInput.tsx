@@ -25,6 +25,19 @@ interface Props {
    * list — for a dedicated tag-browsing host (e.g. a "Tags" sheet) where
    * seeing the full tag set is the point. */
   showAll?: boolean
+  /** Focus the text input as soon as it mounts (non-fill mode only) — for a
+   * host whose sole purpose is entering a tag (e.g. a dedicated "Add tag"
+   * sheet), where the keyboard should already be up rather than requiring a
+   * second tap. */
+  autoFocus?: boolean
+  /** Give the suggestions area a constant height (non-fill mode only)
+   * instead of shrinking/growing with the match count. Without this, typing
+   * a query that narrows the match list shrinks the host sheet — and since
+   * a bottom sheet is anchored to its bottom edge, a shorter sheet pushes
+   * its *top* (and the input row sitting there) further down, which on a
+   * real device can shove the input behind the on-screen keyboard. A fixed
+   * height keeps the input's position constant regardless of what's typed. */
+  fixedHeight?: boolean
 }
 
 export default function TagInput({
@@ -34,6 +47,8 @@ export default function TagInput({
   placeholder,
   fill,
   showAll,
+  autoFocus,
+  fixedHeight,
 }: Props) {
   const [text, setText] = useState('')
 
@@ -123,6 +138,7 @@ export default function TagInput({
         </span>
       ))}
       <input
+        autoFocus={autoFocus}
         value={text}
         onChange={(e) => setText(e.target.value)}
         onKeyDown={(e) => {
@@ -139,40 +155,57 @@ export default function TagInput({
     </div>
   )
 
+  const suggestionsLabel = !lower && (
+    <p className="mb-1 text-[0.6875rem] font-semibold uppercase tracking-wide text-muted">
+      {showAll ? 'All tags' : 'Recent'}
+    </p>
+  )
+
+  const suggestionsList = (
+    <div className="flex flex-wrap content-start gap-1.5">
+      {matches.map((s) => (
+        <button
+          key={s}
+          onClick={() => add(s)}
+          className={cn(
+            'rounded-full border border-border px-2.5 py-1 text-xs text-muted',
+            'hover:border-primary hover:text-primary',
+          )}
+        >
+          #{s}
+        </button>
+      ))}
+      {canCreate && (
+        <button
+          onClick={() => add(text)}
+          className="inline-flex items-center gap-1 rounded-full border border-dashed border-primary px-2.5 py-1 text-xs font-medium text-primary hover:bg-primary/10"
+        >
+          <PlusIcon size={12} />
+          Add “{trimmed}”
+        </button>
+      )}
+    </div>
+  )
+
   return (
     <div>
       {inputRow}
-      {(matches.length > 0 || canCreate) && (
-        <div className="mt-2">
-          {!lower && (
-            <p className="mb-1 text-[0.6875rem] font-semibold uppercase tracking-wide text-muted">
-              {showAll ? 'All tags' : 'Recent'}
-            </p>
+      {fixedHeight ? (
+        <div className="mt-2 h-56 overflow-y-auto no-scrollbar">
+          {suggestionsLabel}
+          {matches.length > 0 || canCreate ? (
+            suggestionsList
+          ) : (
+            <p className="pt-3 text-center text-xs text-muted">No matching tags</p>
           )}
-          <div className="flex flex-wrap gap-1.5">
-            {matches.map((s) => (
-              <button
-                key={s}
-                onClick={() => add(s)}
-                className={cn(
-                  'rounded-full border border-border px-2.5 py-1 text-xs text-muted',
-                  'hover:border-primary hover:text-primary',
-                )}
-              >
-                #{s}
-              </button>
-            ))}
-            {canCreate && (
-              <button
-                onClick={() => add(text)}
-                className="inline-flex items-center gap-1 rounded-full border border-dashed border-primary px-2.5 py-1 text-xs font-medium text-primary hover:bg-primary/10"
-              >
-                <PlusIcon size={12} />
-                Add “{trimmed}”
-              </button>
-            )}
-          </div>
         </div>
+      ) : (
+        (matches.length > 0 || canCreate) && (
+          <div className="mt-2">
+            {suggestionsLabel}
+            {suggestionsList}
+          </div>
+        )
       )}
     </div>
   )

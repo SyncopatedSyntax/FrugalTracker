@@ -397,7 +397,14 @@ export default function AddScreen() {
       />
 
       <Sheet open={newTagOpen} onClose={() => setNewTagOpen(false)} title="Add tag">
-        <TagInput tags={tags} onChange={setTags} suggestions={tagSuggestions} showAll />
+        <TagInput
+          tags={tags}
+          onChange={setTags}
+          suggestions={tagSuggestions}
+          showAll
+          autoFocus
+          fixedHeight
+        />
         <button
           type="button"
           onClick={() => setNewTagOpen(false)}
