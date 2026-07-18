@@ -442,13 +442,17 @@ function BreakdownView({
   const navigate = useNavigate()
   const maxVal = slices.length ? slices[0].value : 0
   const sign = flow === 'expense' ? '-' : ''
-  // Drill into the transactions behind a row: same category/label, same
+  // Category rows open the category detail screen (12-month trend + MoM/YoY);
+  // label rows drill straight into the transactions behind them — same
   // flow, and the timeframe currently selected on this screen.
-  const openInActivity = (s: Slice) => {
+  const openRow = (s: Slice) => {
+    if (kind === 'category') {
+      navigate(`/insights/category/${s.key}`)
+      return
+    }
     const params = new URLSearchParams()
     params.set('type', flow)
-    if (kind === 'category') params.set('categoryId', s.key)
-    else params.set('tag', s.name)
+    params.set('tag', s.name)
     params.set('from', periodFrom)
     params.set('to', periodTo)
     navigate(`/transactions?${params.toString()}`)
@@ -515,7 +519,7 @@ function BreakdownView({
                   <button
                     onClick={() => {
                       onSelect(s.key)
-                      openInActivity(s)
+                      openRow(s)
                     }}
                     className={cn(
                       'flex w-full items-center gap-3 rounded-xl px-2 py-2 text-left',

@@ -77,6 +77,7 @@ Two rapid `updateSettings` calls can clobber each other (last write wins over a 
 | U8 | iOS status bar | `black` status-bar style shows a black strip in light theme. Acceptable trade-off (see §1), but a future option: theme-aware `theme-color` meta (`media="(prefers-color-scheme: …)"` pair or JS-updated) so at least browser-tab/Android chrome matches. Do **not** return to `black-translucent`. |
 | U9 | Deleting a category with transactions | Verified handled: `CategoriesScreen` disables the delete button while `categoryTxCount > 0`, so orphaned `categoryId`s can't happen through the UI (only via a malformed backup restore — see §7). A "reassign transactions then delete" flow would still be a nice upgrade over a disabled button. |
 | U10 | Backup versioning | `BackupFile.version = 1` is written but never checked on restore. Add a version gate + migration hook before the schema evolves further. |
+| U11 | Analytics depth over time | Insights was strong on the current period but thin on *trends*. A product-review roadmap (approved) adds, in order: **category detail screen** (12-mo trend + MoM/YoY — resolved v1.1.0, `CategoryDetailScreen.tsx` at `/insights/category/:id`, helpers `monthlySeriesFor`/`deltaVs` in `compute.ts`), then a period **savings-rate** stat, a **budget-views** package (all-budgets overview, sort/filter, cumulative-YTD pace, budget history), and a **calendar heatmap** Insights view. Tag/label detail parity and accounts/transfers are explicitly out of scope for now. |
 
 ---
 

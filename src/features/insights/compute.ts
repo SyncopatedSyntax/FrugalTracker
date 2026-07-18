@@ -1,5 +1,6 @@
 import type { Category, Transaction, TxType } from '@/db/types'
 import type { Bucket } from './period'
+import { addMonths, monthShort, toISO } from '@/lib/date'
 
 /** Signed value in base currency, using each transaction's locked-in
  * baseAmount (not a live conversion) — see Transaction.baseAmount. */
@@ -131,6 +132,59 @@ export function cashflowByBucket(periodTxs: Transaction[], buckets: Bucket[]): C
     net.push(inc - exp)
   }
   return { income, expense, net }
+}
+
+export interface MonthPoint {
+  /** "YYYY-MM" */
+  key: string
+  /** e.g. "Jul 25" — month + 2-digit year, unambiguous across a year boundary. */
+  label: string
+  value: number
+  count: number
+}
+
+/** Per-calendar-month totals for one category over the trailing `months`
+ * months (oldest → newest), ending with the month of `endAnchor`. Sums
+ * locked-in `baseAmount`s of that category's own flow direction implicitly —
+ * a category only ever holds transactions of its own type, so no flow filter
+ * is needed beyond the categoryId. Months with no activity are explicit
+ * zero points, so a trend chart shows gaps honestly instead of skipping. */
+export function monthlySeriesFor(
+  txs: Transaction[],
+  categoryId: string,
+  months: number,
+  endAnchor: Date = new Date(),
+): MonthPoint[] {
+  const out: MonthPoint[] = []
+  const byKey = new Map<string, { value: number; count: number }>()
+  for (const t of txs) {
+    if (t.categoryId !== categoryId) continue
+    const key = t.date.slice(0, 7)
+    const e = byKey.get(key) ?? { value: 0, count: 0 }
+    e.value += t.baseAmount
+    e.count++
+    byKey.set(key, e)
+  }
+  for (let i = months - 1; i >= 0; i--) {
+    const m = addMonths(endAnchor, -i)
+    const key = toISO(m).slice(0, 7)
+    const e = byKey.get(key)
+    out.push({
+      key,
+      label: `${monthShort(m.getMonth())} ${String(m.getFullYear()).slice(2)}`,
+      value: e?.value ?? 0,
+      count: e?.count ?? 0,
+    })
+  }
+  return out
+}
+
+/** Fractional change from `prev` to `cur` (0.14 = +14%), or null when there
+ * is no usable baseline (prev ≤ 0) — a delta against nothing/negative income
+ * is noise, not signal, and should render as "—". */
+export function deltaVs(prev: number, cur: number): number | null {
+  if (prev <= 0) return null
+  return (cur - prev) / prev
 }
 
 /** Index of the last bucket that has already started (<= today); -1 if none. */

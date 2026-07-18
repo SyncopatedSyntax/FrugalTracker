@@ -12,6 +12,7 @@ import AddScreen from './features/add/AddScreen'
 import TransactionsScreen from './features/transactions/TransactionsScreen'
 import EditTransactionScreen from './features/transactions/EditTransactionScreen'
 import InsightsScreen from './features/insights/InsightsScreen'
+import CategoryDetailScreen from './features/insights/CategoryDetailScreen'
 import MoreScreen from './features/more/MoreScreen'
 import AppearanceScreen from './features/more/AppearanceScreen'
 import KeypadScreen from './features/more/KeypadScreen'
@@ -71,6 +72,7 @@ export default function App() {
         <Route path="/more" element={<MoreScreen />} />
       </Route>
       <Route path="/tx/:id/edit" element={<EditTransactionScreen />} />
+      <Route path="/insights/category/:id" element={<CategoryDetailScreen />} />
       <Route path="/more/categories" element={<CategoriesScreen />} />
       <Route path="/more/budgets" element={<BudgetsScreen />} />
       <Route path="/more/recurring" element={<RecurringScreen />} />
