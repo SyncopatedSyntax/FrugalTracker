@@ -1,4 +1,4 @@
-import { Fragment, useMemo, useState } from 'react'
+import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import Segmented from '@/components/Segmented'
 import { ChevronRightIcon, PencilIcon, TagIcon } from '@/components/icons'
@@ -12,6 +12,7 @@ import PeriodBar from './PeriodBar'
 import LineChart, { type LineSeries } from './LineChart'
 import CashflowBarChart from './CashflowBarChart'
 import CalendarHeatmap from './CalendarHeatmap'
+import CategoryDetailPanel from './CategoryDetailPanel'
 import DonutChart from './DonutChart'
 import OpeningBalanceSheet from './OpeningBalanceSheet'
 import { barBuckets, resolvePeriod, stepAnchor, type CustomRange, type Granularity } from './period'
@@ -481,14 +482,15 @@ function BreakdownView({
   const navigate = useNavigate()
   const maxVal = slices.length ? slices[0].value : 0
   const sign = flow === 'expense' ? '-' : ''
-  // Category rows open the category detail screen (12-month trend + MoM/YoY);
-  // label rows drill straight into the transactions behind them — same
-  // flow, and the timeframe currently selected on this screen.
-  const openRow = (s: Slice) => {
+  // Category rows expand an inline detail section (12-month trend + MoM/YoY)
+  // right where they sit — tap again to collapse. Label rows drill straight
+  // into the transactions behind them (same flow + the selected timeframe).
+  const onRowTap = (s: Slice) => {
     if (kind === 'category') {
-      navigate(`/insights/category/${s.key}`)
+      onSelect(selectedKey === s.key ? null : s.key)
       return
     }
+    onSelect(s.key)
     const params = new URLSearchParams()
     params.set('type', flow)
     params.set('tag', s.name)
@@ -496,17 +498,19 @@ function BreakdownView({
     params.set('to', periodTo)
     navigate(`/transactions?${params.toString()}`)
   }
-  // Tapping a slice on the donut should surface its row at the top of the
-  // list below, without touching the donut's own (value-sorted) arc order.
-  const orderedSlices = useMemo(() => {
-    if (!selectedKey) return slices
-    const idx = slices.findIndex((s) => s.key === selectedKey)
-    if (idx <= 0) return slices
-    const copy = slices.slice()
-    const [sel] = copy.splice(idx, 1)
-    copy.unshift(sel)
-    return copy
-  }, [slices, selectedKey])
+
+  // When a category is expanded, scroll its row to the top of the list so the
+  // whole detail below it is in view.
+  const expandedRowRef = useRef<HTMLButtonElement>(null)
+  useEffect(() => {
+    if (kind !== 'category' || !selectedKey) return
+    const el = expandedRowRef.current
+    if (!el) return
+    const id = requestAnimationFrame(() =>
+      el.scrollIntoView({ behavior: 'smooth', block: 'start' }),
+    )
+    return () => cancelAnimationFrame(id)
+  }, [kind, selectedKey])
 
   return (
     <>
@@ -550,16 +554,15 @@ function BreakdownView({
           </div>
 
           <div className="mt-4 space-y-1">
-            {orderedSlices.map((s, i) => {
+            {slices.map((s) => {
               const pct = total > 0 ? (s.value / total) * 100 : 0
               const on = selectedKey === s.key
+              const expanded = kind === 'category' && on
               return (
                 <Fragment key={s.key}>
                   <button
-                    onClick={() => {
-                      onSelect(s.key)
-                      openRow(s)
-                    }}
+                    ref={expanded ? expandedRowRef : undefined}
+                    onClick={() => onRowTap(s)}
                     className={cn(
                       'flex w-full items-center gap-3 rounded-xl px-2 py-2 text-left',
                       on ? 'bg-surface2' : 'hover:bg-surface2/60',
@@ -602,13 +605,15 @@ function BreakdownView({
                         </span>
                       </span>
                     </span>
-                    <ChevronRightIcon size={16} className="flex-shrink-0 text-muted/50" />
+                    <ChevronRightIcon
+                      size={16}
+                      className={cn(
+                        'flex-shrink-0 text-muted/50 transition-transform',
+                        expanded && 'rotate-90',
+                      )}
+                    />
                   </button>
-                  {/* Separates the tapped-to-top category from the rest so the
-                      reorder reads as a deliberate promotion, not a shuffle. */}
-                  {i === 0 && selectedKey && orderedSlices.length > 1 && (
-                    <div className="my-2 border-t border-border" />
-                  )}
+                  {expanded && <CategoryDetailPanel categoryId={s.key} base={base} />}
                 </Fragment>
               )
             })}
