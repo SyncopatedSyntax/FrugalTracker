@@ -6,6 +6,8 @@ process.env.TZ = 'America/New_York'
 import { describe, expect, it } from 'vitest'
 import type { Transaction } from '@/db/types'
 import {
+  budgetHistory,
+  budgetYtdPace,
   periodRange,
   prorateMonthly,
   rollingMonthlyAverage,
@@ -118,5 +120,55 @@ describe('sumInRange', () => {
     expect(sumInRange(txs, range, 'expense', 'cat1')).toBe(50)
     expect(sumInRange(txs, range, 'expense', null)).toBe(70)
     expect(sumInRange(txs, range, 'income', null)).toBe(500)
+  })
+})
+
+describe('budgetHistory', () => {
+  const anchor = new Date(2026, 6, 15) // July 2026
+
+  it('returns trailing months oldest → newest, flagging overspends', () => {
+    const txs = [
+      tx({ categoryId: 'groc', date: '2026-07-02', baseAmount: 120 }),
+      tx({ categoryId: 'groc', date: '2026-05-10', baseAmount: 40 }),
+      tx({ categoryId: 'groc', date: '2026-05-25', baseAmount: 30 }),
+    ]
+    const h = budgetHistory(txs, 'groc', 100, 3, anchor)
+    expect(h.map((m) => m.key)).toEqual(['2026-05', '2026-06', '2026-07'])
+    expect(h.map((m) => m.spent)).toEqual([70, 0, 120])
+    expect(h.map((m) => m.over)).toEqual([false, false, true])
+    expect(h.every((m) => m.limit === 100)).toBe(true)
+  })
+
+  it('ignores income and other categories; overall sums all expenses', () => {
+    const txs = [
+      tx({ categoryId: 'groc', date: '2026-07-01', baseAmount: 50 }),
+      tx({ categoryId: 'rent', date: '2026-07-01', baseAmount: 900 }),
+      tx({ type: 'income', categoryId: 'groc', date: '2026-07-01', baseAmount: 999 }),
+    ]
+    expect(budgetHistory(txs, 'groc', 100, 1, anchor)[0].spent).toBe(50)
+    expect(budgetHistory(txs, null, 100, 1, anchor)[0].spent).toBe(950)
+  })
+})
+
+describe('budgetYtdPace', () => {
+  const now = new Date(2026, 6, 15) // July → 7 months elapsed
+
+  it('budgets whole months elapsed × limit and nets against YTD spend', () => {
+    const txs = [
+      tx({ categoryId: 'groc', date: '2026-02-10', baseAmount: 400 }),
+      tx({ categoryId: 'groc', date: '2026-06-20', baseAmount: 300 }),
+      tx({ categoryId: 'groc', date: '2025-12-31', baseAmount: 999 }), // last year, excluded
+    ]
+    const p = budgetYtdPace(txs, 'groc', 500, now)
+    expect(p.monthsElapsed).toBe(7)
+    expect(p.budgeted).toBe(3500)
+    expect(p.spent).toBe(700)
+    expect(p.net).toBe(2800) // positive → ahead / under budget
+  })
+
+  it('goes negative when cumulative spend outruns the granted budget', () => {
+    const txs = [tx({ categoryId: 'groc', date: '2026-03-01', baseAmount: 4000 })]
+    const p = budgetYtdPace(txs, 'groc', 500, now)
+    expect(p.net).toBe(-500) // 3500 budgeted − 4000 spent
   })
 })

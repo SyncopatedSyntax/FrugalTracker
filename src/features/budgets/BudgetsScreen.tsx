@@ -1,28 +1,30 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import SubScreen from '@/components/SubScreen'
-import Sheet from '@/components/Sheet'
-import { PlusIcon, TrashIcon } from '@/components/icons'
+import Segmented from '@/components/Segmented'
+import { PlusIcon } from '@/components/icons'
 import {
   useBudgets,
-  useCategoriesByType,
   useCategoryMap,
   useSettings,
   useTransactionsInRange,
 } from '@/hooks'
-import { deleteBudget, setBudget } from '@/db/repo'
 import type { Budget } from '@/db/types'
-import { currencySymbol, formatMoney } from '@/lib/currency'
+import { formatMoney } from '@/lib/currency'
 import { endOfMonth, monthLabel, startOfMonth, toISO } from '@/lib/date'
 import { alphaHex } from '@/lib/palette'
 import { cn } from '@/lib/cn'
+import BudgetFormSheet from './BudgetFormSheet'
+
+type SortKey = 'used' | 'left' | 'over'
 
 export default function BudgetsScreen() {
+  const navigate = useNavigate()
   const settings = useSettings()
   const base = settings.baseCurrency
   const chipAlpha = alphaHex(settings.categoryIconAlpha)
   const budgets = useBudgets()
   const categoryMap = useCategoryMap()
-  const expenseCats = useCategoriesByType('expense')
 
   const now = new Date()
   const monthTxs = useTransactionsInRange(toISO(startOfMonth(now)), toISO(endOfMonth(now)))
@@ -38,42 +40,33 @@ export default function BudgetsScreen() {
     return { spentByCat: map, totalSpent: total }
   }, [monthTxs])
 
-  const [open, setOpen] = useState(false)
-  const [editing, setEditing] = useState<Budget | undefined>()
-  const [catId, setCatId] = useState<string | null>(null)
-  const [amount, setAmount] = useState('')
+  const [addOpen, setAddOpen] = useState(false)
+  const [sort, setSort] = useState<SortKey>('used')
+  const [overOnly, setOverOnly] = useState(false)
 
-  const usedCatKeys = new Set(budgets.map((b) => b.categoryId ?? '__overall__'))
-
-  useEffect(() => {
-    if (!open) return
-    if (editing) {
-      setCatId(editing.categoryId)
-      setAmount(String(editing.amount))
-    } else {
-      const firstFree = expenseCats.find((c) => !usedCatKeys.has(c.id))
-      setCatId(usedCatKeys.has('__overall__') ? (firstFree?.id ?? null) : null)
-      setAmount('')
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, editing])
-
-  const save = async () => {
-    const amt = parseFloat(amount)
-    if (!Number.isFinite(amt) || amt <= 0) return
-    await setBudget({
-      id: editing?.id,
-      categoryId: catId,
-      period: 'monthly',
-      amount: amt,
-      currency: base,
+  // Enrich each budget with its this-month spend/ratio, then sort + filter.
+  const rows = useMemo(() => {
+    const enriched = budgets.map((b) => {
+      const spent = b.categoryId ? (spentByCat.get(b.categoryId) ?? 0) : totalSpent
+      const ratio = b.amount > 0 ? spent / b.amount : 0
+      return { b, spent, ratio, remaining: b.amount - spent, over: spent - b.amount }
     })
-    setOpen(false)
-  }
+    const visible = overOnly ? enriched.filter((r) => r.ratio > 1) : enriched
+    const cmp = {
+      used: (a: typeof visible[number], z: typeof visible[number]) => z.ratio - a.ratio,
+      left: (a: typeof visible[number], z: typeof visible[number]) => a.remaining - z.remaining,
+      over: (a: typeof visible[number], z: typeof visible[number]) => z.over - a.over,
+    }[sort]
+    return [...visible].sort(cmp)
+  }, [budgets, spentByCat, totalSpent, sort, overOnly])
 
-  const sorted = useMemo(
-    () => [...budgets].sort((a, b) => (a.categoryId === null ? -1 : b.categoryId === null ? 1 : 0)),
-    [budgets],
+  const overCount = useMemo(
+    () =>
+      budgets.filter((b) => {
+        const spent = b.categoryId ? (spentByCat.get(b.categoryId) ?? 0) : totalSpent
+        return spent > b.amount
+      }).length,
+    [budgets, spentByCat, totalSpent],
   )
 
   return (
@@ -81,10 +74,7 @@ export default function BudgetsScreen() {
       title="Budgets"
       right={
         <button
-          onClick={() => {
-            setEditing(undefined)
-            setOpen(true)
-          }}
+          onClick={() => setAddOpen(true)}
           className="grid h-10 w-10 place-items-center rounded-full text-primary hover:bg-primary/10"
           aria-label="Add budget"
         >
@@ -93,9 +83,14 @@ export default function BudgetsScreen() {
       }
     >
       <div className="px-4 py-4">
-        <p className="mb-3 text-sm text-muted">{monthLabel(now)} · limits in {base}</p>
+        <p className="mb-3 text-sm text-muted">
+          {monthLabel(now)} · limits in {base}
+          {budgets.length > 0 && overCount > 0 && (
+            <span className="text-expense"> · {overCount} over</span>
+          )}
+        </p>
 
-        {sorted.length === 0 ? (
+        {budgets.length === 0 ? (
           <div className="rounded-[1.375rem] bg-surface p-8 text-center">
             <p className="text-4xl">🎯</p>
             <p className="mt-3 text-sm text-muted">
@@ -103,156 +98,109 @@ export default function BudgetsScreen() {
             </p>
           </div>
         ) : (
-          <div className="space-y-3">
-            {sorted.map((b) => {
-              const cat = b.categoryId ? categoryMap.get(b.categoryId) : undefined
-              const spent = b.categoryId ? (spentByCat.get(b.categoryId) ?? 0) : totalSpent
-              const ratio = b.amount > 0 ? spent / b.amount : 0
-              const over = ratio > 1
-              const near = ratio >= 0.8 && !over
-              const barColor = over ? 'rgb(var(--c-expense))' : near ? '#D1A54E' : (cat?.color ?? 'rgb(var(--c-primary))')
-              return (
-                <button
-                  key={b.id}
-                  onClick={() => {
-                    setEditing(b)
-                    setOpen(true)
-                  }}
-                  className="block w-full rounded-[1.375rem] bg-surface p-4 text-left"
-                >
-                  <div className="mb-2 flex items-center gap-2">
-                    <span
-                      className="grid h-8 w-8 place-items-center rounded-full text-base"
-                      style={{ backgroundColor: (cat?.color ?? '#64748b') + chipAlpha }}
-                    >
-                      {cat ? cat.icon : '💰'}
-                    </span>
-                    <span className="flex-1 text-sm font-semibold">
-                      {cat ? cat.name : 'Overall'}
-                    </span>
-                    <span
-                      className={cn(
-                        'text-sm font-semibold tabular-nums',
-                        over ? 'text-expense' : 'text-content',
-                      )}
-                    >
-                      {formatMoney(spent, base)}{' '}
-                      <span className="font-normal text-muted">/ {formatMoney(b.amount, base)}</span>
-                    </span>
-                  </div>
-                  <div className="h-2 overflow-hidden rounded-full bg-surface2">
-                    <div
-                      className="h-full rounded-full transition-all"
-                      style={{ width: `${Math.min(100, ratio * 100)}%`, backgroundColor: barColor }}
-                    />
-                  </div>
-                  <p className={cn('mt-1.5 text-xs', over ? 'text-expense' : 'text-muted')}>
-                    {over
-                      ? `${formatMoney(spent - b.amount, base)} over budget`
-                      : `${formatMoney(b.amount - spent, base)} left`}
-                  </p>
-                </button>
-              )
-            })}
-          </div>
+          <>
+            <div className="mb-3 flex items-center justify-between gap-2">
+              <Segmented
+                options={[
+                  { value: 'used', label: 'Used' },
+                  { value: 'left', label: 'Left' },
+                  { value: 'over', label: 'Over' },
+                ]}
+                value={sort}
+                onChange={setSort}
+              />
+              <button
+                onClick={() => setOverOnly((v) => !v)}
+                className={cn(
+                  'flex-shrink-0 rounded-full border px-3 py-1.5 text-xs font-medium',
+                  overOnly ? 'border-expense bg-expense/10 text-expense' : 'border-border text-muted',
+                )}
+              >
+                Over only
+              </button>
+            </div>
+
+            {rows.length === 0 ? (
+              <p className="rounded-[1.375rem] bg-surface py-10 text-center text-sm text-muted">
+                No budgets are over their limit this month. 🎉
+              </p>
+            ) : (
+              <div className="space-y-3">
+                {rows.map(({ b, spent, ratio }) => (
+                  <BudgetRow
+                    key={b.id}
+                    budget={b}
+                    spent={spent}
+                    ratio={ratio}
+                    base={base}
+                    chipAlpha={chipAlpha}
+                    category={b.categoryId ? categoryMap.get(b.categoryId) : undefined}
+                    onClick={() => navigate(`/more/budgets/${b.id}`)}
+                  />
+                ))}
+              </div>
+            )}
+          </>
         )}
       </div>
 
-      <Sheet
-        open={open}
-        onClose={() => setOpen(false)}
-        title={editing ? 'Edit budget' : 'New budget'}
-      >
-        <div className="space-y-4">
-          <div>
-            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted">
-              Applies to
-            </p>
-            <div className="flex flex-wrap gap-1.5">
-              <ChipToggle
-                label="💰 Overall"
-                on={catId === null}
-                disabled={!editing && usedCatKeys.has('__overall__')}
-                onClick={() => setCatId(null)}
-              />
-              {expenseCats.map((c) => (
-                <ChipToggle
-                  key={c.id}
-                  label={`${c.icon} ${c.name}`}
-                  on={catId === c.id}
-                  disabled={!editing && usedCatKeys.has(c.id)}
-                  onClick={() => setCatId(c.id)}
-                />
-              ))}
-            </div>
-          </div>
-
-          <label className="block">
-            <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-muted">
-              Monthly limit
-            </span>
-            <div className="flex items-center gap-2 rounded-xl border border-border bg-surface2 px-3">
-              <span className="text-muted">{currencySymbol(base)}</span>
-              <input
-                type="number"
-                inputMode="decimal"
-                value={amount}
-                onChange={(e) => setAmount(e.target.value)}
-                placeholder="0.00"
-                className="w-full bg-transparent py-3 text-base outline-none"
-              />
-            </div>
-          </label>
-
-          <div className="flex gap-2">
-            {editing && (
-              <button
-                onClick={async () => {
-                  await deleteBudget(editing.id)
-                  setOpen(false)
-                }}
-                className="grid w-12 place-items-center rounded-[1.375rem] border border-border text-expense"
-                aria-label="Delete budget"
-              >
-                <TrashIcon size={20} />
-              </button>
-            )}
-            <button
-              onClick={save}
-              disabled={!(parseFloat(amount) > 0)}
-              className="flex-1 rounded-[1.375rem] bg-primary py-3 text-base font-semibold text-primary-fg disabled:opacity-40"
-            >
-              {editing ? 'Save' : 'Create budget'}
-            </button>
-          </div>
-        </div>
-      </Sheet>
+      <BudgetFormSheet open={addOpen} onClose={() => setAddOpen(false)} />
     </SubScreen>
   )
 }
 
-function ChipToggle({
-  label,
-  on,
-  disabled,
+function BudgetRow({
+  budget: b,
+  spent,
+  ratio,
+  base,
+  chipAlpha,
+  category,
   onClick,
 }: {
-  label: string
-  on: boolean
-  disabled?: boolean
+  budget: Budget
+  spent: number
+  ratio: number
+  base: string
+  chipAlpha: string
+  category?: { name: string; icon: string; color: string }
   onClick: () => void
 }) {
+  const over = ratio > 1
+  const near = ratio >= 0.8 && !over
+  const barColor = over
+    ? 'rgb(var(--c-expense))'
+    : near
+      ? '#D1A54E'
+      : (category?.color ?? 'rgb(var(--c-primary))')
   return (
-    <button
-      disabled={disabled}
-      onClick={onClick}
-      className={cn(
-        'rounded-full border px-3 py-1.5 text-xs font-medium',
-        on ? 'border-primary bg-primary/10 text-primary' : 'border-border text-muted',
-        disabled && 'cursor-not-allowed opacity-30',
-      )}
-    >
-      {label}
+    <button onClick={onClick} className="block w-full rounded-[1.375rem] bg-surface p-4 text-left">
+      <div className="mb-2 flex items-center gap-2">
+        <span
+          className="grid h-8 w-8 place-items-center rounded-full text-base"
+          style={{ backgroundColor: (category?.color ?? '#64748b') + chipAlpha }}
+        >
+          {category ? category.icon : '💰'}
+        </span>
+        <span className="flex-1 text-sm font-semibold">{category ? category.name : 'Overall'}</span>
+        <span
+          className={cn('text-sm font-semibold tabular-nums', over ? 'text-expense' : 'text-content')}
+        >
+          {formatMoney(spent, base)}{' '}
+          <span className="font-normal text-muted">/ {formatMoney(b.amount, base)}</span>
+        </span>
+      </div>
+      <div className="h-2 overflow-hidden rounded-full bg-surface2">
+        <div
+          className="h-full rounded-full transition-all"
+          style={{ width: `${Math.min(100, ratio * 100)}%`, backgroundColor: barColor }}
+        />
+      </div>
+      <p className={cn('mt-1.5 text-xs', over ? 'text-expense' : 'text-muted')}>
+        {over
+          ? `${formatMoney(spent - b.amount, base)} over budget`
+          : `${formatMoney(b.amount - spent, base)} left`}
+      </p>
     </button>
   )
 }

@@ -3,6 +3,7 @@ import {
   addMonths,
   daysInMonth,
   endOfMonth,
+  monthShort,
   parseISO,
   shiftYears,
   startOfMonth,
@@ -100,6 +101,86 @@ export function rollingMonthlyAverage(
     (windowEnd.getMonth() - windowStart.getMonth()) +
     1
   return total / Math.max(1, monthsSpanned)
+}
+
+/** Expense spend per calendar month for one budget (a category, or the whole
+ * account when `categoryId` is null), over the trailing `months` months
+ * ending with `endAnchor`'s month. Each month carries the same `monthlyLimit`
+ * so a history view can draw spent-vs-limit bars and flag overspends. */
+export interface BudgetMonth {
+  /** "YYYY-MM" */
+  key: string
+  /** e.g. "Jul 25" */
+  label: string
+  spent: number
+  limit: number
+  over: boolean
+}
+
+export function budgetHistory(
+  txs: Transaction[],
+  categoryId: string | null,
+  monthlyLimit: number,
+  months: number,
+  endAnchor: Date = new Date(),
+): BudgetMonth[] {
+  const byKey = new Map<string, number>()
+  for (const t of txs) {
+    if (t.type !== 'expense') continue
+    if (categoryId !== null && t.categoryId !== categoryId) continue
+    const key = t.date.slice(0, 7)
+    byKey.set(key, (byKey.get(key) ?? 0) + t.baseAmount)
+  }
+  const out: BudgetMonth[] = []
+  for (let i = months - 1; i >= 0; i--) {
+    const m = addMonths(endAnchor, -i)
+    const key = toISO(m).slice(0, 7)
+    const spent = byKey.get(key) ?? 0
+    out.push({
+      key,
+      label: `${monthShort(m.getMonth())} ${String(m.getFullYear()).slice(2)}`,
+      spent,
+      limit: monthlyLimit,
+      over: spent > monthlyLimit,
+    })
+  }
+  return out
+}
+
+/** Cumulative year-to-date pace for one budget: how much you'd be *allowed*
+ * to have spent by now (whole months elapsed this calendar year × the monthly
+ * limit) versus what you actually spent, so a surplus in one month offsets an
+ * overspend in another. `net > 0` = under budget for the year so far (ahead);
+ * `net < 0` = over (behind). The current month counts as a full month —
+ * matching how the monthly limit is granted at the start of each month. */
+export interface YtdPace {
+  /** Whole months of this year elapsed, current month included (Jan = 1). */
+  monthsElapsed: number
+  /** monthsElapsed × monthlyLimit. */
+  budgeted: number
+  /** Cumulative expense this calendar year for the budget's scope. */
+  spent: number
+  /** budgeted − spent: positive = ahead (under), negative = behind (over). */
+  net: number
+}
+
+export function budgetYtdPace(
+  txs: Transaction[],
+  categoryId: string | null,
+  monthlyLimit: number,
+  now: Date = new Date(),
+): YtdPace {
+  const year = now.getFullYear()
+  const monthsElapsed = now.getMonth() + 1
+  const budgeted = monthsElapsed * monthlyLimit
+  let spent = 0
+  for (const t of txs) {
+    if (t.type !== 'expense') continue
+    if (categoryId !== null && t.categoryId !== categoryId) continue
+    if (Number(t.date.slice(0, 4)) !== year) continue
+    spent += t.baseAmount
+  }
+  return { monthsElapsed, budgeted, spent, net: budgeted - spent }
 }
 
 /** Sum of transactions of a given type (optionally scoped to a category) in a range, in base currency. */

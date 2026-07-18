@@ -19,6 +19,7 @@ import KeypadScreen from './features/more/KeypadScreen'
 import DemoScreen from './features/more/DemoScreen'
 import CategoriesScreen from './features/categories/CategoriesScreen'
 import BudgetsScreen from './features/budgets/BudgetsScreen'
+import BudgetDetailScreen from './features/budgets/BudgetDetailScreen'
 import CurrenciesScreen from './features/settings/CurrenciesScreen'
 import ImportScreen from './features/import/ImportScreen'
 import DataScreen from './features/data/DataScreen'
@@ -75,6 +76,7 @@ export default function App() {
       <Route path="/insights/category/:id" element={<CategoryDetailScreen />} />
       <Route path="/more/categories" element={<CategoriesScreen />} />
       <Route path="/more/budgets" element={<BudgetsScreen />} />
+      <Route path="/more/budgets/:id" element={<BudgetDetailScreen />} />
       <Route path="/more/recurring" element={<RecurringScreen />} />
       <Route path="/more/currencies" element={<CurrenciesScreen />} />
       <Route path="/more/appearance" element={<AppearanceScreen />} />
