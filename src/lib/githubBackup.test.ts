@@ -150,6 +150,95 @@ describe('putFile', () => {
   })
 })
 
+describe('transient-failure retries', () => {
+  it('retries putFile after a network TypeError and succeeds', async () => {
+    let puts = 0
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockImplementation(async (_url: string, init?: RequestInit) => {
+        if (init?.method === 'PUT') {
+          puts++
+          if (puts === 1) throw new TypeError('Load failed')
+          return { ok: true }
+        }
+        return { ok: false, status: 404 } // getFileSha: file doesn't exist yet
+      }),
+    )
+    vi.useFakeTimers()
+    const p = putFile(config, 'file.json', 'hi', 'msg')
+    await vi.runAllTimersAsync()
+    await expect(p).resolves.toBeUndefined()
+    vi.useRealTimers()
+    expect(puts).toBe(2)
+  })
+
+  it('does not retry a real HTTP-status error', async () => {
+    let puts = 0
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockImplementation(async (_url: string, init?: RequestInit) => {
+        if (init?.method === 'PUT') {
+          puts++
+          return { ok: false, status: 403 }
+        }
+        return { ok: false, status: 404 }
+      }),
+    )
+    await expect(putFile(config, 'file.json', 'hi', 'msg')).rejects.toThrow('GitHub returned 403')
+    expect(puts).toBe(1) // one attempt only — a 403 is not transient
+  })
+
+  it('backupNow rides through a transient blip on the first PUT and records success', async () => {
+    await db.githubConfig.put(config)
+    let puts = 0
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockImplementation(async (_url: string, init?: RequestInit) => {
+        if (init?.method === 'PUT') {
+          puts++
+          if (puts === 1) throw new TypeError('Load failed') // JSON put blips once
+          return { ok: true }
+        }
+        return { ok: false, status: 404 }
+      }),
+    )
+    vi.useFakeTimers()
+    const p = backupNow()
+    await vi.runAllTimersAsync()
+    await p
+    vi.useRealTimers()
+    expect(puts).toBe(3) // JSON: fail + retry (2), then CSV (1)
+    const updated = await db.githubConfig.get('default')
+    expect(updated?.lastBackupStatus).toBe('success')
+    expect(updated?.lastBackupError).toBeUndefined()
+  })
+
+  it('gives up after exhausting retries and records the error', async () => {
+    await db.githubConfig.put(config)
+    let puts = 0
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockImplementation(async (_url: string, init?: RequestInit) => {
+        if (init?.method === 'PUT') {
+          puts++
+          throw new TypeError('Load failed')
+        }
+        return { ok: false, status: 404 }
+      }),
+    )
+    vi.useFakeTimers()
+    const p = backupNow()
+    const settled = expect(p).rejects.toThrow('Load failed')
+    await vi.runAllTimersAsync()
+    await settled
+    vi.useRealTimers()
+    expect(puts).toBe(3) // initial + 2 retries, then gives up
+    const updated = await db.githubConfig.get('default')
+    expect(updated?.lastBackupStatus).toBe('error')
+    expect(updated?.lastBackupError).toContain('Load failed')
+  })
+})
+
 describe('backupNow', () => {
   it('commits both the JSON backup and the transactions CSV, and records success', async () => {
     await db.githubConfig.put(config)

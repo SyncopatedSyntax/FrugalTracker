@@ -95,6 +95,40 @@ async function loggedFetch(step: string, url: string, init?: RequestInit): Promi
   }
 }
 
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms))
+}
+
+/** Backoff schedule for a transient-failure retry (ms before the 2nd and 3rd
+ * attempts). Kept short so an on-open backup never feels stuck. */
+const RETRY_DELAYS = [400, 1200]
+
+/** Retry `op` when it fails with a network-layer `TypeError` — the "Load
+ * failed" / "Failed to fetch" a browser throws when a request is cut off
+ * before any response arrives (on iOS most often because the web view was
+ * suspended mid-request, or a momentary connectivity blip). These almost
+ * always succeed on an immediate retry, so a single one shouldn't mark an
+ * unattended auto-backup as failed. A real HTTP-status error (thrown as a
+ * plain `Error`, e.g. 403/409) is NOT retried — that's a genuine problem the
+ * user needs to see. `op` is re-run whole each attempt, so a `putFile` re-reads
+ * the file's current sha rather than reusing a now-stale one (which would
+ * 409 if a lost-response PUT had actually landed). */
+async function withRetry<T>(label: string, op: () => Promise<T>): Promise<T> {
+  for (let attempt = 0; ; attempt++) {
+    try {
+      return await op()
+    } catch (err) {
+      if (!(err instanceof TypeError) || attempt >= RETRY_DELAYS.length) throw err
+      logStep(
+        label,
+        'ok',
+        `transient network error — retrying (attempt ${attempt + 2}/${RETRY_DELAYS.length + 1})`,
+      )
+      await delay(RETRY_DELAYS[attempt])
+    }
+  }
+}
+
 export async function testConnection(
   config: ConnectionInfo,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
@@ -119,11 +153,13 @@ export async function getFileSha(config: FileLocation, filename: string): Promis
 }
 
 export async function getFileContent(config: FileLocation, filename: string): Promise<string> {
-  const url = `${apiBase(config)}/contents/${filePath(config, filename)}?ref=${encodeURIComponent(config.branch)}`
-  const res = await loggedFetch(`getFileContent:${filename}`, url, { headers: authHeaders(config.token) })
-  if (!res.ok) throw new Error(`GitHub returned ${res.status}`)
-  const data = (await res.json()) as { content: string }
-  return fromBase64(data.content)
+  return withRetry(`getFileContent:${filename}`, async () => {
+    const url = `${apiBase(config)}/contents/${filePath(config, filename)}?ref=${encodeURIComponent(config.branch)}`
+    const res = await loggedFetch(`getFileContent:${filename}`, url, { headers: authHeaders(config.token) })
+    if (!res.ok) throw new Error(`GitHub returned ${res.status}`)
+    const data = (await res.json()) as { content: string }
+    return fromBase64(data.content)
+  })
 }
 
 export async function putFile(
@@ -132,19 +168,24 @@ export async function putFile(
   content: string,
   message: string,
 ): Promise<void> {
-  const sha = await getFileSha(config, filename)
-  const url = `${apiBase(config)}/contents/${filePath(config, filename)}`
-  const res = await loggedFetch(`putFile:${filename}`, url, {
-    method: 'PUT',
-    headers: { ...authHeaders(config.token), 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      message,
-      content: toBase64(content),
-      branch: config.branch,
-      ...(sha ? { sha } : {}),
-    }),
+  const encoded = toBase64(content)
+  await withRetry(`putFile:${filename}`, async () => {
+    // Re-read the sha on every attempt so a retry after a lost-response PUT
+    // uses the file's current sha instead of a stale one (which would 409).
+    const sha = await getFileSha(config, filename)
+    const url = `${apiBase(config)}/contents/${filePath(config, filename)}`
+    const res = await loggedFetch(`putFile:${filename}`, url, {
+      method: 'PUT',
+      headers: { ...authHeaders(config.token), 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        message,
+        content: encoded,
+        branch: config.branch,
+        ...(sha ? { sha } : {}),
+      }),
+    })
+    if (!res.ok) throw new Error(`GitHub returned ${res.status}`)
   })
-  if (!res.ok) throw new Error(`GitHub returned ${res.status}`)
 }
 
 /** Commits both the full JSON backup and a transactions-only CSV to the
