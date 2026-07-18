@@ -187,6 +187,16 @@ export function deltaVs(prev: number, cur: number): number | null {
   return (cur - prev) / prev
 }
 
+/** Fraction of income kept (0.25 = saved 25% of what came in) for the viewed
+ * period, or null when there was no income to measure against — a savings
+ * rate over zero income is undefined, not "0%", and should render as "—".
+ * Can go negative when expenses exceed income (spent down savings). Both
+ * arguments are positive-magnitude sums (see `sumFlow`). */
+export function savingsRate(income: number, expense: number): number | null {
+  if (income <= 0) return null
+  return (income - expense) / income
+}
+
 /** Index of the last bucket that has already started (<= today); -1 if none. */
 export function lastStartedIndex(buckets: Bucket[], todayISO: string): number {
   let idx = -1

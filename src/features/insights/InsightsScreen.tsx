@@ -20,6 +20,7 @@ import {
   categoryBreakdown,
   labelBreakdown,
   lastStartedIndex,
+  savingsRate,
   sumFlow,
   type Slice,
 } from './compute'
@@ -385,7 +386,37 @@ function OverviewView({
           onClick={() => openInActivity('expense')}
         />
       </div>
+
+      <SavingsRateStat income={income} expense={expense} />
     </>
+  )
+}
+
+/** Share of this period's income that wasn't spent. Neutral framing (not
+ * income/expense colored): green while positive (saving), red once negative
+ * (dipping into savings), muted "—" when there's no income to measure. */
+function SavingsRateStat({ income, expense }: { income: number; expense: number }) {
+  const rate = savingsRate(income, expense)
+  const pct = rate == null ? null : Math.round(rate * 100)
+  return (
+    <div className="mt-3 flex items-center justify-between rounded-[1.375rem] bg-surface px-4 py-3">
+      <span className="min-w-0">
+        <span className="block text-[0.6875rem] font-medium uppercase tracking-wide text-muted">
+          Savings rate
+        </span>
+        <span className="block truncate text-xs text-muted">
+          {pct == null ? 'No income this period' : 'of income kept this period'}
+        </span>
+      </span>
+      <span
+        className={cn(
+          'flex-shrink-0 text-2xl font-bold tabular-nums',
+          pct == null ? 'text-muted' : pct < 0 ? 'text-expense' : 'text-income',
+        )}
+      >
+        {pct == null ? '—' : `${pct}%`}
+      </span>
+    </div>
   )
 }
 

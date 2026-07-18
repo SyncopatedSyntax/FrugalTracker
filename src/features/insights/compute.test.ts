@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { Transaction } from '@/db/types'
-import { cashflowByBucket, deltaVs, monthlySeriesFor } from './compute'
+import { cashflowByBucket, deltaVs, monthlySeriesFor, savingsRate } from './compute'
 import type { Bucket } from './period'
 
 function tx(overrides: Partial<Transaction>): Transaction {
@@ -106,5 +106,21 @@ describe('deltaVs', () => {
   it('returns null when there is no usable baseline', () => {
     expect(deltaVs(0, 100)).toBeNull()
     expect(deltaVs(-10, 100)).toBeNull()
+  })
+})
+
+describe('savingsRate', () => {
+  it('is the fraction of income kept', () => {
+    expect(savingsRate(1000, 750)).toBeCloseTo(0.25)
+    expect(savingsRate(1000, 1000)).toBe(0)
+  })
+
+  it('goes negative when expenses exceed income', () => {
+    expect(savingsRate(1000, 1200)).toBeCloseTo(-0.2)
+  })
+
+  it('returns null when there is no income', () => {
+    expect(savingsRate(0, 500)).toBeNull()
+    expect(savingsRate(-5, 500)).toBeNull()
   })
 })
