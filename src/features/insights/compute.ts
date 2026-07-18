@@ -197,6 +197,48 @@ export function savingsRate(income: number, expense: number): number | null {
   return (income - expense) / income
 }
 
+export interface DayTotal {
+  /** 1-based day of month. */
+  day: number
+  /** "YYYY-MM-DD" for this cell. */
+  iso: string
+  /** Expense magnitude in base currency (what the heatmap shades by). */
+  expense: number
+  income: number
+  count: number
+}
+
+/** One entry per calendar day of `monthAnchor`'s month (day 1 → last),
+ * summing each day's locked-in base amounts. Transactions outside that month
+ * are ignored, so the caller can pass a slightly wider fetch without
+ * polluting the grid. Drives the calendar heatmap. */
+export function dailyTotals(txs: Transaction[], monthAnchor: Date): DayTotal[] {
+  const year = monthAnchor.getFullYear()
+  const month = monthAnchor.getMonth()
+  const prefix = `${year}-${String(month + 1).padStart(2, '0')}`
+  const days = new Date(year, month + 1, 0).getDate()
+  const out: DayTotal[] = []
+  for (let d = 1; d <= days; d++) {
+    out.push({
+      day: d,
+      iso: `${prefix}-${String(d).padStart(2, '0')}`,
+      expense: 0,
+      income: 0,
+      count: 0,
+    })
+  }
+  for (const t of txs) {
+    if (t.date.slice(0, 7) !== prefix) continue
+    const d = Number(t.date.slice(8, 10))
+    const cell = out[d - 1]
+    if (!cell) continue
+    if (t.type === 'expense') cell.expense += t.baseAmount
+    else cell.income += t.baseAmount
+    cell.count++
+  }
+  return out
+}
+
 /** Index of the last bucket that has already started (<= today); -1 if none. */
 export function lastStartedIndex(buckets: Bucket[], todayISO: string): number {
   let idx = -1

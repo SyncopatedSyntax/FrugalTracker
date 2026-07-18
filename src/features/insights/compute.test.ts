@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { Transaction } from '@/db/types'
-import { cashflowByBucket, deltaVs, monthlySeriesFor, savingsRate } from './compute'
+import { cashflowByBucket, dailyTotals, deltaVs, monthlySeriesFor, savingsRate } from './compute'
 import type { Bucket } from './period'
 
 function tx(overrides: Partial<Transaction>): Transaction {
@@ -122,5 +122,37 @@ describe('savingsRate', () => {
   it('returns null when there is no income', () => {
     expect(savingsRate(0, 500)).toBeNull()
     expect(savingsRate(-5, 500)).toBeNull()
+  })
+})
+
+describe('dailyTotals', () => {
+  const anchor = new Date(2026, 1, 15) // February 2026 (28 days)
+
+  it('produces one cell per day of the month, indexed from day 1', () => {
+    const result = dailyTotals([], anchor)
+    expect(result).toHaveLength(28)
+    expect(result[0]).toMatchObject({ day: 1, iso: '2026-02-01', expense: 0, income: 0, count: 0 })
+    expect(result[27]).toMatchObject({ day: 28, iso: '2026-02-28' })
+  })
+
+  it('sums expense and income separately per day and counts entries', () => {
+    const txs = [
+      tx({ type: 'expense', date: '2026-02-03', baseAmount: 40 }),
+      tx({ type: 'expense', date: '2026-02-03', baseAmount: 10 }),
+      tx({ type: 'income', date: '2026-02-03', baseAmount: 1000 }),
+    ]
+    const result = dailyTotals(txs, anchor)
+    expect(result[2]).toMatchObject({ day: 3, expense: 50, income: 1000, count: 3 })
+  })
+
+  it('ignores transactions outside the anchored month', () => {
+    const txs = [
+      tx({ type: 'expense', date: '2026-01-31', baseAmount: 999 }),
+      tx({ type: 'expense', date: '2026-03-01', baseAmount: 999 }),
+      tx({ type: 'expense', date: '2026-02-10', baseAmount: 25 }),
+    ]
+    const result = dailyTotals(txs, anchor)
+    expect(result.reduce((s, d) => s + d.expense, 0)).toBe(25)
+    expect(result[9]).toMatchObject({ day: 10, expense: 25 })
   })
 })

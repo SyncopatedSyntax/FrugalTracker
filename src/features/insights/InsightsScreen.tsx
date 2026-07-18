@@ -11,6 +11,7 @@ import { alphaHex, categoryPalette } from '@/lib/palette'
 import PeriodBar from './PeriodBar'
 import LineChart, { type LineSeries } from './LineChart'
 import CashflowBarChart from './CashflowBarChart'
+import CalendarHeatmap from './CalendarHeatmap'
 import DonutChart from './DonutChart'
 import OpeningBalanceSheet from './OpeningBalanceSheet'
 import { barBuckets, resolvePeriod, stepAnchor, type CustomRange, type Granularity } from './period'
@@ -32,7 +33,7 @@ function earliestOf(...dates: string[]): string {
   return real.length ? real.reduce((m, d) => (d < m ? d : m)) : ''
 }
 
-type View = 'overview' | 'categories' | 'labels'
+type View = 'overview' | 'categories' | 'labels' | 'calendar'
 
 function alignLen(arr: number[], len: number): Array<number | null> {
   if (arr.length >= len) return arr.slice(0, len)
@@ -151,11 +152,12 @@ export default function InsightsScreen() {
           <span className="text-xs text-muted">in {base}</span>
         </div>
         <Segmented
-          className="w-full [&>button]:flex-1"
+          className="w-full [&>button]:flex-1 [&>button]:px-1"
           options={[
             { value: 'overview', label: 'Overview' },
             { value: 'categories', label: 'Categories' },
             { value: 'labels', label: 'Labels' },
+            { value: 'calendar', label: 'Calendar' },
           ]}
           value={view}
           onChange={(v) => {
@@ -164,23 +166,29 @@ export default function InsightsScreen() {
             setSelectedLabel(null)
           }}
         />
-        <PeriodBar
-          granularity={granularity}
-          onGranularity={(g) => {
-            setGranularity(g)
-            setAnchor(new Date())
-          }}
-          label={period.label}
-          canGoNext={period.canGoNext}
-          onStep={step}
-          custom={custom}
-          onCustom={setCustom}
-        />
+        {/* The calendar view navigates by month on its own, so the
+            Week/Month/Year period selector doesn't apply to it. */}
+        {view !== 'calendar' && (
+          <PeriodBar
+            granularity={granularity}
+            onGranularity={(g) => {
+              setGranularity(g)
+              setAnchor(new Date())
+            }}
+            label={period.label}
+            canGoNext={period.canGoNext}
+            onStep={step}
+            custom={custom}
+            onCustom={setCustom}
+          />
+        )}
         </div>
       </div>
 
       <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-8 pt-3">
-        {periodTxs.length === 0 && view !== 'overview' ? (
+        {view === 'calendar' ? (
+          <CalendarHeatmap base={base} />
+        ) : periodTxs.length === 0 && view !== 'overview' ? (
           <EmptyState />
         ) : view === 'overview' ? (
           <OverviewView
