@@ -22,12 +22,13 @@ import { dailyTotals, type DayTotal } from './compute'
 type Zoom = 'month' | 'quarter' | 'year'
 
 /** Calendar whose day cells are shaded by that day's expense total — a heat
- * map for "which days did I spend, and how much". Month view keeps day
- * numbers and taps through to a day's transactions; Quarter (3 months) and
- * Year (12 months) show compact heat-only grids side by side with one shared
- * colour scale, so months are directly comparable. Tapping any day, at any
- * zoom, reveals its transactions below. Navigates by the current zoom;
- * independent of the screen's Week/Year period selector (hidden here). */
+ * map for "which days did I spend, and how much". Month and Quarter keep day
+ * numbers (Quarter stacks its 3 full-size month grids vertically); Year shows
+ * all 12 months as compact heat-only grids side by side. All zooms share one
+ * colour scale across the visible range, so months are directly comparable.
+ * Tapping any day, at any zoom, reveals its transactions below. Navigates by
+ * the current zoom; independent of the screen's Week/Year period selector
+ * (hidden here). */
 export default function CalendarHeatmap({ base }: { base: string }) {
   const navigate = useNavigate()
   const settings = useSettings()
@@ -169,6 +170,24 @@ export default function CalendarHeatmap({ base }: { base: string }) {
             onSelect={setSelected}
             variant="full"
           />
+        ) : zoom === 'quarter' ? (
+          <div>
+            {months.map((m, i) => (
+              <div key={toISO(m)} className={i > 0 ? 'mt-4 border-t border-border pt-4' : ''}>
+                <MonthGrid
+                  monthAnchor={m}
+                  days={perMonth[i]}
+                  maxExpense={maxExpense}
+                  first={first}
+                  today={today}
+                  selected={selected}
+                  onSelect={setSelected}
+                  variant="full"
+                  label={monthLabel(m)}
+                />
+              </div>
+            ))}
+          </div>
         ) : (
           <div className="grid grid-cols-3 gap-2">
             {months.map((m, i) => (
@@ -233,6 +252,7 @@ function MonthGrid({
   selected,
   onSelect,
   variant,
+  label,
 }: {
   monthAnchor: Date
   days: DayTotal[]
@@ -242,6 +262,9 @@ function MonthGrid({
   selected: string | null
   onSelect: (iso: string) => void
   variant: 'full' | 'mini'
+  /** Month name shown above the grid — used by the stacked Quarter view,
+   * where the screen's own header doesn't say which month is which. */
+  label?: string
 }) {
   const mini = variant === 'mini'
   const firstDow = new Date(monthAnchor.getFullYear(), monthAnchor.getMonth(), 1).getDay()
@@ -250,6 +273,7 @@ function MonthGrid({
 
   return (
     <div>
+      {label && <p className="mb-2 text-center text-sm font-semibold">{label}</p>}
       {mini && (
         <p className="mb-1 text-center text-[0.625rem] font-semibold text-muted">
           {monthShort(monthAnchor.getMonth())}
