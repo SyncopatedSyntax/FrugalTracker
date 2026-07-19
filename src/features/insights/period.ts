@@ -42,16 +42,27 @@ export interface CustomRange {
   to: string
 }
 
-type Mode = 'day' | 'month' | 'year'
+type Mode = 'day' | 'week' | 'month'
 
+/** Picks a bucket resolution that scales with how long the range actually
+ * is, so "All time"/"Custom" stay readable whether they cover 3 weeks or 10
+ * years: daily for short spans, weekly checkpoints for medium ones (the same
+ * resolution the Year view already uses), monthly for anything longer —
+ * never coarser than that, so even a many-year range still plots real
+ * movement instead of collapsing to a handful of flat yearly points. */
 function chooseMode(startISO: string, endISO: string): Mode {
   const span = daysBetween(startISO, endISO)
   if (span <= 62) return 'day'
-  if (span <= 731) return 'month'
-  return 'year'
+  if (span <= 731) return 'week'
+  return 'month'
 }
 
-function buildBuckets(mode: Mode, startISO: string, endISO: string): Bucket[] {
+function buildBucketsForMode(mode: Mode, startISO: string, endISO: string): Bucket[] {
+  if (mode === 'week') return buildWeeklyBuckets(startISO, endISO)
+  return buildBuckets(mode, startISO, endISO)
+}
+
+function buildBuckets(mode: 'day' | 'month', startISO: string, endISO: string): Bucket[] {
   const start = parseISO(startISO)
   const end = parseISO(endISO)
   const multiYear = start.getFullYear() !== end.getFullYear()
@@ -62,7 +73,7 @@ function buildBuckets(mode: Mode, startISO: string, endISO: string): Bucket[] {
       const iso = toISO(d)
       out.push({ key: iso, label: formatShortDate(iso), fullLabel: longDate(iso), startISO: iso, endISO: iso })
     }
-  } else if (mode === 'month') {
+  } else {
     let d = startOfMonth(start)
     while (d <= end) {
       const s = toISO(d)
@@ -76,24 +87,15 @@ function buildBuckets(mode: Mode, startISO: string, endISO: string): Bucket[] {
       })
       d = addMonths(d, 1)
     }
-  } else {
-    for (let y = start.getFullYear(); y <= end.getFullYear(); y++) {
-      out.push({
-        key: String(y),
-        label: String(y),
-        fullLabel: String(y),
-        startISO: `${y}-01-01`,
-        endISO: `${y}-12-31`,
-      })
-    }
   }
   return out
 }
 
-/** Weekly checkpoints across the range, plus every month-end date, so the
- * Year view reads at a finer resolution than 12 flat monthly points while
+/** Weekly checkpoints across the range, plus every month-end date, so a
+ * roughly-year-long span (the Year view, or an "All time"/"Custom" range of
+ * similar length) reads at a finer resolution than flat monthly points while
  * still giving a clean, recognizable marker at each month boundary. */
-function buildYearBuckets(startISO: string, endISO: string): Bucket[] {
+function buildWeeklyBuckets(startISO: string, endISO: string): Bucket[] {
   const start = parseISO(startISO)
   const end = parseISO(endISO)
 
@@ -194,12 +196,12 @@ export function resolvePeriod(
       startISO: start,
       endISO: end,
       label: String(y),
-      buckets: buildYearBuckets(start, end),
+      buckets: buildWeeklyBuckets(start, end),
       prev: {
         startISO: `${y - 1}-01-01`,
         endISO: `${y - 1}-12-31`,
         label: String(y - 1),
-        buckets: buildYearBuckets(`${y - 1}-01-01`, `${y - 1}-12-31`),
+        buckets: buildWeeklyBuckets(`${y - 1}-01-01`, `${y - 1}-12-31`),
       },
       canGoNext: y < new Date().getFullYear(),
     }
@@ -213,7 +215,7 @@ export function resolvePeriod(
       startISO: start,
       endISO: end,
       label: 'All time',
-      buckets: buildBuckets(chooseMode(start, end), start, end),
+      buckets: buildBucketsForMode(chooseMode(start, end), start, end),
       prev: null,
       canGoNext: false,
     }
@@ -231,23 +233,32 @@ export function resolvePeriod(
     startISO: from,
     endISO: to,
     label: rangeLabel(from, to),
-    buckets: buildBuckets(mode, from, to),
+    buckets: buildBucketsForMode(mode, from, to),
     prev: {
       startISO: prevStart,
       endISO: prevEnd,
       label: 'Prev. period',
-      buckets: buildBuckets(mode, prevStart, prevEnd),
+      buckets: buildBucketsForMode(mode, prevStart, prevEnd),
     },
     canGoNext: false,
   }
 }
 
 /** Bucket resolution for the cash-flow bar chart specifically — coarser than
- * the line chart's own buckets where those would be too fine-grained to read
- * as distinct bars (the year view's ~52 weekly checkpoints become one bar
- * per month instead; every other granularity's buckets are fine as-is). */
+ * the line chart's own buckets wherever those are weekly checkpoints (too
+ * fine-grained to read as distinct bars): the year view's ~52 weekly
+ * checkpoints become one bar per month instead, and the same coarsening
+ * applies to an "All time"/"Custom" range that lands in the same
+ * medium-length tier. Day-granularity and month-granularity buckets are
+ * already bar-sized, so those pass through unchanged. */
 export function barBuckets(period: PeriodInfo): Bucket[] {
   if (period.granularity === 'year') return buildBuckets('month', period.startISO, period.endISO)
+  if (
+    (period.granularity === 'all' || period.granularity === 'custom') &&
+    chooseMode(period.startISO, period.endISO) === 'week'
+  ) {
+    return buildBuckets('month', period.startISO, period.endISO)
+  }
   return period.buckets
 }
 
