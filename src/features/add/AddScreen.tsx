@@ -20,6 +20,7 @@ import TypeSwitch, { TYPE_SWITCH_WIDTH } from './TypeSwitch'
 import CategoryFormSheet from '@/features/categories/CategoryFormSheet'
 import { useCategoriesByType, useSettings, useTags } from '@/hooks'
 import { addTransaction } from '@/db/repo'
+import { runWrite } from '@/lib/write'
 import { currencyDecimals, currencySymbol } from '@/lib/currency'
 import { formatTypedAmount } from '@/lib/amount'
 import { formatShortDate, todayISO } from '@/lib/date'
@@ -177,15 +178,20 @@ export default function AddScreen() {
 
   const save = async () => {
     if (!canSave || !categoryId) return
-    await addTransaction({
-      type,
-      amount: amt,
-      currency: activeCurrency,
-      categoryId,
-      note: note.trim(),
-      tags,
-      date,
-    })
+    const res = await runWrite(
+      () =>
+        addTransaction({
+          type,
+          amount: amt,
+          currency: activeCurrency,
+          categoryId,
+          note: note.trim(),
+          tags,
+          date,
+        }),
+      show,
+    )
+    if (!res.ok) return
     navigator.vibrate?.(12)
     show(type === 'expense' ? 'Expense saved' : 'Income saved')
     calc.reset()

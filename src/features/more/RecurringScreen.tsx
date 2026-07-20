@@ -24,6 +24,7 @@ import { currencySymbol, formatMoney } from '@/lib/currency'
 import { formatShortDate, todayISO } from '@/lib/date'
 import { alphaHex } from '@/lib/palette'
 import { FREQUENCIES, FREQUENCY_LABELS } from '@/lib/recurrence'
+import { runWrite } from '@/lib/write'
 import { cn } from '@/lib/cn'
 
 function dateLabel(iso: string): string {
@@ -129,6 +130,7 @@ export default function RecurringScreen() {
         onClose={() => setOpen(false)}
         editing={editing}
         onDeleteRequest={() => setConfirmDelete(true)}
+        onError={show}
         onSaved={() => {
           setOpen(false)
           show(editing ? 'Recurring transaction updated' : 'Recurring transaction created')
@@ -152,7 +154,10 @@ export default function RecurringScreen() {
           </button>
           <button
             onClick={async () => {
-              if (editing) await deleteRecurringTransaction(editing.id)
+              if (editing) {
+                const res = await runWrite(() => deleteRecurringTransaction(editing.id), show)
+                if (!res.ok) return
+              }
               setConfirmDelete(false)
               setOpen(false)
               show('Recurring transaction deleted')
@@ -173,12 +178,14 @@ function RecurringFormSheet({
   editing,
   onSaved,
   onDeleteRequest,
+  onError,
 }: {
   open: boolean
   onClose: () => void
   editing?: RecurringTransaction
   onSaved: () => void
   onDeleteRequest: () => void
+  onError: (msg: string) => void
 }) {
   const settings = useSettings()
   const base = settings.baseCurrency
@@ -252,12 +259,11 @@ function RecurringFormSheet({
       startDate,
       endDate: hasEndDate ? endDate : null,
     }
-    if (editing) {
-      await updateRecurringTransaction(editing.id, input)
-    } else {
-      await addRecurringTransaction(input)
-    }
-    onSaved()
+    const res = await runWrite(async () => {
+      if (editing) await updateRecurringTransaction(editing.id, input)
+      else await addRecurringTransaction(input)
+    }, onError)
+    if (res.ok) onSaved()
   }
 
   return (

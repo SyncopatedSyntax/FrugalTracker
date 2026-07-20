@@ -4,6 +4,7 @@ import Segmented from '@/components/Segmented'
 import Sheet from '@/components/Sheet'
 import CurrencyPickerSheet from '@/components/CurrencyPickerSheet'
 import DemoBanner from '@/components/DemoBanner'
+import { Toast, useToast } from '@/components/Toast'
 import TagInput from '@/components/TagInput'
 import CategoryFormSheet from '@/features/categories/CategoryFormSheet'
 import CategoryGrid from '@/features/add/CategoryGrid'
@@ -17,6 +18,7 @@ import {
 } from '@/components/icons'
 import { useCategoriesByType, useRateMap, useSettings, useTags, useTransaction } from '@/hooks'
 import { deleteTransaction, updateTransaction } from '@/db/repo'
+import { runWrite } from '@/lib/write'
 import { currencyDecimals, currencySymbol, formatMoney } from '@/lib/currency'
 import { numberToTyped, parseAmount } from '@/lib/amount'
 import { formatShortDate, todayISO } from '@/lib/date'
@@ -60,6 +62,7 @@ export default function EditTransactionScreen() {
   const [dateOpen, setDateOpen] = useState(false)
   const [tagsOpen, setTagsOpen] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
+  const { message, show } = useToast()
 
   const seeded = useRef(false)
   useEffect(() => {
@@ -110,26 +113,36 @@ export default function EditTransactionScreen() {
 
   const save = async () => {
     if (!canSave || !categoryId || !id) return
-    await updateTransaction(
-      id,
-      {
-        type,
-        amount: amt,
-        currency,
-        categoryId,
-        note: note.trim(),
-        tags,
-        date,
-      },
-      { baseRateOverride: isBase ? 1 : Number.isFinite(parsedRate) && parsedRate > 0 ? parsedRate : undefined },
+    const res = await runWrite(
+      () =>
+        updateTransaction(
+          id,
+          {
+            type,
+            amount: amt,
+            currency,
+            categoryId,
+            note: note.trim(),
+            tags,
+            date,
+          },
+          {
+            baseRateOverride: isBase
+              ? 1
+              : Number.isFinite(parsedRate) && parsedRate > 0
+                ? parsedRate
+                : undefined,
+          },
+        ),
+      show,
     )
-    navigate(-1)
+    if (res.ok) navigate(-1)
   }
 
   const remove = async () => {
     if (!id) return
-    await deleteTransaction(id)
-    navigate(-1)
+    const res = await runWrite(() => deleteTransaction(id), show)
+    if (res.ok) navigate(-1)
   }
 
   if (tx === undefined && !seeded.current) {
@@ -394,6 +407,8 @@ export default function EditTransactionScreen() {
           </button>
         </div>
       </Sheet>
+
+      <Toast message={message} />
     </div>
   )
 }

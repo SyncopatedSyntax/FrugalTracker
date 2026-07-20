@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import { Outlet, Route, Routes } from 'react-router-dom'
 import DemoBanner from './components/DemoBanner'
+import ErrorBoundary from './components/ErrorBoundary'
 import TabBar from './components/TabBar'
 import { Toast, useToast } from './components/Toast'
 import { useSettings } from './hooks'
@@ -64,25 +65,27 @@ export default function App() {
   }, [])
 
   return (
-    <Routes>
-      <Route element={<Layout toastMessage={message} />}>
-        <Route path="/" element={<AddScreen />} />
-        <Route path="/transactions" element={<TransactionsScreen />} />
-        <Route path="/insights" element={<InsightsScreen />} />
-        <Route path="/more" element={<MoreScreen />} />
-      </Route>
-      <Route path="/tx/:id/edit" element={<EditTransactionScreen />} />
-      <Route path="/more/categories" element={<CategoriesScreen />} />
-      <Route path="/more/budgets" element={<BudgetsScreen />} />
-      <Route path="/more/budgets/:id" element={<BudgetDetailScreen />} />
-      <Route path="/more/recurring" element={<RecurringScreen />} />
-      <Route path="/more/currencies" element={<CurrenciesScreen />} />
-      <Route path="/more/appearance" element={<AppearanceScreen />} />
-      <Route path="/more/keypad" element={<KeypadScreen />} />
-      <Route path="/more/import" element={<ImportScreen />} />
-      <Route path="/more/data" element={<DataScreen />} />
-      <Route path="/more/github-backup" element={<GitHubBackupScreen />} />
-      <Route path="/more/demo" element={<DemoScreen />} />
-    </Routes>
+    <ErrorBoundary>
+      <Routes>
+        <Route element={<Layout toastMessage={message} />}>
+          <Route path="/" element={<AddScreen />} />
+          <Route path="/transactions" element={<TransactionsScreen />} />
+          <Route path="/insights" element={<InsightsScreen />} />
+          <Route path="/more" element={<MoreScreen />} />
+        </Route>
+        <Route path="/tx/:id/edit" element={<EditTransactionScreen />} />
+        <Route path="/more/categories" element={<CategoriesScreen />} />
+        <Route path="/more/budgets" element={<BudgetsScreen />} />
+        <Route path="/more/budgets/:id" element={<BudgetDetailScreen />} />
+        <Route path="/more/recurring" element={<RecurringScreen />} />
+        <Route path="/more/currencies" element={<CurrenciesScreen />} />
+        <Route path="/more/appearance" element={<AppearanceScreen />} />
+        <Route path="/more/keypad" element={<KeypadScreen />} />
+        <Route path="/more/import" element={<ImportScreen />} />
+        <Route path="/more/data" element={<DataScreen />} />
+        <Route path="/more/github-backup" element={<GitHubBackupScreen />} />
+        <Route path="/more/demo" element={<DemoScreen />} />
+      </Routes>
+    </ErrorBoundary>
   )
 }

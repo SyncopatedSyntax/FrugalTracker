@@ -5,6 +5,7 @@ import { useBudgets, useCategoriesByType, useSettings } from '@/hooks'
 import { deleteBudget, setBudget } from '@/db/repo'
 import type { Budget } from '@/db/types'
 import { currencySymbol } from '@/lib/currency'
+import { runWrite } from '@/lib/write'
 import { cn } from '@/lib/cn'
 
 interface Props {
@@ -27,6 +28,7 @@ export default function BudgetFormSheet({ open, onClose, editing, onDeleted }: P
 
   const [catId, setCatId] = useState<string | null>(null)
   const [amount, setAmount] = useState('')
+  const [error, setError] = useState<string | null>(null)
 
   const usedCatKeys = new Set(budgets.map((b) => b.categoryId ?? '__overall__'))
   // A category is off-limits if some *other* budget already owns it. When
@@ -37,6 +39,7 @@ export default function BudgetFormSheet({ open, onClose, editing, onDeleted }: P
 
   useEffect(() => {
     if (!open) return
+    setError(null)
     if (editing) {
       setCatId(editing.categoryId)
       setAmount(String(editing.amount))
@@ -51,14 +54,18 @@ export default function BudgetFormSheet({ open, onClose, editing, onDeleted }: P
   const save = async () => {
     const amt = parseFloat(amount)
     if (!Number.isFinite(amt) || amt <= 0) return
-    await setBudget({
-      id: editing?.id,
-      categoryId: catId,
-      period: 'monthly',
-      amount: amt,
-      currency: base,
-    })
-    onClose()
+    const res = await runWrite(
+      () =>
+        setBudget({
+          id: editing?.id,
+          categoryId: catId,
+          period: 'monthly',
+          amount: amt,
+          currency: base,
+        }),
+      setError,
+    )
+    if (res.ok) onClose()
   }
 
   return (
@@ -106,7 +113,8 @@ export default function BudgetFormSheet({ open, onClose, editing, onDeleted }: P
           {editing && (
             <button
               onClick={async () => {
-                await deleteBudget(editing.id)
+                const res = await runWrite(() => deleteBudget(editing.id), setError)
+                if (!res.ok) return
                 onClose()
                 onDeleted?.()
               }}
@@ -124,6 +132,8 @@ export default function BudgetFormSheet({ open, onClose, editing, onDeleted }: P
             {editing ? 'Save' : 'Create budget'}
           </button>
         </div>
+
+        {error && <p className="text-center text-sm text-expense">{error}</p>}
       </div>
     </Sheet>
   )
