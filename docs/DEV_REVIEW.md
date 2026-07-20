@@ -1,7 +1,8 @@
 # FrugalTracker — Codebase Review & Dev Reference
 
 **Reviewed:** 2026-07-10, at v0.9.0 (branch `claude/expense-tracker-pwa-319tcf`). **Updated:** same day, at v0.9.2, once B2 was fixed (see §2); updated again at v0.9.3 once B1, B3, T1, P1, P2, and U1 were fixed; updated again at v0.9.14 once P3 was fixed; updated again at v1.0.3 once U7 (recurring transactions, shipped v0.9.23) and B9 (native date-input rendering, shipped v1.0.2) were accounted for.
-**Scope:** full pass over the data layer (`src/db`), pure libs (`src/lib`), all feature screens, shared components, and the PWA shell. Findings are grouped by kind and tagged by severity. Everything below is still open **except B1, B2, B3, B9, T1, P1, P2, P3, U1, and U7**, which are now fixed — the rest remains the backlog and reference for future work.
+**Re-reviewed in full: 2026-07-20, at v1.7.0** — a second complete pass covering everything added since v0.9 (category detail panel, savings rate, budget overview/detail, calendar heatmap with zooms, dynamic period granularity, GitHub-backup retry/debug-log). That pass found **B10–B14** (§2) and **U13** (§3), and replaced §8 with a prioritized, step-by-step fix plan.
+**Scope:** full pass over the data layer (`src/db`), pure libs (`src/lib`), all feature screens, shared components, and the PWA shell. Findings are grouped by kind and tagged by severity. Fixed so far: **B1, B2, B3, B9, T1, P1, P2, P3, U1, U7, U11, U12**. Open: **B5–B8, B10–B14, U2, U3, U5, U6, U8, U9, U10, U13, T2, T6, T7, A1–A4, §7 hardening** — see §8 for the plan.
 
 ---
 
@@ -61,6 +62,21 @@ On the Add screen, typing `12.34` then switching currency to JPY (0 decimals) ke
 ### B8 · LOW — `updateSettings` is a non-transactional read-modify-write
 Two rapid `updateSettings` calls can clobber each other (last write wins over a stale read). Practically rare (single user, single tab), but wrapping in `db.transaction('rw', db.settings, …)` is a one-liner.
 
+### B10 · MEDIUM — PeriodBar's Custom range still uses raw visible `<input type="date">`s (B9 recurrence)
+`PeriodBar.tsx`'s Custom mode renders two native date inputs side by side at `flex-1` — exactly the markup shape B9 documents as broken on real mobile Safari (native control renders wider than its box; invisible to headless-Chromium testing). Every other date input in the app has been migrated to the invisible-overlay pill pattern; this one was missed. **Fix:** replace each with the established pill (decorative `div` showing `formatShortDate(value)` + calendar icon, real input stacked `absolute inset-0 opacity-0` on top), preserving the existing `min`/`max` constraints. Reference implementations: `AddScreen.tsx` Date sheet, `EditTransactionScreen.tsx`, `RecurringScreen.tsx`.
+
+### B11 · MEDIUM — Editing a budget can create a duplicate budget for a category
+`BudgetFormSheet.tsx` disables already-budgeted category chips only when *creating* (`disabled={!editing && usedCatKeys.has(...)}`). In edit mode every chip is enabled, so editing e.g. the Groceries budget and tapping Coffee (which already has its own budget) saves a **second** Coffee budget. The overview then shows two rows for one category, both counting the same spend. **Fix:** in edit mode, disable chips whose key is taken by a *different* budget — `usedCatKeys.has(key) && key !== (editing.categoryId ?? '__overall__')` — and add a defensive uniqueness check in `repo.setBudget` (reject/merge when another budget already holds that categoryId) with a unit test covering the edit-onto-occupied-category path.
+
+### B12 · LOW — Budget detail flashes "Budget not found" while Dexie is still loading
+`useBudgets()` returns `[]` during the initial `useLiveQuery` resolution — indistinguishable from "genuinely no budgets" — so a hard reload of `/more/budgets/:id` renders the not-found state for a frame before the real data pops in. **Fix:** let the hook expose loading (return `undefined` until resolved instead of `?? []`, or add a parallel `isLoaded` flag) and render nothing until then. Audit the same `?? []`-gates-a-not-found pattern elsewhere (`CategoryDetailPanel` returns `null` invisibly — acceptable; the budget screen is the only user-visible flash).
+
+### B13 · LOW (UX) — Tapping a donut slice scroll-jumps the page
+Since the category detail became an inline expansion (v1.5.0), `selectedCat` doubles as "donut highlight" and "expanded row" state, and the expand effect `scrollIntoView`s on every `selectedKey` change — including taps on the donut itself, which yanks the donut off-screen mid-comparison. **Fix:** decouple the two interactions. Cleanest: only scroll when the tap originated on a *row* (set a `scrollOnNextExpand` ref in `onRowTap`, check-and-clear it in the effect); donut taps then highlight + expand without scrolling. Alternative: donut taps only highlight, expansion strictly from rows.
+
+### B14 · LOW (cosmetic) — Flat line series renders duplicate y-axis labels
+`LineChart.tsx`: when a series is flat (min === max, e.g. a rent-only category trend), the domain pads by ±1 and the compact currency formatter collapses all gridline labels to the same string ("$1.5K" three times). **Fix:** pad a flat domain by a `niceStep`-derived span (e.g. ±5% of the value, minimum one step) instead of ±1, and/or skip rendering a gridline label identical to the previous one.
+
 ---
 
 ## 3. UX / product gaps & suggestions
@@ -79,6 +95,7 @@ Two rapid `updateSettings` calls can clobber each other (last write wins over a 
 | U10 | Backup versioning | `BackupFile.version = 1` is written but never checked on restore. Add a version gate + migration hook before the schema evolves further. |
 | U11 | Analytics depth over time | Insights was strong on the current period but thin on *trends*. A product-review roadmap (approved) adds, in order: **category detail** (12-mo trend + MoM/YoY — resolved v1.1.0; reworked v1.5.0 from a standalone screen into an **inline expandable section** under the tapped category row, `CategoryDetailPanel.tsx`, which scrolls itself into view; helpers `monthlySeriesFor`/`deltaVs` in `compute.ts`), a period **savings-rate** stat (resolved v1.2.0 — `savingsRate()` in `compute.ts`, shown on the Overview view under Income/Expenses), a **budget-views** package (resolved v1.4.0 — `BudgetsScreen.tsx` is now a sortable/filterable all-budgets overview, rows drill into `BudgetDetailScreen.tsx` at `/more/budgets/:id` showing cumulative-YTD pace + a 12-month spent-vs-limit history; helpers `budgetHistory()`/`budgetYtdPace()` in `budgetMath.ts`; shared `BudgetFormSheet.tsx`), and a **calendar heatmap** Insights view (resolved v1.3.0 — `CalendarHeatmap.tsx`, a 4th "Calendar" Insights view; helper `dailyTotals()` in `compute.ts`; grid shaded by daily expense, honors `firstDayOfWeek`, tap a day → its transactions; extended v1.6.0 with **Month / Quarter / Year** zoom, then v1.6.1 changed Quarter from 3 heat-only mini-months side by side to 3 full-size, day-numbered month grids stacked vertically per user feedback — Year is unchanged, still 12 heat-only mini-months on one shared colour scale so periods are comparable). All four roadmap phases are now shipped. Tag/label detail parity and accounts/transfers remain explicitly out of scope. |
 | U12 | Wealth chart granularity | ~~"All time"/"Custom" jumped straight from daily buckets (≤62 days) to *flat calendar-year* buckets beyond ~2 years — a multi-year "All time" wealth line could be as coarse as 3-4 points.~~ **Resolved (v1.7.0):** `period.ts`'s `chooseMode` now has three tiers — day (≤62 days), week (≤731 days, using the same weekly-checkpoint-plus-month-end-markers resolution the Year view already used), month (beyond that) — so the line chart's density scales with the actual span instead of collapsing to yearly points. `barBuckets()` mirrors the Year view's existing coarsen-to-monthly rule whenever the resolved mode is `week`, so the cash-flow bar chart stays readable at every span. |
+| U13 | Category panel ignores the viewed period | `CategoryDetailPanel` always anchors its 13-month window to *today*: browsing Year 2025 → Categories → tapping a row shows "This month" (the current real month) and the trailing-12-months-from-now trend — mismatched context with the list it sits in. Deliberately simple v1; improvement: anchor the window to the viewed period's end (`period.endISO`) and relabel "This month" accordingly, or add a caption ("last 12 months to date") making the fixed window explicit. |
 
 ---
 
@@ -122,16 +139,39 @@ Two rapid `updateSettings` calls can clobber each other (last write wins over a 
 
 ---
 
-## 8. Suggested priority order
+## 8. Prioritized fix plan — v1.7.0 full re-review (2026-07-20)
 
-1. ~~**B1** income-vs-last-year ranges~~ — **resolved in v0.9.3**, see §2.
-2. ~~**B2** base-currency change re-denomination~~ — **resolved in v0.9.2**, see §2.
-3. ~~**T1** Vitest setup with tests for `calc.ts`, `budgetMath.ts`, `date.ts`~~ — **resolved in v0.9.3**, see §5.
-4. ~~**B3** week proration `firstDayOfWeek`~~ — **resolved in v0.9.3**, see §2.
-5. ~~**P1/P2** BudgetPanel memoization + `currencyDecimals` cache~~ — **resolved in v0.9.3**, see §4.
-6. ~~**U1**~~ **resolved in v0.9.3**, see §3; **U2** calculator-sheet auto-advance still open; **B5/B6** decimal edge cases still open.
-7. **T6** error boundary + write-failure toasts.
-8. **T7** README refresh (Insights sections, budget dashboard, calculator, reach mode, locked-in rates); then the bigger product items (U7 recurring, U3/U4 parity).
+Supersedes the old priority list (its items 1–6 all shipped; U7/U11/U12 too). Each entry names the files, the approach, and how to verify. Standing conventions apply to every item: bump `package.json`, append `prompt.md`, `npm run build` + `npx vitest run` + a headless-Chromium drive (remembering its B9 blind spot for native controls), commit, push.
+
+### P0 — correctness, fix first
+
+1. **B11 · duplicate budget via edit** — `BudgetFormSheet.tsx` + `db/repo.ts`.
+   Change the chip-disable condition to also apply in edit mode when the key belongs to a *different* budget: `usedCatKeys.has(key) && key !== (editing?.categoryId ?? (editing ? '__overall__' : ''))`. Add a guard in `setBudget`: look up any existing budget with the same `categoryId` and a different `id`; if found, `put` onto that id instead (merge) or throw. Unit-test the guard in a new `repo` test (create Groceries + Coffee budgets, edit Groceries → Coffee, assert one Coffee budget remains). Verify in-browser: edit flow can no longer select an occupied category.
+2. **B10 · PeriodBar raw date inputs** — `PeriodBar.tsx`.
+   Wrap each Custom from/to input in the pill pattern (see B9's reference implementations). Keep `min`/`max` and both `onChange`s untouched; the label is `formatShortDate(value)`. Verify at 320px: pills stay inside the viewport; setting from/to via the invisible inputs still updates the range. (Headless Chromium can't prove the Safari fix — the pattern itself is the proof; note it in prompt.md as with B9.)
+3. **Restore hardening (§7 + U10)** — `lib/backup.ts`.
+   In `restoreBackup` (used by both file- and GitHub-restore): gate on `data.version` (currently written but unchecked — reject versions above the app's known max with a clear message), and coerce/validate rows before `bulkAdd` — per table, drop rows missing required keys and default malformed optionals (`tags: Array.isArray(t.tags) ? t.tags : []`, numeric coercion on amounts, string dates matching `YYYY-MM-DD`). Return counts of dropped rows and surface them in the restore toast. Unit tests: a hand-mangled backup (null tags, string amount, missing categories entry) restores without throwing and reports drops; a `version: 99` file is rejected.
+
+### P1 — robustness & UX
+
+4. **T6 · error boundary + write-failure toasts** — new `components/ErrorBoundary.tsx` wrapping the router in `App.tsx` (fallback card: "Something went wrong" + reload button + error text), plus a small `tryRepo(fn, toast)` wrapper (or try/catch in the save paths of Add/Edit/Recurring/Budget forms) so an IndexedDB failure (private-mode quota, eviction) shows a toast instead of failing silently.
+5. **B13 · donut tap scroll-jump** — `InsightsScreen.tsx`: add `const scrollOnExpand = useRef(false)`; set it `true` in `onRowTap` before `onSelect`; in the scroll effect, only call `scrollIntoView` when `scrollOnExpand.current`, then reset it. Donut taps keep highlight+expand but stop yanking the viewport.
+6. **B12 · loading vs not-found flash** — `hooks/index.ts` + `BudgetDetailScreen.tsx`: expose loading (e.g. `useBudgetsRaw()` without `?? []`, or return the raw `useLiveQuery` value and let callers treat `undefined` as loading); budget detail renders `null` until loaded, then not-found only if genuinely absent.
+7. **B5 + B6 · decimal edges** — on currency switch in Add (`useCalculator`/`AddScreen`) and Edit, round the live amount to the new `currencyDecimals`; in `CalculatorSheet`'s tokenizer, reject a second `.` within one number (track like the inline pad). Unit tests in `calc.test.ts`.
+8. **B8 · transactional `updateSettings`** — wrap the read-modify-write in `db.transaction('rw', db.settings, …)`.
+
+### P2 — polish & debt
+
+9. **B14 · flat-series y-labels** — `LineChart.tsx`: pad a flat domain by `max(niceStep(|v|/20), 1)` instead of ±1; skip a gridline label equal to the previously rendered string.
+10. **U5 · tag display casing** — add `display` to the `Tag` row (first-seen casing, set in `bumpTags`/import when creating), backfill lazily (fallback to `name`), show `display` in TagInput/Labels. No schema index change needed (plain field).
+11. **U13 · category panel period anchoring** — pass `period.endISO` into `CategoryDetailPanel` as the window anchor; label the header row with the anchored month. (Or minimally: add a "last 12 months to date" caption.)
+12. **U8 · theme-aware status bar** — JS-update the `theme-color` meta alongside `applyTheme`; do **not** touch `black-translucent` (see §1).
+13. **T7 · README refresh** — now far behind: insights views (4 tabs incl. calendar zooms), savings rate, budget overview/detail (YTD pace, history), recurring, GitHub backup + debug log, category detail panel, themes/reach/calculator. Rewrite the feature list against the live More menu.
+14. **T2 · ESLint** — typescript-eslint + react-hooks; make the two intentional suppressed-deps effects explicit.
+15. **Committed smoke test** — promote the per-session scratchpad Playwright scripts into a committed `e2e/smoke.mjs` (demo-mode on → walk Add/Activity/Insights (4 views)/Budgets/detail → demo-mode off, assert zero console errors) run manually via `npm run e2e`; keeps verification reproducible across sessions.
+16. **A2 · sheet focus trap** — `Sheet.tsx`: on open, focus the panel, trap Tab within it, restore focus on close. A1 (pinch zoom), A3 (chart text alternatives — heatmap day cells already have `aria-label`, donut has `role="img"`; add a visually-hidden table or summary for the line/bar charts), U2/U3/U6/U9 remain as previously described.
+
+**Noted, no action planned:** budget-history bars clip beyond ~147% of limit (LIMIT_MARK scaling — cosmetic); recurring generation only runs on app open (a tab left open across midnight materializes on next open — could add a `visibilitychange` re-check if it ever bothers anyone); GitHub PAT is stored unencrypted in IndexedDB (inherent to a serverless PWA — documented in §7); iOS keyboard accessory bar above the keyboard is OS chrome and not removable.
 
 ---
 
