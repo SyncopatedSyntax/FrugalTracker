@@ -1,7 +1,7 @@
 import 'fake-indexeddb/auto'
 import { beforeEach, describe, expect, it } from 'vitest'
 import { db } from './db'
-import { addTransaction, deleteTransaction, updateTransaction } from './repo'
+import { addTransaction, deleteTransaction, setBudget, updateTransaction } from './repo'
 import { parseISO } from '@/lib/date'
 
 const CATEGORY_ID = 'cat-groceries'
@@ -119,5 +119,56 @@ describe('bumpTags via addTransaction/updateTransaction', () => {
     })
     await deleteTransaction(id)
     expect(await tag('onetime')).toBeUndefined()
+  })
+})
+
+describe('setBudget — one budget per category', () => {
+  beforeEach(async () => {
+    await db.budgets.clear()
+  })
+
+  const make = (categoryId: string | null, amount: number, id?: string) => ({
+    id,
+    categoryId,
+    period: 'monthly' as const,
+    amount,
+    currency: 'USD',
+  })
+
+  it('creates one budget per category and updates in place on edit', async () => {
+    await setBudget(make('groc', 500))
+    const groc = await db.budgets.filter((b) => b.categoryId === 'groc').first()
+    await setBudget(make('groc', 600, groc!.id))
+    const all = await db.budgets.toArray()
+    expect(all).toHaveLength(1)
+    expect(all[0].amount).toBe(600)
+  })
+
+  it('never duplicates when a new budget targets an already-budgeted category', async () => {
+    await setBudget(make('groc', 500))
+    // No id (as if "create"), same category — should fold into the existing row.
+    await setBudget(make('groc', 999))
+    const grocBudgets = await db.budgets.filter((b) => b.categoryId === 'groc').toArray()
+    expect(grocBudgets).toHaveLength(1)
+    expect(grocBudgets[0].amount).toBe(999)
+  })
+
+  it('folds an edit that repoints a budget onto a category another budget owns (B11)', async () => {
+    await setBudget(make('groc', 500))
+    await setBudget(make('coffee', 60))
+    const groc = await db.budgets.filter((b) => b.categoryId === 'groc').first()
+    // Edit the Groceries budget to point at Coffee, which Coffee already owns.
+    await setBudget(make('coffee', 80, groc!.id))
+    const all = await db.budgets.toArray()
+    expect(all).toHaveLength(1) // not two coffee budgets, and the groc row is gone
+    expect(all[0].categoryId).toBe('coffee')
+    expect(all[0].amount).toBe(80)
+  })
+
+  it('keeps the overall budget distinct from a category budget', async () => {
+    await setBudget(make(null, 2000))
+    await setBudget(make('groc', 500))
+    const all = await db.budgets.toArray()
+    expect(all).toHaveLength(2)
   })
 })

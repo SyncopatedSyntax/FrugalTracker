@@ -485,8 +485,13 @@ function BreakdownView({
   // Category rows expand an inline detail section (12-month trend + MoM/YoY)
   // right where they sit — tap again to collapse. Label rows drill straight
   // into the transactions behind them (same flow + the selected timeframe).
+  // Scroll-into-view should only fire when the *row* was tapped — not when the
+  // same selection is set by tapping a donut slice (which would otherwise yank
+  // the donut off-screen mid-comparison).
+  const scrollOnExpand = useRef(false)
   const onRowTap = (s: Slice) => {
     if (kind === 'category') {
+      scrollOnExpand.current = selectedKey !== s.key // scroll only when expanding
       onSelect(selectedKey === s.key ? null : s.key)
       return
     }
@@ -499,11 +504,12 @@ function BreakdownView({
     navigate(`/transactions?${params.toString()}`)
   }
 
-  // When a category is expanded, scroll its row to the top of the list so the
-  // whole detail below it is in view.
+  // When a category is expanded *by a row tap*, scroll its row to the top of
+  // the list so the whole detail below it is in view.
   const expandedRowRef = useRef<HTMLButtonElement>(null)
   useEffect(() => {
-    if (kind !== 'category' || !selectedKey) return
+    if (kind !== 'category' || !selectedKey || !scrollOnExpand.current) return
+    scrollOnExpand.current = false
     const el = expandedRowRef.current
     if (!el) return
     const id = requestAnimationFrame(() =>
@@ -613,7 +619,9 @@ function BreakdownView({
                       )}
                     />
                   </button>
-                  {expanded && <CategoryDetailPanel categoryId={s.key} base={base} />}
+                  {expanded && (
+                    <CategoryDetailPanel categoryId={s.key} base={base} anchorISO={periodTo} />
+                  )}
                 </Fragment>
               )
             })}

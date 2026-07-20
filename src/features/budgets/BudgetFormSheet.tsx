@@ -29,6 +29,11 @@ export default function BudgetFormSheet({ open, onClose, editing, onDeleted }: P
   const [amount, setAmount] = useState('')
 
   const usedCatKeys = new Set(budgets.map((b) => b.categoryId ?? '__overall__'))
+  // A category is off-limits if some *other* budget already owns it. When
+  // editing, the budget's own category stays selectable so you can keep it;
+  // when creating there is no "own" category, so every used one is off-limits.
+  const ownKey = editing ? (editing.categoryId ?? '__overall__') : null
+  const taken = (key: string) => usedCatKeys.has(key) && key !== ownKey
 
   useEffect(() => {
     if (!open) return
@@ -65,7 +70,7 @@ export default function BudgetFormSheet({ open, onClose, editing, onDeleted }: P
             <ChipToggle
               label="💰 Overall"
               on={catId === null}
-              disabled={!editing && usedCatKeys.has('__overall__')}
+              disabled={taken('__overall__')}
               onClick={() => setCatId(null)}
             />
             {expenseCats.map((c) => (
@@ -73,7 +78,7 @@ export default function BudgetFormSheet({ open, onClose, editing, onDeleted }: P
                 key={c.id}
                 label={`${c.icon} ${c.name}`}
                 on={catId === c.id}
-                disabled={!editing && usedCatKeys.has(c.id)}
+                disabled={taken(c.id)}
                 onClick={() => setCatId(c.id)}
               />
             ))}

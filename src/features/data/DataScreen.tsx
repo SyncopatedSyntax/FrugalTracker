@@ -4,7 +4,14 @@ import SubScreen from '@/components/SubScreen'
 import Sheet from '@/components/Sheet'
 import { Toast, useToast } from '@/components/Toast'
 import { ChevronRightIcon, CloudIcon, DownloadIcon, UploadIcon, TrashIcon } from '@/components/icons'
-import { exportCSV, exportJSON, isValidBackup, restoreBackup, type BackupFile } from '@/lib/backup'
+import {
+  exportCSV,
+  exportJSON,
+  isValidBackup,
+  restoreBackup,
+  summarizeRestore,
+  type BackupFile,
+} from '@/lib/backup'
 import { db } from '@/db/db'
 import { ensureSeeded } from '@/db/seed'
 import { backfillBaseAmounts } from '@/db/repo'
@@ -32,11 +39,17 @@ export default function DataScreen() {
 
   const doRestore = async () => {
     if (!pending) return
-    await restoreBackup(pending)
-    // Backups made before v0.9.2 won't have baseAmount/baseRate on their rows.
-    await backfillBaseAmounts()
-    setPending(null)
-    show('Backup restored')
+    try {
+      const report = await restoreBackup(pending)
+      // Backups made before v0.9.2 won't have baseAmount/baseRate on their rows.
+      await backfillBaseAmounts()
+      setPending(null)
+      const skipped = summarizeRestore(report)
+      show(skipped ? `Backup restored · ${skipped}` : 'Backup restored')
+    } catch (err) {
+      setPending(null)
+      show(err instanceof Error ? err.message : 'Restore failed')
+    }
   }
 
   const doClear = async () => {

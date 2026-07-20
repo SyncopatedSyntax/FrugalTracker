@@ -1,6 +1,6 @@
-import { ChevronLeftIcon, ChevronRightIcon } from '@/components/icons'
+import { CalendarIcon, ChevronLeftIcon, ChevronRightIcon } from '@/components/icons'
 import { cn } from '@/lib/cn'
-import { todayISO } from '@/lib/date'
+import { formatShortDate, todayISO } from '@/lib/date'
 import type { CustomRange, Granularity } from './period'
 
 const GRANS: { v: Granularity; l: string }[] = [
@@ -51,21 +51,19 @@ export default function PeriodBar({
 
       {granularity === 'custom' ? (
         <div className="mt-2 flex items-center gap-2">
-          <input
-            type="date"
+          <DatePill
             value={custom.from}
             max={custom.to || todayISO()}
-            onChange={(e) => onCustom({ ...custom, from: e.target.value })}
-            className="min-w-0 flex-1 rounded-xl border border-border bg-surface2 px-2.5 py-2 text-sm outline-none focus:border-primary"
+            ariaLabel="From date"
+            onChange={(v) => onCustom({ ...custom, from: v })}
           />
-          <span className="text-muted">–</span>
-          <input
-            type="date"
+          <span className="flex-shrink-0 text-muted">–</span>
+          <DatePill
             value={custom.to}
             min={custom.from}
             max={todayISO()}
-            onChange={(e) => onCustom({ ...custom, to: e.target.value })}
-            className="min-w-0 flex-1 rounded-xl border border-border bg-surface2 px-2.5 py-2 text-sm outline-none focus:border-primary"
+            ariaLabel="To date"
+            onChange={(v) => onCustom({ ...custom, to: v })}
           />
         </div>
       ) : showNav ? (
@@ -90,6 +88,43 @@ export default function PeriodBar({
       ) : (
         <div className="mt-2 text-center text-base font-semibold">{label}</div>
       )}
+    </div>
+  )
+}
+
+/** A custom-range date field using the app's invisible-overlay pill pattern
+ * (see docs/DEV_REVIEW.md §2 B9): the visible box is our own markup so it
+ * can't be rendered wider than its bounds by a native control, with the real
+ * <input type="date"> stacked invisibly on top to capture the tap and drive
+ * the OS picker. */
+function DatePill({
+  value,
+  min,
+  max,
+  ariaLabel,
+  onChange,
+}: {
+  value: string
+  min?: string
+  max?: string
+  ariaLabel: string
+  onChange: (v: string) => void
+}) {
+  return (
+    <div className="relative min-w-0 flex-1">
+      <div className="pointer-events-none flex items-center justify-between gap-1 rounded-xl border border-border bg-surface2 px-2.5 py-2 text-sm">
+        <span className="truncate">{value ? formatShortDate(value) : 'Pick date'}</span>
+        <CalendarIcon size={16} className="flex-shrink-0 text-muted" />
+      </div>
+      <input
+        type="date"
+        value={value}
+        min={min}
+        max={max}
+        aria-label={ariaLabel}
+        onChange={(e) => onChange(e.target.value)}
+        className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+      />
     </div>
   )
 }

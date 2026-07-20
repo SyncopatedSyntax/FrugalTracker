@@ -6,7 +6,7 @@ import { ChevronDownIcon, CloudIcon, RefreshIcon, TrashIcon, UploadIcon } from '
 import { useDemoMode, useGithubConfig } from '@/hooks'
 import { db } from '@/db/db'
 import { backfillBaseAmounts } from '@/db/repo'
-import { restoreBackup, type BackupFile } from '@/lib/backup'
+import { restoreBackup, summarizeRestore, type BackupFile } from '@/lib/backup'
 import {
   backupNow,
   clearDebugLog,
@@ -127,10 +127,16 @@ export default function GitHubBackupScreen() {
 
   const doRestore = async () => {
     if (!pending) return
-    await restoreBackup(pending)
-    await backfillBaseAmounts()
-    setPending(null)
-    show('Backup restored')
+    try {
+      const report = await restoreBackup(pending)
+      await backfillBaseAmounts()
+      setPending(null)
+      const skipped = summarizeRestore(report)
+      show(skipped ? `Backup restored · ${skipped}` : 'Backup restored')
+    } catch (err) {
+      setPending(null)
+      show(err instanceof Error ? err.message : 'Restore failed')
+    }
   }
 
   const setAutoBackup = async (enabled: boolean) => {

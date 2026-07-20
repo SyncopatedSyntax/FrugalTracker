@@ -245,9 +245,24 @@ export async function categoryTxCount(id: string): Promise<number> {
 
 /* -------------------------------- Budgets ------------------------------- */
 
+/** Create or update a budget, enforcing at most one budget per category
+ * (categoryId, or `null` for the overall budget). If a budget already exists
+ * for the target category it's updated in place rather than duplicated —
+ * even when the caller passes a different `id`, e.g. an edit that repoints an
+ * existing budget onto an already-budgeted category, in which case the
+ * now-orphaned source budget is removed. This is the data-layer backstop for
+ * the form's own "disable occupied categories" guard. */
 export async function setBudget(input: Omit<Budget, 'id'> & { id?: string }): Promise<void> {
-  const id = input.id ?? uid()
-  await db.budgets.put({ ...input, id })
+  await db.transaction('rw', db.budgets, async () => {
+    const existingForCat = await db.budgets.filter((b) => b.categoryId === input.categoryId).first()
+    const targetId = existingForCat?.id ?? input.id ?? uid()
+    // Editing budget A onto a category budget B already owns: fold into B and
+    // drop A so no stray row is left behind.
+    if (input.id && existingForCat && existingForCat.id !== input.id) {
+      await db.budgets.delete(input.id)
+    }
+    await db.budgets.put({ ...input, id: targetId })
+  })
 }
 
 export async function deleteBudget(id: string): Promise<void> {

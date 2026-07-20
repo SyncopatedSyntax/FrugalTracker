@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { ListIcon } from '@/components/icons'
 import { useCategoryMap, useTransactionsInRange } from '@/hooks'
 import { formatMoney, formatMoneyCompact } from '@/lib/currency'
-import { addMonths, startOfMonth, toISO, todayISO } from '@/lib/date'
+import { addMonths, endOfMonth, monthLabel, parseISO, startOfMonth, toISO, todayISO } from '@/lib/date'
 import { cn } from '@/lib/cn'
 import LineChart from './LineChart'
 import { deltaVs, monthlySeriesFor, type MonthPoint } from './compute'
@@ -15,21 +15,36 @@ const WINDOW = 13
 /** The category detail (12-month trend + MoM/YoY + stats), rendered inline as
  * an expanded section under a tapped category row on the Insights breakdown
  * (rather than a separate screen). Self-contained: give it a category id and
- * it fetches its own 13-month window. */
+ * it fetches its own 13-month window. `anchorISO` (the viewed period's end)
+ * anchors that window so browsing a past period shows *that* period's latest
+ * month rather than always today's — clamped to today so the current period
+ * (whose end may be a future date, e.g. Dec 31 of the current year) still
+ * lands on the real current month. */
 export default function CategoryDetailPanel({
   categoryId,
   base,
+  anchorISO,
 }: {
   categoryId: string
   base: string
+  anchorISO?: string
 }) {
   const navigate = useNavigate()
   const category = useCategoryMap().get(categoryId)
 
-  const now = useMemo(() => new Date(), [])
-  const fetchStart = toISO(startOfMonth(addMonths(now, -(WINDOW - 1))))
-  const txs = useTransactionsInRange(fetchStart, todayISO())
-  const series = useMemo(() => monthlySeriesFor(txs, categoryId, WINDOW, now), [txs, categoryId, now])
+  const anchor = useMemo(() => {
+    const today = todayISO()
+    return anchorISO && anchorISO < today ? parseISO(anchorISO) : new Date()
+  }, [anchorISO])
+  const anchorIsCurrentMonth = toISO(anchor).slice(0, 7) === todayISO().slice(0, 7)
+
+  const fetchStart = toISO(startOfMonth(addMonths(anchor, -(WINDOW - 1))))
+  const fetchEnd = toISO(endOfMonth(anchor))
+  const txs = useTransactionsInRange(fetchStart, fetchEnd)
+  const series = useMemo(
+    () => monthlySeriesFor(txs, categoryId, WINDOW, anchor),
+    [txs, categoryId, anchor],
+  )
 
   const cur = series[WINDOW - 1]
   const momDelta = deltaVs(series[WINDOW - 2].value, cur.value)
@@ -39,9 +54,9 @@ export default function CategoryDetailPanel({
   const txCount = chartPoints.reduce((s, p) => s + p.count, 0)
   const total12 = chartPoints.reduce((s, p) => s + p.value, 0)
 
-  // Average over *complete* months only (the current one would drag it down),
-  // starting from the first month with any activity in the window — a
-  // 3-month-old category averages over 3 months, not 12.
+  // Average over *complete* months only (the anchor month itself would drag it
+  // down when it's partial), starting from the first month with any activity
+  // in the window — a 3-month-old category averages over 3 months, not 12.
   const avgMonthly = useMemo(() => {
     const completed = series.slice(0, WINDOW - 1)
     const first = completed.findIndex((p) => p.count > 0)
@@ -56,8 +71,8 @@ export default function CategoryDetailPanel({
     const params = new URLSearchParams()
     params.set('type', category.type)
     params.set('categoryId', categoryId)
-    params.set('from', toISO(startOfMonth(addMonths(now, -(WINDOW - 2)))))
-    params.set('to', todayISO())
+    params.set('from', toISO(startOfMonth(addMonths(anchor, -(WINDOW - 2)))))
+    params.set('to', anchorIsCurrentMonth ? todayISO() : fetchEnd)
     navigate(`/transactions?${params.toString()}`)
   }
 
@@ -65,7 +80,7 @@ export default function CategoryDetailPanel({
     <div className="mb-1 mt-1 rounded-xl bg-surface2/50 p-3">
       <div className="flex items-end justify-between gap-3">
         <div className="min-w-0">
-          <p className="text-xs text-muted">This month</p>
+          <p className="text-xs text-muted">{anchorIsCurrentMonth ? 'This month' : monthLabel(anchor)}</p>
           <p
             className={cn(
               'truncate text-xl font-bold tabular-nums',

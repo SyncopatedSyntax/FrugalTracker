@@ -2,7 +2,15 @@ import 'fake-indexeddb/auto'
 import { beforeEach, describe, expect, it } from 'vitest'
 import { db } from '@/db/db'
 import type { Category, RecurringTransaction, Transaction } from '@/db/types'
-import { buildBackup, buildTransactionsCSV, isValidBackup, restoreBackup, type BackupFile } from './backup'
+import {
+  buildBackup,
+  buildTransactionsCSV,
+  CURRENT_BACKUP_VERSION,
+  isValidBackup,
+  restoreBackup,
+  summarizeRestore,
+  type BackupFile,
+} from './backup'
 
 const categories: Category[] = [
   {
@@ -133,5 +141,77 @@ describe('buildBackup / restoreBackup — recurring transactions', () => {
     }
     await expect(restoreBackup(legacy)).resolves.not.toThrow()
     expect(await db.recurringTransactions.toArray()).toEqual([])
+  })
+})
+
+describe('restoreBackup — hardening', () => {
+  beforeEach(async () => {
+    await Promise.all([
+      db.recurringTransactions.clear(),
+      db.transactions.clear(),
+      db.categories.clear(),
+      db.settings.clear(),
+      db.tags.clear(),
+      db.budgets.clear(),
+      db.rates.clear(),
+    ])
+  })
+
+  const base = (over: Partial<BackupFile>): BackupFile => ({
+    app: 'frugaltracker',
+    version: 1,
+    exportedAt: '2026-01-01T00:00:00.000Z',
+    settings: undefined,
+    categories: [],
+    tags: [],
+    budgets: [],
+    rates: [],
+    transactions: [],
+    ...over,
+  })
+
+  it('rejects a backup from a newer app version', async () => {
+    await expect(restoreBackup(base({ version: CURRENT_BACKUP_VERSION + 1 }))).rejects.toThrow(
+      /newer version/,
+    )
+  })
+
+  it('drops malformed rows instead of throwing, and reports the counts', async () => {
+    // A grab-bag of bad rows the old code would have imported (or crashed on):
+    // null tags, string amount, missing id, bad date, non-object.
+    const mangled = base({
+      categories: [
+        { id: 'c1', name: 'Groceries', type: 'expense' } as never, // ok (coerced)
+        { name: 'no id' } as never, // dropped
+      ],
+      transactions: [
+        { id: 't1', categoryId: 'c1', date: '2026-01-01', tags: null, amount: '25' } as never, // ok (coerced)
+        { id: 't2', categoryId: 'c1', date: 'not-a-date' } as never, // dropped
+        null as never, // dropped
+      ],
+      tags: [{ id: 'g1', name: 'errand' } as never, 42 as never],
+      rates: [{ currency: 'EUR', rate: 1.1 } as never, { currency: 'ZZZ' } as never],
+    })
+
+    const report = await restoreBackup(mangled)
+    expect(report.categories).toBe(1)
+    expect(report.transactions).toBe(2)
+    expect(report.tags).toBe(1)
+    expect(report.rates).toBe(1)
+
+    // The good rows survived and were coerced.
+    const cats = await db.categories.toArray()
+    expect(cats).toHaveLength(1)
+    expect(cats[0]).toMatchObject({ id: 'c1', icon: '❓', sortOrder: 0, isArchived: 0 })
+    const txs = await db.transactions.toArray()
+    expect(txs).toHaveLength(1)
+    expect(txs[0].tags).toEqual([]) // null → []
+    expect(txs[0].amount).toBe(0) // "25" wasn't a number → coerced to 0
+  })
+
+  it('summarizeRestore renders a skipped summary or empty string', () => {
+    expect(summarizeRestore({})).toBe('')
+    expect(summarizeRestore({ transactions: 3, categories: 1 })).toMatch(/Skipped/)
+    expect(summarizeRestore({ transactions: 3, categories: 1 })).toContain('3 transactions')
   })
 })
