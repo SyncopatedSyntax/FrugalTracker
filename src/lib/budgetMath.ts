@@ -183,6 +183,89 @@ export function budgetYtdPace(
   return { monthsElapsed, budgeted, spent, net: budgeted - spent }
 }
 
+/** Historical spending context for setting a realistic budget: the trailing
+ * complete calendar months of expense spend for one scope (a category, or the
+ * whole account when `categoryId` is null). The current in-progress month is
+ * excluded — it always looks artificially low. The window is clamped to the
+ * earliest transaction that exists at all (`earliestISO`), so a two-month-old
+ * install yields two honest months, not four misleading zeros. */
+export interface SnapshotMonth {
+  /** "YYYY-MM" */
+  key: string
+  /** e.g. "Jul" */
+  label: string
+  spent: number
+}
+
+export interface SpendSnapshot {
+  /** Oldest → newest; only months actually covered by history. */
+  months: SnapshotMonth[]
+  /** Median month — the realistic "normal month" anchor, robust to one-off
+   * spikes. Falls back to the average when the median is 0 (e.g. a bill paid
+   * every other month) so the suggestion is never a useless zero. */
+  typical: number
+  average: number
+  max: number
+  /** Spend change, last 3 covered months vs the prior 3 (0.14 = +14%).
+   * Null when fewer than 6 months are covered or the prior half is zero. */
+  trend: number | null
+}
+
+export function spendingSnapshot(
+  txs: Transaction[],
+  categoryId: string | null,
+  earliestISO: string,
+  now: Date = new Date(),
+  window = 6,
+): SpendSnapshot | null {
+  if (!earliestISO) return null
+  const byKey = new Map<string, number>()
+  for (const t of txs) {
+    if (t.type !== 'expense') continue
+    if (categoryId !== null && t.categoryId !== categoryId) continue
+    const key = t.date.slice(0, 7)
+    byKey.set(key, (byKey.get(key) ?? 0) + t.baseAmount)
+  }
+
+  const earliestKey = earliestISO.slice(0, 7)
+  const months: SnapshotMonth[] = []
+  for (let i = window; i >= 1; i--) {
+    const m = addMonths(now, -i)
+    const key = toISO(m).slice(0, 7)
+    if (key < earliestKey) continue
+    months.push({ key, label: monthShort(m.getMonth()), spent: byKey.get(key) ?? 0 })
+  }
+  if (months.length === 0) return null
+
+  const spents = months.map((m) => m.spent)
+  const total = spents.reduce((a, b) => a + b, 0)
+  const average = total / months.length
+  const max = Math.max(...spents)
+  if (max <= 0) return null
+
+  const sorted = [...spents].sort((a, b) => a - b)
+  const mid = sorted.length >> 1
+  const median = sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2
+
+  let trend: number | null = null
+  if (months.length >= 6) {
+    const last3 = spents.slice(-3).reduce((a, b) => a + b, 0)
+    const prior3 = spents.slice(-6, -3).reduce((a, b) => a + b, 0)
+    if (prior3 > 0) trend = (last3 - prior3) / prior3
+  }
+
+  return { months, typical: median > 0 ? median : average, average, max, trend }
+}
+
+/** Round a suggested budget to a number a person would actually pick —
+ * nobody sets a monthly limit of 437.62. Coarser steps at larger magnitudes. */
+export function friendlyBudget(v: number): number {
+  if (v >= 1000) return Math.round(v / 50) * 50
+  if (v >= 200) return Math.round(v / 10) * 10
+  if (v >= 50) return Math.round(v / 5) * 5
+  return Math.max(1, Math.round(v))
+}
+
 /** Sum of transactions of a given type (optionally scoped to a category) in a range, in base currency. */
 export function sumInRange(
   txs: Transaction[],

@@ -84,6 +84,13 @@ export function formatMoney(amount: number, currency: string): string {
   return formatter(currency, {}).format(amount)
 }
 
+/** Whole-number currency, e.g. "$1,250" — for round figures like budget
+ * suggestions, where decimals are noise and K-compacting would misstate the
+ * exact amount the control fills in. */
+export function formatMoneyWhole(amount: number, currency: string): string {
+  return formatter(currency, { maximumFractionDigits: 0 }).format(amount)
+}
+
 /** Compact for tight spaces, e.g. "$1.2K". */
 export function formatMoneyCompact(amount: number, currency: string): string {
   const abs = Math.abs(amount)

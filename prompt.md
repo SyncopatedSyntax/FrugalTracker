@@ -905,3 +905,25 @@ The Calendar view gains a **Month / Quarter / Year** segmented toggle. **Month**
 **Half 2 · error boundary.** New `src/components/ErrorBoundary.tsx` (class component: `getDerivedStateFromError` + `componentDidCatch` console trace) wraps `<Routes>` in `App.tsx`. On a render/lifecycle crash it shows a recoverable fallback — 😵, "Something went wrong", a reassurance that on-device data is safe, the error message in a `<pre>`, and a "Reload app" button — instead of a white screen. The two halves are complementary: an error boundary can't catch event-handler/async errors (that's Half 1), and a try/catch can't catch a render crash (that's Half 2).
 
 **Verified:** 7 new unit tests (192 total, all pass) — `write.test.ts` covers `runWrite` success/failure and `describeWriteError` (quota by name, quota by message, generic, non-Error throwables); `ErrorBoundary.test.ts` pins `getDerivedStateFromError`. `npm run build` clean (fixed one TS error: the Recurring save callback's ternary returned `Promise<void> | Promise<string>` — `addRecurringTransaction` returns the new id — so rewrote it to `await` uniformly and return void). Headless-Chromium E2E: injected a malformed transaction (`tags: null`) straight into IndexedDB, loaded Activity, and confirmed the **ErrorBoundary fallback rendered** ("Something went wrong" + "Reload app", body not blank) instead of a white screen; then cleared the DB and confirmed a **normal Add still saves** (typed 5 → Next → picked a category → Add expense → "Expense saved" toast). Bumped to **v1.9.0**; updated `docs/DEV_REVIEW.md` (§7 T6 resolved, §8 item 4 done, header fixed/open lists). Remaining review items (B12, B5/B6, B8, B14, U5, U8, README T7, ESLint T2, committed smoke test, focus-trap A2) stay in §8.
+
+
+---
+
+## 81. Budget form: spending-history guidance for a realistic limit
+
+> In the New Budget screen, provide some useful information for the user to determine what is a realistic budget based on the transaction history. Think about what is a good approach, and also consider how these analysis can also be used to provide information to users about their current spending habits etc.
+
+**Result:** the budget form (`BudgetFormSheet`, both New and Edit) now shows a **spending snapshot** for whichever scope is selected — Overall or a category — so the limit is set against evidence instead of a guess.
+
+**Approach.** One new pure helper, `spendingSnapshot()` in `lib/budgetMath.ts`, aggregates the trailing **6 complete calendar months** of expense spend for the scope (the in-progress month is excluded — it always reads artificially low — and the window is clamped to the earliest transaction that exists, so a 2-month-old install shows 2 honest months rather than 4 fake zeros). From it: **Typical** (median month — the realistic anchor, robust to one-off spikes; falls back to the average when the median is 0, e.g. a bill paid every other month), **Average** (true burn rate incl. spikes), **High**, and a **trend** (last 3 months vs prior 3). A sibling `friendlyBudget()` rounds suggestions to numbers people actually pick ($437.62 → $440; coarser steps at larger magnitudes).
+
+**In the sheet:**
+- A snapshot card with a mini bar per month (in the category's own color; Overall uses the app primary) and a **live dashed line at the typed limit** — as the user types, months that would have busted that budget turn red. Header carries the habit signal: "▲ 18% vs prior 3 mo" (red), "▼" (green), or "steady".
+- A Typical / Average / High stats row (exact figures via a new `formatMoneyWhole` — compact "$1.5K" would hide exactly the differences being calibrated, e.g. $1,450 vs $1,530).
+- **Tap-to-fill chips** under the amount: "Typical · $1,450" and "Trim 10% · $1,300" (the trim chip hides when rounding makes it identical, e.g. an $8 scope).
+- A **realism line** that updates as the amount changes: "Covers 4 of your last 6 months · 9% below typical" (green when it covers all months, red when it covers none) — the is-this-realistic question answered directly.
+- No history for the scope → a single quiet line ("No past spending here yet — pick a starting limit and adjust as history builds") instead of an empty chart.
+
+The same `spendingSnapshot` output (typical vs average spread = volatility, the 3-vs-3 trend) is deliberately reusable for a future habits surface on Insights.
+
+**Verified:** 9 new unit tests (201 total, all pass) — `spendingSnapshot` (aggregation + current-month exclusion, window clamping, genuine-zero months kept, median→average fallback, trend math, scope/income filtering, null cases), `friendlyBudget` tiers, `formatMoneyWhole`. `npm run build` clean. Headless-Chromium E2E on demo data: card renders with stats; tapping "Typical · $1,450" fills the input; realism line reads "Covers 6 of your last 6 months · right at your typical month"; a $1 limit flips it to "Covers 0…" with the over-limit bars turning red; switching scope to Gifts & Donations recomputes (typical $1,450 → $8, Trim chip correctly hidden); creating from a suggestion lands the budget in the overview list; zero console errors. Bumped to **v1.10.0**, noted under U11 in `docs/DEV_REVIEW.md`.

@@ -1,11 +1,16 @@
 import { describe, expect, it } from 'vitest'
-import { currencySymbol, formatMoney, formatMoneyCompact } from './currency'
+import { currencySymbol, formatMoney, formatMoneyCompact, formatMoneyWhole } from './currency'
 
 describe('formatMoney / formatMoneyCompact — USD symbol', () => {
   it('formats USD with a plain "$", never "US$"', () => {
     expect(formatMoney(1234.5, 'USD')).toBe('$1,234.50')
     expect(formatMoney(1234.5, 'USD')).not.toContain('US$')
     expect(formatMoneyCompact(12500, 'USD')).not.toContain('US$')
+  })
+
+  it('formatMoneyWhole: exact grouped integer — no decimals, no K-compacting', () => {
+    expect(formatMoneyWhole(1250, 'USD')).toBe('$1,250')
+    expect(formatMoneyWhole(410, 'USD')).toBe('$410')
   })
 
   it('still disambiguates other dollar currencies (unaffected by the USD fix)', () => {

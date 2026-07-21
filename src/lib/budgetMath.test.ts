@@ -8,10 +8,12 @@ import type { Transaction } from '@/db/types'
 import {
   budgetHistory,
   budgetYtdPace,
+  friendlyBudget,
   periodRange,
   prorateMonthly,
   rollingMonthlyAverage,
   sameRangeLastYear,
+  spendingSnapshot,
   sumInRange,
 } from './budgetMath'
 
@@ -170,5 +172,100 @@ describe('budgetYtdPace', () => {
     const txs = [tx({ categoryId: 'groc', date: '2026-03-01', baseAmount: 4000 })]
     const p = budgetYtdPace(txs, 'groc', 500, now)
     expect(p.net).toBe(-500) // 3500 budgeted − 4000 spent
+  })
+})
+
+describe('spendingSnapshot', () => {
+  // "Now" is mid-July 2026 → the window is the 6 complete months Jan–Jun.
+  const now = new Date(2026, 6, 15)
+
+  it('aggregates the trailing 6 complete months, excluding the current one', () => {
+    const txs = [
+      tx({ date: '2026-01-10', baseAmount: 100 }),
+      tx({ date: '2026-02-10', baseAmount: 200 }),
+      tx({ date: '2026-03-10', baseAmount: 300 }),
+      tx({ date: '2026-04-10', baseAmount: 400 }),
+      tx({ date: '2026-05-10', baseAmount: 500 }),
+      tx({ date: '2026-06-10', baseAmount: 600 }),
+      tx({ date: '2026-07-10', baseAmount: 9999 }), // current month — must be ignored
+    ]
+    const s = spendingSnapshot(txs, 'cat1', '2025-01-01', now)!
+    expect(s.months.map((m) => m.key)).toEqual([
+      '2026-01', '2026-02', '2026-03', '2026-04', '2026-05', '2026-06',
+    ])
+    expect(s.months.map((m) => m.spent)).toEqual([100, 200, 300, 400, 500, 600])
+    expect(s.average).toBe(350)
+    expect(s.typical).toBe(350) // even count → mean of the two middle months
+    expect(s.max).toBe(600)
+  })
+
+  it('clamps the window to the earliest transaction (no fake zero months)', () => {
+    const txs = [
+      tx({ date: '2026-05-10', baseAmount: 500 }),
+      tx({ date: '2026-06-10', baseAmount: 700 }),
+    ]
+    const s = spendingSnapshot(txs, 'cat1', '2026-05-10', now)!
+    expect(s.months.map((m) => m.key)).toEqual(['2026-05', '2026-06'])
+    expect(s.average).toBe(600)
+    expect(s.trend).toBeNull() // < 6 covered months
+  })
+
+  it('keeps genuine zero months when history predates the window', () => {
+    const txs = [
+      tx({ date: '2026-02-10', baseAmount: 300 }),
+      tx({ date: '2026-06-10', baseAmount: 300 }),
+    ]
+    const s = spendingSnapshot(txs, 'cat1', '2025-06-01', now)!
+    expect(s.months).toHaveLength(6)
+    expect(s.months.filter((m) => m.spent === 0)).toHaveLength(4)
+  })
+
+  it('falls back typical → average when the median month is zero', () => {
+    // A bill paid twice in 6 months: median 0 would be a useless suggestion.
+    const txs = [
+      tx({ date: '2026-01-10', baseAmount: 300 }),
+      tx({ date: '2026-04-10', baseAmount: 300 }),
+    ]
+    const s = spendingSnapshot(txs, 'cat1', '2025-06-01', now)!
+    expect(s.typical).toBe(100) // 600 / 6
+  })
+
+  it('computes trend as last 3 months vs prior 3', () => {
+    const txs = [
+      tx({ date: '2026-01-10', baseAmount: 100 }),
+      tx({ date: '2026-02-10', baseAmount: 100 }),
+      tx({ date: '2026-03-10', baseAmount: 100 }),
+      tx({ date: '2026-04-10', baseAmount: 120 }),
+      tx({ date: '2026-05-10', baseAmount: 120 }),
+      tx({ date: '2026-06-10', baseAmount: 120 }),
+    ]
+    const s = spendingSnapshot(txs, 'cat1', '2025-06-01', now)!
+    expect(s.trend).toBeCloseTo(0.2)
+  })
+
+  it('scopes to the category, or all expenses when categoryId is null; ignores income', () => {
+    const txs = [
+      tx({ date: '2026-06-10', baseAmount: 100, categoryId: 'groc' }),
+      tx({ date: '2026-06-10', baseAmount: 50, categoryId: 'fun' }),
+      tx({ date: '2026-06-10', baseAmount: 999, type: 'income', categoryId: 'salary' }),
+    ]
+    expect(spendingSnapshot(txs, 'groc', '2026-06-01', now)!.max).toBe(100)
+    expect(spendingSnapshot(txs, null, '2026-06-01', now)!.max).toBe(150)
+  })
+
+  it('returns null with no history at all, or no expense spend in the window', () => {
+    expect(spendingSnapshot([], 'cat1', '', now)).toBeNull()
+    const incomeOnly = [tx({ date: '2026-06-10', type: 'income', baseAmount: 500 })]
+    expect(spendingSnapshot(incomeOnly, null, '2026-06-10', now)).toBeNull()
+  })
+})
+
+describe('friendlyBudget', () => {
+  it('rounds coarser at larger magnitudes', () => {
+    expect(friendlyBudget(1437.62)).toBe(1450) // nearest 50
+    expect(friendlyBudget(437.62)).toBe(440) // nearest 10
+    expect(friendlyBudget(63.2)).toBe(65) // nearest 5
+    expect(friendlyBudget(12.4)).toBe(12) // nearest 1
+    expect(friendlyBudget(0.3)).toBe(1) // never suggests 0
   })
 })
