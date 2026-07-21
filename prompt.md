@@ -927,3 +927,17 @@ The Calendar view gains a **Month / Quarter / Year** segmented toggle. **Month**
 The same `spendingSnapshot` output (typical vs average spread = volatility, the 3-vs-3 trend) is deliberately reusable for a future habits surface on Insights.
 
 **Verified:** 9 new unit tests (201 total, all pass) — `spendingSnapshot` (aggregation + current-month exclusion, window clamping, genuine-zero months kept, median→average fallback, trend math, scope/income filtering, null cases), `friendlyBudget` tiers, `formatMoneyWhole`. `npm run build` clean. Headless-Chromium E2E on demo data: card renders with stats; tapping "Typical · $1,450" fills the input; realism line reads "Covers 6 of your last 6 months · right at your typical month"; a $1 limit flips it to "Covers 0…" with the over-limit bars turning red; switching scope to Gifts & Donations recomputes (typical $1,450 → $8, Trim chip correctly hidden); creating from a suggestion lands the budget in the overview list; zero console errors. Bumped to **v1.10.0**, noted under U11 in `docs/DEV_REVIEW.md`.
+
+
+---
+
+## 82. Budget form snapshot chart: labeled $ axis + tappable bars
+
+> It is hard to see how much is the dollar amount for each bar in the mini bar chart, add the $ label on Y axis and also let user tap on the bars to see amount.
+
+**Result:** the spending-snapshot mini chart (added in #81) now carries a labeled dollar axis and lets you tap any bar for its exact figure.
+
+- **Y-axis:** a new `niceAxisMax()` helper in `budgetMath.ts` picks a round ceiling off the classic 1/2/5/10 × 10ⁿ ladder (e.g. a true max of $1,450 → axis ceiling $2,000) — always ≥ the tallest bar and the typed limit, so nothing clips, and the three ticks read as clean numbers ("$2,000 / $1,000 / $0") instead of an arbitrary padded max. Matching horizontal gridlines run behind the bars at the same 0%/50%/100% heights. A tiny `axisTick()` formatter avoids two ugly edge cases: `formatMoneyCompact` alone would print "$25.00" for sub-$100 axis values (forces 2 decimals below $100) and get inconsistent against "$2K" at the top — so ticks under $1,000 render as a clean whole number, $1,000+ stays compact.
+- **Tap-to-read bars:** each month bar is now a button; tapping it shows that month's exact amount in a reading line above the chart ("Jan · $1,450"), outlines the selected bar, and bolds its month label below. Defaults to the most recent covered month so a number is visible without any tap, and re-anchors to the newest month whenever the scope switches (so it never shows a stale reading from the previous category).
+
+**Verified:** 4 new unit tests for `niceAxisMax` (204 total, all pass) — ladder rounding, the "never clips" invariant across a spread of values, and the zero/negative edge case. `npm run build` + `tsc --noEmit` clean. Headless-Chromium E2E on demo data: default reading line shows the latest month; tapping the first bar and then the last bar both update the reading correctly (round trip); the three $ axis ticks render as clean whole/compact numbers with no stray ".00"; switching to a real sub-$100/month category confirmed the low-value axis path is also decimal-free ("$50 / $25 / $0"). Bumped to **v1.10.1**.

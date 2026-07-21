@@ -9,6 +9,7 @@ import {
   budgetHistory,
   budgetYtdPace,
   friendlyBudget,
+  niceAxisMax,
   periodRange,
   prorateMonthly,
   rollingMonthlyAverage,
@@ -267,5 +268,26 @@ describe('friendlyBudget', () => {
     expect(friendlyBudget(63.2)).toBe(65) // nearest 5
     expect(friendlyBudget(12.4)).toBe(12) // nearest 1
     expect(friendlyBudget(0.3)).toBe(1) // never suggests 0
+  })
+})
+
+describe('niceAxisMax', () => {
+  it('rounds up along the 1/2/5/10 ladder, never clipping the input value', () => {
+    expect(niceAxisMax(1450)).toBe(2000)
+    expect(niceAxisMax(50)).toBe(50) // exact ladder value stays put
+    expect(niceAxisMax(253.55)).toBe(500)
+    expect(niceAxisMax(8)).toBe(10)
+    expect(niceAxisMax(1)).toBe(1)
+  })
+
+  it('is always >= the input across a spread of values', () => {
+    for (const v of [1, 4, 9, 12, 49, 51, 99, 101, 499, 999, 1001, 4999]) {
+      expect(niceAxisMax(v)).toBeGreaterThanOrEqual(v)
+    }
+  })
+
+  it('treats zero/negative as a degenerate axis of 1', () => {
+    expect(niceAxisMax(0)).toBe(1)
+    expect(niceAxisMax(-5)).toBe(1)
   })
 })

@@ -266,6 +266,18 @@ export function friendlyBudget(v: number): number {
   return Math.max(1, Math.round(v))
 }
 
+/** A "nice" round ceiling for a chart's dollar axis — the classic
+ * 1/2/5/10 × 10^n ladder, so a bar chart's Y-axis reads "$2,000 / $1,000 /
+ * $0" instead of an arbitrary padded max like "$1,566". Always ≥ `value`
+ * (never clips a bar that reaches exactly `value`). */
+export function niceAxisMax(value: number): number {
+  if (value <= 0) return 1
+  const magnitude = Math.pow(10, Math.floor(Math.log10(value)))
+  const residual = value / magnitude
+  const niceResidual = residual <= 1 ? 1 : residual <= 2 ? 2 : residual <= 5 ? 5 : 10
+  return niceResidual * magnitude
+}
+
 /** Sum of transactions of a given type (optionally scoped to a category) in a range, in base currency. */
 export function sumInRange(
   txs: Transaction[],

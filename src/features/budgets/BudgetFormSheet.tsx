@@ -10,9 +10,9 @@ import {
 } from '@/hooks'
 import { deleteBudget, setBudget } from '@/db/repo'
 import type { Budget } from '@/db/types'
-import { currencySymbol, formatMoneyWhole } from '@/lib/currency'
+import { currencySymbol, formatMoneyCompact, formatMoneyWhole } from '@/lib/currency'
 import { addMonths, endOfMonth, startOfMonth, toISO } from '@/lib/date'
-import { friendlyBudget, spendingSnapshot, type SpendSnapshot } from '@/lib/budgetMath'
+import { friendlyBudget, niceAxisMax, spendingSnapshot, type SpendSnapshot } from '@/lib/budgetMath'
 import { runWrite } from '@/lib/write'
 import { cn } from '@/lib/cn'
 
@@ -199,10 +199,20 @@ export default function BudgetFormSheet({ open, onClose, editing, onDeleted }: P
   )
 }
 
+/** Y-axis tick label: a clean whole number below $1,000 (never the 2-decimal
+ * form formatMoneyCompact falls back to under $100, e.g. "$25.00"), compact
+ * ("$2K") at $1,000+ where a full grouped number would crowd the narrow
+ * label column. */
+function axisTick(v: number, base: string): string {
+  return v >= 1000 ? formatMoneyCompact(v, base) : formatMoneyWhole(v, base)
+}
+
 /** Recent-history context for the chosen scope: a mini bar per complete
- * month, a dashed line at the typed limit (bars that cross it turn red —
- * months this budget would not have survived), a trend readout, and the
- * typical/average/high stats the suggestions are anchored to. */
+ * month against a labeled $ axis, a dashed line at the typed limit (bars
+ * that cross it turn red — months this budget would not have survived), a
+ * trend readout, and the typical/average/high stats the suggestions are
+ * anchored to. Tapping a bar shows that month's exact amount — the axis
+ * alone is only ever an approximate reading. */
 function SnapshotCard({
   snapshot,
   limit,
@@ -216,8 +226,19 @@ function SnapshotCard({
   base: string
 }) {
   const { months, typical, average, max, trend } = snapshot
-  // Headroom above the tallest bar (and the limit line) so neither clips.
-  const scaleMax = Math.max(max, limit) * 1.08
+  const lastKey = months[months.length - 1]?.key
+  const [selectedKey, setSelectedKey] = useState(lastKey)
+  // A new scope swaps in a whole new `snapshot` object — re-anchor the
+  // reading to its most recent month rather than keeping a stale selection
+  // (or none at all) from the previous category.
+  useEffect(() => setSelectedKey(lastKey), [snapshot, lastKey])
+  const selected = months.find((m) => m.key === selectedKey) ?? months[months.length - 1]
+
+  // A "nice" round axis ceiling (the 1/2/5/10 ladder) so the Y-axis reads
+  // like a real chart's — "$2,000 / $1,000 / $0" — rather than a padded,
+  // meaningless number; always covers the tallest bar and the limit line.
+  const axisMax = niceAxisMax(Math.max(max, limit))
+
   return (
     <div className="rounded-xl bg-surface2 p-3">
       <div className="mb-2 flex items-baseline justify-between gap-2">
@@ -238,31 +259,72 @@ function SnapshotCard({
         )}
       </div>
 
-      <div className="relative h-20">
-        {limit > 0 && (
-          <div
-            className="absolute inset-x-0 z-10 border-t border-dashed border-content/50"
-            style={{ bottom: `${Math.min(97, (limit / scaleMax) * 100)}%` }}
-          />
-        )}
-        <div className="flex h-full items-end gap-1">
-          {months.map((m) => (
+      {/* Tap-to-read amount for the selected bar — the axis to its left is
+          only ever approximate, this is the exact figure. */}
+      <p className="mb-1.5 text-sm font-semibold tabular-nums text-content">
+        {selected.label} <span className="font-normal text-muted">·</span>{' '}
+        {formatMoneyWhole(selected.spent, base)}
+      </p>
+
+      <div className="flex gap-1.5">
+        {/* $ axis: three ticks (top / half / zero) matching the gridlines. */}
+        <div className="relative h-20 w-8 flex-shrink-0 text-right text-[0.5625rem] leading-none text-muted">
+          <span className="absolute right-0 top-0">{axisTick(axisMax, base)}</span>
+          <span className="absolute right-0 top-1/2 -translate-y-1/2">
+            {axisTick(axisMax / 2, base)}
+          </span>
+          <span className="absolute bottom-0 right-0">{axisTick(0, base)}</span>
+        </div>
+
+        <div className="relative h-20 flex-1">
+          {/* gridlines at the same 0% / 50% / 100% the ticks sit at */}
+          <div className="absolute inset-x-0 top-0 border-t border-border/60" />
+          <div className="absolute inset-x-0 top-1/2 border-t border-border/60" />
+          <div className="absolute inset-x-0 bottom-0 border-t border-border/60" />
+
+          {limit > 0 && (
             <div
-              key={m.key}
-              className="flex-1 rounded-t"
-              style={{
-                height: `${Math.max(m.spent > 0 ? 3 : 1.5, (m.spent / scaleMax) * 100)}%`,
-                backgroundColor:
-                  limit > 0 && m.spent > limit ? 'rgb(var(--c-expense))' : color,
-                opacity: m.spent > 0 ? 1 : 0.25,
-              }}
+              className="absolute inset-x-0 z-10 border-t border-dashed border-content/50"
+              style={{ bottom: `${Math.min(100, (limit / axisMax) * 100)}%` }}
             />
-          ))}
+          )}
+          <div className="flex h-full items-end gap-1">
+            {months.map((m) => (
+              <button
+                key={m.key}
+                type="button"
+                onClick={() => setSelectedKey(m.key)}
+                aria-label={`${m.label}: ${formatMoneyWhole(m.spent, base)}`}
+                aria-pressed={m.key === selectedKey}
+                className="relative flex h-full flex-1 items-end active:scale-[0.97]"
+              >
+                <span
+                  className={cn(
+                    'w-full rounded-t transition-[outline]',
+                    m.key === selectedKey && 'outline outline-2 outline-offset-1 outline-content/70',
+                  )}
+                  style={{
+                    height: `${Math.max(m.spent > 0 ? 3 : 1.5, (m.spent / axisMax) * 100)}%`,
+                    backgroundColor:
+                      limit > 0 && m.spent > limit ? 'rgb(var(--c-expense))' : color,
+                    opacity: m.spent > 0 ? 1 : 0.25,
+                  }}
+                />
+              </button>
+            ))}
+          </div>
         </div>
       </div>
-      <div className="mt-1 flex gap-1">
+
+      <div className="ml-[calc(2rem+0.375rem)] mt-1 flex gap-1">
         {months.map((m) => (
-          <span key={m.key} className="flex-1 text-center text-[0.5625rem] text-muted">
+          <span
+            key={m.key}
+            className={cn(
+              'flex-1 text-center text-[0.5625rem]',
+              m.key === selectedKey ? 'font-semibold text-content' : 'text-muted',
+            )}
+          >
             {m.label}
           </span>
         ))}
