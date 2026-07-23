@@ -941,3 +941,25 @@ The same `spendingSnapshot` output (typical vs average spread = volatility, the 
 - **Tap-to-read bars:** each month bar is now a button; tapping it shows that month's exact amount in a reading line above the chart ("Jan · $1,450"), outlines the selected bar, and bolds its month label below. Defaults to the most recent covered month so a number is visible without any tap, and re-anchors to the newest month whenever the scope switches (so it never shows a stale reading from the previous category).
 
 **Verified:** 4 new unit tests for `niceAxisMax` (204 total, all pass) — ladder rounding, the "never clips" invariant across a spread of values, and the zero/negative edge case. `npm run build` + `tsc --noEmit` clean. Headless-Chromium E2E on demo data: default reading line shows the latest month; tapping the first bar and then the last bar both update the reading correctly (round trip); the three $ axis ticks render as clean whole/compact numbers with no stray ".00"; switching to a real sub-$100/month category confirmed the low-value axis path is also decimal-free ("$50 / $25 / $0"). Bumped to **v1.10.1**.
+
+
+---
+
+## 83. Demo dataset overhaul — realistic moderate-saver profile that showcases every graph
+
+> Look at the demo data set and evaluate if it is representative to a realistic spending and income. Ask me questions and think of the improvements to be made for a good demonstration of the app's features and graphs.
+
+**Result:** evaluated the generator (`src/lib/demoData.ts`) against every graph — with a code-mapping pass confirming each finding — then rewrote it. The old dataset was technically clean but *statistically stationary* and *too rosy*, which quietly under-sold the app: the savings-rate stat only ever showed its green branch, the wealth line was a near-straight ramp with no dips, category MoM/YoY deltas were ~0%/"—" (no trend), the income Labels donut had a single slice (only 1 income tag), the calendar heatmap was washed out by the Rent-on-the-1st outlier, most budgets sat safely under-limit, and **notes were empty on every transaction**. Savings sat at ~46% with salary randomly jittering ±$400/month.
+
+Confirmed the direction with the user (persona = **moderate saver ~25%**; enrichments = all four; **leave the Recurring screen empty** — `demoMode.ts` untouched), then rewrote `buildDemoDataset` keeping the fixed-seed determinism and all existing test invariants:
+
+- **Income events:** fixed salary ($4,800 → **raise** to $5,200 at the one-year mark), a **December year-end bonus** (tagged `bonus`), plus freelance/dividend/refund income — replacing the old ±$400 paycheck jitter. Gives the income line a real step and the income Labels donut four slices.
+- **Seasonality:** summer/winter utility swings, summer + one December travel trip, a December gifts/shopping/dining bump, a January gym spike.
+- **Big August vacation** (three legs, hotel booked in a foreign currency) sized to push August **net-negative** — so the wealth line dips and the savings-rate stat can go red.
+- **Lifestyle creep** (~+8%/yr) on Dining/Groceries/Subscriptions/Coffee so category YoY deltas and the budget-form "trend vs prior 3 mo" show real movement.
+- **Notes** on ~60% of transactions (per-category pools) and a **balanced tag set** across both flows (`date-night`, `work-lunch`, `vacation`, `holidays`, `subscription`, `health`, `family`; `side-hustle`, `bonus`, `dividend`, `refund`).
+- **Budgets re-tuned** against measured spend for a genuine over/under mix: Entertainment always under, Coffee/Transport/Groceries/Dining hover and flip, Shopping chronically over; overall $4,200.
+
+Also fixed a latent rounding bug surfaced by the new tests: `add()` now derives `baseAmount` from the already-rounded `amount`, so `baseAmount === round2(amount × baseRate)` holds exactly.
+
+**Verified:** measured the actual generated data and tuned budgets/probabilities empirically — overall savings rate lands at **0.280**. 7 new unit tests (211 total, all pass): moderate-saver savings band [0.18–0.32], ≥1 net-negative month, notes on >30% of rows, ≥4 expense + ≥3 income tags, an upward Dining trend (last-6-months > first-6), a budget over/under mix, and the locked-rate foreign legs. `npm run build` clean. Headless-Chromium drove Demo Mode across every screen: Overview (28% savings, textured wealth line with the raise step), Labels (four income slices — previously one), Categories (Dining detail expands with deltas), Calendar (populated Year grid), Budgets (Dining near-limit, Groceries detail with a real red/blue 12-month history + tight YTD pace), Activity (rows showing notes). Zero console errors. Bumped to **v1.11.0**. (Noted but left out of scope: the heatmap's Rent-outlier washout is a component-level color-scale concern — a sqrt/percentile ramp in `CalendarHeatmap.tsx` — not a demo-data fix.)
