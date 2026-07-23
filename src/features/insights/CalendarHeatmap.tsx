@@ -17,7 +17,7 @@ import {
 } from '@/lib/date'
 import { alphaHex } from '@/lib/palette'
 import { cn } from '@/lib/cn'
-import { dailyTotals, type DayTotal } from './compute'
+import { dailyTotals, heatCeiling, type DayTotal } from './compute'
 
 type Zoom = 'month' | 'quarter' | 'year'
 
@@ -56,18 +56,20 @@ export default function CalendarHeatmap({ base }: { base: string }) {
   const rangeEnd = toISO(endOfMonth(months[months.length - 1]))
   const txs = useTransactionsInRange(rangeStart, rangeEnd)
 
-  // Per-month day totals, plus the max daily expense across the whole visible
-  // range — the shared scale that makes months comparable.
-  const { perMonth, maxExpense, rangeExpense } = useMemo(() => {
+  // Per-month day totals, plus a shared colour-scale ceiling across the whole
+  // visible range (so months stay directly comparable). The ceiling is a high
+  // percentile rather than the raw max, so an outlier day (rent, a vacation)
+  // doesn't wash every ordinary day into the same faint shade.
+  const { perMonth, scaleMax, rangeExpense } = useMemo(() => {
     const perMonth = months.map((m) => dailyTotals(txs, m))
-    let max = 0
+    const expenses: number[] = []
     let sum = 0
     for (const days of perMonth)
       for (const d of days) {
-        if (d.expense > max) max = d.expense
+        if (d.expense > 0) expenses.push(d.expense)
         sum += d.expense
       }
-    return { perMonth, maxExpense: max, rangeExpense: sum }
+    return { perMonth, scaleMax: heatCeiling(expenses), rangeExpense: sum }
   }, [txs, months])
 
   const inViewToday = (ms: Date[]) =>
@@ -163,7 +165,7 @@ export default function CalendarHeatmap({ base }: { base: string }) {
           <MonthGrid
             monthAnchor={months[0]}
             days={perMonth[0]}
-            maxExpense={maxExpense}
+            scaleMax={scaleMax}
             first={first}
             today={today}
             selected={selected}
@@ -177,7 +179,7 @@ export default function CalendarHeatmap({ base }: { base: string }) {
                 <MonthGrid
                   monthAnchor={m}
                   days={perMonth[i]}
-                  maxExpense={maxExpense}
+                  scaleMax={scaleMax}
                   first={first}
                   today={today}
                   selected={selected}
@@ -195,7 +197,7 @@ export default function CalendarHeatmap({ base }: { base: string }) {
                 key={toISO(m)}
                 monthAnchor={m}
                 days={perMonth[i]}
-                maxExpense={maxExpense}
+                scaleMax={scaleMax}
                 first={first}
                 today={today}
                 selected={selected}
@@ -246,7 +248,7 @@ const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 function MonthGrid({
   monthAnchor,
   days,
-  maxExpense,
+  scaleMax,
   first,
   today,
   selected,
@@ -256,7 +258,9 @@ function MonthGrid({
 }: {
   monthAnchor: Date
   days: DayTotal[]
-  maxExpense: number
+  /** Colour-scale ceiling (a high percentile of daily expense); days at or
+   * above it read as fully saturated. See `heatCeiling`. */
+  scaleMax: number
   first: 0 | 1
   today: string
   selected: string | null
@@ -293,8 +297,8 @@ function MonthGrid({
           <div key={`b${i}`} />
         ))}
         {days.map((d) => {
-          const frac = maxExpense > 0 ? d.expense / maxExpense : 0
-          const alpha = d.expense > 0 ? 0.18 + 0.82 * frac : 0
+          const frac = scaleMax > 0 ? Math.min(1, d.expense / scaleMax) : 0
+          const alpha = d.expense > 0 ? 0.16 + 0.84 * frac : 0
           const isToday = d.iso === today
           const isSel = d.iso === selected
           const isFuture = d.iso > today

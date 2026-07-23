@@ -239,6 +239,22 @@ export function dailyTotals(txs: Transaction[], monthAnchor: Date): DayTotal[] {
   return out
 }
 
+/** A robust colour-scale ceiling for the calendar heatmap: the ~92nd
+ * percentile of non-zero daily expense across the visible range. A handful of
+ * outlier days — the rent-on-the-1st, a vacation — would otherwise set the
+ * scale so high that every ordinary day collapses into the same faint shade;
+ * clamping to a high percentile instead means the top ~8% of days read as
+ * fully saturated while everyday spending spreads across the rest of the ramp.
+ * Falls back to the max when there are too few days to take a stable
+ * percentile (a sparse month), where percentile ≈ max anyway. */
+export function heatCeiling(dailyExpenses: number[]): number {
+  const positive = dailyExpenses.filter((v) => v > 0).sort((a, b) => a - b)
+  if (positive.length === 0) return 0
+  if (positive.length < 8) return positive[positive.length - 1]
+  const idx = Math.floor(0.92 * (positive.length - 1))
+  return positive[idx]
+}
+
 /** Index of the last bucket that has already started (<= today); -1 if none. */
 export function lastStartedIndex(buckets: Bucket[], todayISO: string): number {
   let idx = -1

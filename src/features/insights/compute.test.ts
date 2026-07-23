@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest'
 import type { Transaction } from '@/db/types'
-import { cashflowByBucket, dailyTotals, deltaVs, monthlySeriesFor, savingsRate } from './compute'
+import {
+  cashflowByBucket,
+  dailyTotals,
+  deltaVs,
+  heatCeiling,
+  monthlySeriesFor,
+  savingsRate,
+} from './compute'
 import type { Bucket } from './period'
 
 function tx(overrides: Partial<Transaction>): Transaction {
@@ -154,5 +161,36 @@ describe('dailyTotals', () => {
     const result = dailyTotals(txs, anchor)
     expect(result.reduce((s, d) => s + d.expense, 0)).toBe(25)
     expect(result[9]).toMatchObject({ day: 10, expense: 25 })
+  })
+})
+
+describe('heatCeiling', () => {
+  it('returns 0 when there is no spend', () => {
+    expect(heatCeiling([])).toBe(0)
+    expect(heatCeiling([0, 0, 0])).toBe(0)
+  })
+
+  it('uses the max for a small sample (too few for a stable percentile)', () => {
+    expect(heatCeiling([10, 20, 5, 999])).toBe(999)
+  })
+
+  it('takes the ~92nd percentile once there are enough days', () => {
+    // 100 values 1..100 → floor(0.92 * 99) = 91 → sorted[91] = 92.
+    const values = Array.from({ length: 100 }, (_, i) => i + 1)
+    expect(heatCeiling(values)).toBe(92)
+  })
+
+  it('is robust to outliers — a lone huge day does not set the ceiling', () => {
+    // 30 ordinary days around 10, plus one 5000 rent/vacation spike.
+    const values = [...Array.from({ length: 30 }, () => 10), 5000]
+    const ceiling = heatCeiling(values)
+    expect(ceiling).toBeLessThan(5000)
+    expect(ceiling).toBeLessThanOrEqual(10)
+  })
+
+  it('ignores zero-spend days when ranking', () => {
+    const values = [0, 0, 0, 0, 0, 0, 0, 0, 100, 200]
+    // Only [100, 200] are positive → < 8 → falls back to their max.
+    expect(heatCeiling(values)).toBe(200)
   })
 })

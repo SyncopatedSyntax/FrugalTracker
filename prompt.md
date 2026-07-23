@@ -963,3 +963,16 @@ Confirmed the direction with the user (persona = **moderate saver ~25%**; enrich
 Also fixed a latent rounding bug surfaced by the new tests: `add()` now derives `baseAmount` from the already-rounded `amount`, so `baseAmount === round2(amount × baseRate)` holds exactly.
 
 **Verified:** measured the actual generated data and tuned budgets/probabilities empirically — overall savings rate lands at **0.280**. 7 new unit tests (211 total, all pass): moderate-saver savings band [0.18–0.32], ≥1 net-negative month, notes on >30% of rows, ≥4 expense + ≥3 income tags, an upward Dining trend (last-6-months > first-6), a budget over/under mix, and the locked-rate foreign legs. `npm run build` clean. Headless-Chromium drove Demo Mode across every screen: Overview (28% savings, textured wealth line with the raise step), Labels (four income slices — previously one), Categories (Dining detail expands with deltas), Calendar (populated Year grid), Budgets (Dining near-limit, Groceries detail with a real red/blue 12-month history + tight YTD pace), Activity (rows showing notes). Zero console errors. Bumped to **v1.11.0**. (Noted but left out of scope: the heatmap's Rent-outlier washout is a component-level color-scale concern — a sqrt/percentile ramp in `CalendarHeatmap.tsx` — not a demo-data fix.)
+
+
+---
+
+## 84. Calendar heatmap: robust percentile colour scale (readable everyday gradation)
+
+> [heatmap] What do you mean want the heat map really pop? … Make the change
+
+**Result:** the calendar heatmap shaded each day against the single **biggest** spending day in view. With rent (~$1,450 on the 1st) and vacation days ($700–2,800) dwarfing everyday spend (coffee $5, groceries $100), the scale stretched so high that ordinary days all collapsed into the same faint shade — you could see *that* a day had spend, but not tell a light day from a moderately heavy one.
+
+Replaced the absolute-max reference with a **robust percentile ceiling**. New pure helper `heatCeiling(dailyExpenses)` in `compute.ts` returns the ~92nd percentile of non-zero daily expense (falling back to the max when there are too few days for a stable percentile). `CalendarHeatmap` now scales each cell as `min(1, dayExpense / ceiling)`, so the top ~8% of days (rent, travel) saturate while everyday spending spreads across the rest of the ramp. The shared-across-the-visible-range property is preserved (months stay comparable), and the base alpha floor was nudged 0.18 → 0.16 so the faintest days stay legible.
+
+**Verified:** 5 new `heatCeiling` unit tests (216 total, all pass) — empty/all-zero → 0, small-sample fallback to max, the exact 92nd-percentile index on a known 1..100 array, outlier robustness (a lone 5000 among thirties doesn't set the ceiling), and zero-day exclusion. `npm run build` clean. Headless-Chromium on the demo Year grid: rendered cell alphas now span the full ramp (**0.18 → 1.00 across ~61 distinct values**) instead of clustering near the faint end; Month view shows clear light/medium/heavy gradation with white day-numbers on the darkest cells. Bumped to **v1.11.1**. (This is the component-level follow-up flagged as out-of-scope in #83; the underlying complaint was outlier washout, now fixed at the colour-mapping layer rather than in the data.)
