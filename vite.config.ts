@@ -29,8 +29,11 @@ export default defineConfig({
         name: 'FrugalTracker',
         short_name: 'Frugal',
         description: 'Fast, offline personal expense tracker',
-        theme_color: '#5E7A5F',
-        background_color: '#F4F4EE',
+        // Ocean Punch (dark) — the app's default theme (see lib/palette.ts) —
+        // so the OS status bar / task switcher and the PWA splash screen
+        // match the icon's own ink tile instead of the old Sage Ledger green.
+        theme_color: '#0A1317',
+        background_color: '#0A1317',
         display: 'standalone',
         orientation: 'portrait',
         start_url: '/',
