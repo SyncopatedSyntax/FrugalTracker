@@ -15,14 +15,19 @@ import {
 import { db } from '@/db/db'
 import { ensureSeeded } from '@/db/seed'
 import { backfillBaseAmounts } from '@/db/repo'
-import { useTransactionCount } from '@/hooks'
+import { useGithubConfig, useTransactionCount } from '@/hooks'
 
 export default function DataScreen() {
   const { message, show } = useToast()
   const count = useTransactionCount() ?? 0
+  const githubConfig = useGithubConfig()
   const fileRef = useRef<HTMLInputElement>(null)
   const [pending, setPending] = useState<BackupFile | null>(null)
   const [confirmClear, setConfirmClear] = useState(false)
+  // A restored backup never carries a GitHub Personal Access Token (it's
+  // intentionally excluded from every backup format) — if this device isn't
+  // already connected, prompt to reconnect and re-enter it.
+  const [showReconnect, setShowReconnect] = useState(false)
 
   const onRestoreFile = async (file: File) => {
     try {
@@ -46,6 +51,9 @@ export default function DataScreen() {
       setPending(null)
       const skipped = summarizeRestore(report)
       show(skipped ? `Backup restored · ${skipped}` : 'Backup restored')
+      // Wait for the toast above to clear before opening the sheet — both are
+      // fixed-position overlays and would otherwise visually collide.
+      if (!githubConfig) window.setTimeout(() => setShowReconnect(true), 1800)
     } catch (err) {
       setPending(null)
       show(err instanceof Error ? err.message : 'Restore failed')
@@ -170,6 +178,33 @@ export default function DataScreen() {
           >
             Restore
           </button>
+        </div>
+      </Sheet>
+
+      <Sheet
+        open={showReconnect}
+        onClose={() => setShowReconnect(false)}
+        title="Reconnect GitHub backup?"
+      >
+        <p className="text-sm text-muted">
+          Your Personal Access Token is never included in a backup, so GitHub backup isn't
+          connected on this device. If you use it, reconnect and re-enter your token to resume
+          off-device backups.
+        </p>
+        <div className="mt-4 flex gap-2">
+          <button
+            onClick={() => setShowReconnect(false)}
+            className="flex-1 rounded-[1.375rem] border border-border py-3 text-sm font-semibold"
+          >
+            Later
+          </button>
+          <Link
+            to="/more/github-backup"
+            onClick={() => setShowReconnect(false)}
+            className="flex-1 rounded-[1.375rem] bg-primary py-3 text-center text-sm font-semibold text-primary-fg"
+          >
+            Set up
+          </Link>
         </div>
       </Sheet>
 

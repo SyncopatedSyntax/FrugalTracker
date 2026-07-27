@@ -181,6 +181,11 @@ export default function GitHubBackupScreen() {
                 className="w-full rounded-xl border border-border bg-surface2 px-3 py-3 text-base outline-none focus:border-primary"
                 autoComplete="off"
               />
+              <p className="mt-1.5 text-xs text-muted">
+                Save this token somewhere safe, like a password manager. It's kept only on this
+                device and is never included in a backup — JSON, CSV, or this GitHub backup itself
+                — so you'll need to re-enter it if you ever reconnect from a new device.
+              </p>
             </Field>
             <Field label="Owner / repo">
               <div className="flex gap-2">

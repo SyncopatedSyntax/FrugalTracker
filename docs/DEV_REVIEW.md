@@ -136,6 +136,7 @@ Was: since the category detail became an inline expansion (v1.5.0), `selectedCat
 - Local-only by design; no network calls besides same-origin asset fetches and the SW update check. No `dangerouslySetInnerHTML`; imported CSV strings render as text (React-escaped) — no XSS vector found.
 - IndexedDB and JSON backups are **unencrypted**: anyone with device access can read them. If "app lock" ever becomes a request, note that real at-rest encryption in a PWA is limited — set expectations accordingly.
 - `restoreBackup` trusts the file shape beyond `isValidBackup`'s shallow check (no per-row validation). A hand-crafted JSON can insert malformed rows that later crash renders (e.g. `tags: null`). Cheap hardening: coerce/validate rows during restore.
+- **GitHub PAT is never included in any backup format** (JSON, CSV, or the GitHub backup file itself) — it lives only in the device-local `db.githubConfig` table, deliberately excluded from `buildBackup()`/`restoreBackup()` (see the comment on that table in `db/db.ts`). **Resolved v1.12.1:** since that means restoring onto a new/reset device silently leaves GitHub backup disconnected, `GitHubBackupScreen.tsx` now shows a persistent note under the token field to save it somewhere safe, and `DataScreen.tsx`'s local restore opens a follow-up "Reconnect GitHub backup?" sheet (delayed past the restore toast to avoid overlap) whenever the device isn't already connected.
 
 ---
 
