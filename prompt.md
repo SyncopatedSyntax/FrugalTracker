@@ -1026,3 +1026,19 @@ Published as a private Artifact (not committed to the repo — a standalone deli
 Caught one real bug while verifying: the reconnect sheet and the "Backup restored" toast fired simultaneously, and since the toast renders at a higher z-index (`z-[60]` vs. the sheet's `z-50`), it visually sat on top of the sheet's text. Fixed by delaying the sheet 1800ms so it only appears once the toast (1600ms default) has cleared.
 
 **Verified:** `npm run build` + `tsc --noEmit` clean; full suite unaffected (216 tests passing — no new unit tests needed, this is UI copy/flow, not new logic). Headless-Chromium E2E: confirmed the save-token note renders on the connect form; simulated a local-file restore (injecting a minimal valid `BackupFile` via a `DataTransfer` into the hidden file input, since no real file exists on disk) and confirmed the restored-toast shows immediately with **no** reconnect sheet yet, then the reconnect sheet appears only after the toast has fully cleared (no overlap); confirmed "Later" dismisses in place and "Set up" navigates to `/more/github-backup`. Zero console errors. Bumped to **v1.12.1**.
+
+## 88. Feature Guide revisions + publish it as a real GitHub Pages site
+
+> In the Feature Guide, instead of the Tag-level breakdown, do the Category breakdown with the donut screenshot and mention it can also be broken down in tag level. The Capture section's 3rd screenshot "tag, date, note" screenshots are not correct, replace it with the correct screenshot. Also have a section about how user can pick themes, move the number pad for bigger phones, customize category icon color opacity etc.
+
+> make it in to a page I can publish on github page
+
+**Result:** two rounds of work on the Feature Guide built in entry #85.
+
+**Content fixes:** swapped the Analyze section's "Labels" card for a "Breakdown" card built around the top-level Categories donut (unexpanded, with per-category totals) and noted in the copy that the same view flips to a tag-level cut. Re-captured the Capture flow's 3rd screenshot — the previous one showed the amount/keypad step because the capture script screenshotted after a fixed timeout instead of waiting for the tag/date/note step to actually render; fixed by waiting for the "Add tag" button to appear before shooting. Added a new "Personalize" section (theme picker + category-icon boldness slider, and the keypad-reach setting that lets the number pad hug the left or right edge on bigger phones), with two new screenshots captured at a tall viewport and clipped to true content height (the settings screens scroll inside a nested `overflow-y-auto` div, so `fullPage` alone under-captured them).
+
+**Publish to GitHub Pages:** wrapped the rebuilt single-file guide (still self-contained: WebP screenshots inlined as base64, no external requests) in a full HTML document — `<!doctype>`/`<head>` with title, meta description, and the app's real "Ring + Trend" favicon inlined as an SVG data URI — and committed it to `docs/index.html`, the standard GitHub Pages source folder. Updated the stale "offline-first · v1.11" topbar tag to v1.12 now that this is a committed, versioned file rather than a one-off Artifact export.
+
+**Verified:** headless Chromium load of `docs/index.html` — correct `<title>`, favicon as inlined data URI, updated version tag, all 17 screenshots load with none broken, zero horizontal overflow at both 1280px and 390px, zero console/page errors. No app code changed (`npm run build`/`vitest` unaffected). Bumped to **v1.12.2**.
+
+To finish publishing: in the repo's GitHub settings, go to **Settings → Pages → Source → Deploy from a branch**, pick this branch and the **`/docs`** folder, save — GitHub will publish it at `https://syncopatedsyntax.github.io/frugaltracker/` (or the equivalent path if merged to `main` first).
