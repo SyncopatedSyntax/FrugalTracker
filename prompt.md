@@ -1042,3 +1042,11 @@ Caught one real bug while verifying: the reconnect sheet and the "Backup restore
 **Verified:** headless Chromium load of `docs/index.html` — correct `<title>`, favicon as inlined data URI, updated version tag, all 17 screenshots load with none broken, zero horizontal overflow at both 1280px and 390px, zero console/page errors. No app code changed (`npm run build`/`vitest` unaffected). Bumped to **v1.12.2**.
 
 To finish publishing: in the repo's GitHub settings, go to **Settings → Pages → Source → Deploy from a branch**, pick this branch and the **`/docs`** folder, save — GitHub will publish it at `https://syncopatedsyntax.github.io/frugaltracker/` (or the equivalent path if merged to `main` first).
+
+## 89. Real app icon in the Feature Guide + credit SyncopatedSyntax
+
+> Change the Feature Guide's icon to the real app icon, and also mention SyncopatedSyntax developed it.
+
+**Result:** the topbar and footer brand marks in `docs/index.html` were a CSS-drawn stand-in (a conic-gradient square with a fake highlight), not the app's actual "Ring + Trend" icon. Replaced both with `<img>` tags pointing at the exact same inlined SVG data URI already used for the page's own `<link rel="icon">`, so the brand mark and browser-tab favicon are now provably the same asset. Added a developer credit in two places: the footer's description line now reads "An offline-first personal expense tracker, built by SyncopatedSyntax," and a `<meta name="author" content="SyncopatedSyntax">` tag was added to `<head>` for anything that reads page metadata.
+
+**Verified:** headless Chromium — both brand-mark images load with no broken images, their `src` is byte-identical to the favicon `href`, the author meta tag and footer credit text are both present, zero horizontal overflow, zero console/page errors. No app code changed. Bumped to **v1.12.3**.
