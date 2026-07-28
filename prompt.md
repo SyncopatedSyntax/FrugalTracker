@@ -1068,3 +1068,11 @@ To finish publishing: in the repo's GitHub settings, go to **Settings → Pages 
 Rewrote `CATEGORY_PALETTES.ocean` as an actual ocean-family set: 18 colors spanning sky/cyan/teal/sea-green/blue/indigo/violet/purple (pulling in the theme's own primary `#38BDF8`, income teal `#2DD4BF`, and net-line purple `#C084FC` as anchor hues), plus the app icon's gold accent `#E6B34C` and one neutral slate for contrast — 18 to match Sage Ledger's full-coverage count so demo's 18 categories each get a distinct color with no repeats. Dropped every orange/red/brown/mauve entry, since those belong to other themes or clash with Ocean Punch's rose-for-expense semantic.
 
 **Verified:** `palette.test.ts` (dynamic checks — no palette's colors are hardcoded in tests, so this needed no test changes) and the full suite both green (216 tests); `npm run build` clean. Headless-Chromium E2E against a local preview build: enabled Demo Mode, read all 18 category colors straight out of IndexedDB and confirmed every one matches the new ocean set exactly; screenshotted Insights → Categories (donut + list) and confirmed it now reads as a cohesive blue/teal/cyan/purple family with a single gold accent, instead of the old rainbow. Zero console errors. Bumped to **v1.12.5**.
+
+## 92. Revert the v1.12.5 Ocean Punch category-palette change
+
+> Revert the changes of palettes in the v1.12.5, I didn't want to change those colors to the Ocean Punch look.
+
+**Result:** entry #91's follow-up dug into why the fix "didn't take" and confirmed the real cause was stale demo data, not a broken fix — but on reflection the user didn't actually want `CATEGORY_PALETTES.ocean` (`src/lib/palette.ts`) recolored to a blue/teal/cyan/purple set in the first place. Reverted that array back to its exact pre-#91 contents (orange/gold/ocean-blue/brown/purple/red/violet/indigo/emerald/cyan/teal/lime) — a clean, byte-for-byte revert confirmed against `git show` of the commit before #91's change. Left the rest of #91's investigation and #90's white-border fix as they were; only the color array itself was rolled back.
+
+**Verified:** full suite green (216 tests, no test changes needed since none pin ocean's hex values) and `npm run build` clean. Bumped to **v1.12.6**.
