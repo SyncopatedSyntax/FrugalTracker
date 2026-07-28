@@ -83,18 +83,24 @@ export const CATEGORY_PALETTES: Record<AppTheme, readonly string[]> = {
     '#DB2777', // rose
   ],
   ocean: [
-    '#F97316', // orange
-    '#CA8A04', // gold
-    '#0369A1', // ocean blue
-    '#78350F', // brown
-    '#9333EA', // purple
-    '#DC2626', // red
-    '#7C3AED', // violet
-    '#4F46E5', // indigo
-    '#059669', // emerald
-    '#0891B2', // cyan
-    '#0D9488', // teal
-    '#65A30D', // lime
+    '#38BDF8', // sky — the theme's own primary
+    '#0EA5E9', // deep sky
+    '#22D3EE', // bright cyan
+    '#06B6D4', // deep cyan
+    '#2DD4BF', // teal — the theme's own income color
+    '#0D9488', // deep teal
+    '#14B8A6', // mid teal
+    '#34D399', // sea green
+    '#10B981', // deep sea green
+    '#60A5FA', // soft blue
+    '#3B82F6', // blue
+    '#6366F1', // indigo
+    '#818CF8', // soft indigo
+    '#A78BFA', // violet
+    '#C084FC', // purple — the theme's own net-line color
+    '#9333EA', // deep purple
+    '#E6B34C', // gold — the theme's icon accent
+    '#64748B', // slate
   ],
 }
 
