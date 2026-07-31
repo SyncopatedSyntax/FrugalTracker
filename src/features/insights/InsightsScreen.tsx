@@ -1,7 +1,7 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import Segmented from '@/components/Segmented'
-import { ChevronRightIcon, PencilIcon, TagIcon } from '@/components/icons'
+import { PencilIcon } from '@/components/icons'
 import { useCategoryMap, useEarliestTransactionDate, useSettings, useTransactionsInRange } from '@/hooks'
 import type { TxType } from '@/db/types'
 import { formatMoney, formatMoneyCompact } from '@/lib/currency'
@@ -13,7 +13,9 @@ import LineChart, { type LineSeries } from './LineChart'
 import CashflowBarChart from './CashflowBarChart'
 import CalendarHeatmap from './CalendarHeatmap'
 import CategoryDetailPanel from './CategoryDetailPanel'
+import CategoryPickerSheet from './CategoryPickerSheet'
 import DonutChart from './DonutChart'
+import SliceRow from './SliceRow'
 import OpeningBalanceSheet from './OpeningBalanceSheet'
 import { barBuckets, resolvePeriod, stepAnchor, type CustomRange, type Granularity } from './period'
 import {
@@ -158,8 +160,9 @@ export default function InsightsScreen() {
     [periodTxs, labelCategory, flow, flowTotal],
   )
   // A category filter can outlive the data it was picked from — step to a
-  // period where that category has nothing and its chip disappears from the
-  // row, leaving the Labels view empty with no visible filter to explain why.
+  // period where that category has nothing and it drops out of the picker
+  // entirely, leaving the Labels view empty with no way to reach the filter
+  // that emptied it.
   useEffect(() => {
     if (labelCategory && !catSlices.some((c) => c.key === labelCategory)) setLabelCategory(null)
   }, [catSlices, labelCategory])
@@ -269,6 +272,7 @@ export default function InsightsScreen() {
             periodFrom={period.startISO}
             periodTo={period.endISO}
             categoryOptions={catSlices}
+            categoryTotal={flowTotal}
             categoryFilter={labelCategory}
             onCategoryFilter={setLabelCategory}
           />
@@ -495,6 +499,7 @@ function BreakdownView({
   periodFrom,
   periodTo,
   categoryOptions,
+  categoryTotal,
   categoryFilter,
   onCategoryFilter,
 }: {
@@ -514,14 +519,20 @@ function BreakdownView({
    * These are the category breakdown's own slices — same flow, same period,
    * already ranked by size — so the chips list exactly what's in view. */
   categoryOptions?: Slice[]
+  /** The flow's total across all categories — the picker's denominator, which
+   * `total` can't supply once it has narrowed to the filtered category. */
+  categoryTotal?: number
   categoryFilter?: string | null
   onCategoryFilter?: (id: string | null) => void
 }) {
   const navigate = useNavigate()
+  const [pickerOpen, setPickerOpen] = useState(false)
+  const pickedCategory = categoryFilter
+    ? categoryOptions?.find((c) => c.key === categoryFilter)
+    : undefined
   // Max of `value`, not `slices[0]`: label slices are ranked by `share`, so the
   // first row isn't necessarily the one with the largest full total.
   const maxVal = slices.reduce((m, s) => (s.value > m ? s.value : m), 0)
-  const sign = flow === 'expense' ? '-' : ''
   // Only worth explaining when something actually overlaps — on a period where
   // no transaction carries two tags, values and shares agree and the caption
   // would be noise.
@@ -585,24 +596,35 @@ function BreakdownView({
       </div>
 
       {kind === 'label' && categoryOptions && categoryOptions.length > 0 && (
-        <div className="-mx-4 mt-3 overflow-x-auto px-4">
-          <div className="flex w-max gap-1.5">
+        <>
+          <div className="mt-3 flex justify-center gap-1.5">
             <CategoryChip
               label="All categories"
               on={!categoryFilter}
               onClick={() => onCategoryFilter?.(null)}
             />
-            {categoryOptions.map((c) => (
-              <CategoryChip
-                key={c.key}
-                label={c.name}
-                icon={c.icon}
-                on={categoryFilter === c.key}
-                onClick={() => onCategoryFilter?.(categoryFilter === c.key ? null : c.key)}
-              />
-            ))}
+            {/* Once a category is chosen the chip names it, so the active
+                filter is readable without opening the picker again. */}
+            <CategoryChip
+              label={pickedCategory ? pickedCategory.name : 'Choose a category'}
+              icon={pickedCategory?.icon}
+              on={!!categoryFilter}
+              onClick={() => setPickerOpen(true)}
+            />
           </div>
-        </div>
+
+          <CategoryPickerSheet
+            open={pickerOpen}
+            onClose={() => setPickerOpen(false)}
+            slices={categoryOptions}
+            total={categoryTotal ?? 0}
+            base={base}
+            chipAlpha={chipAlpha}
+            flow={flow}
+            selectedKey={categoryFilter ?? null}
+            onPick={(id) => onCategoryFilter?.(id)}
+          />
+        </>
       )}
 
       {slices.length === 0 ? (
@@ -634,74 +656,23 @@ function BreakdownView({
 
           <div className="mt-4 space-y-1">
             {slices.map((s) => {
-              // From `share` so the row agrees with its own arc; the amount
-              // beside it stays the full total, which is what the transactions
-              // list will show.
-              const pct = total > 0 ? (s.share / total) * 100 : 0
               const on = selectedKey === s.key
               const expanded = kind === 'category' && on
-              const untagged = s.key === UNTAGGED_KEY
               return (
                 <Fragment key={s.key}>
-                  <button
-                    ref={expanded ? expandedRowRef : undefined}
+                  <SliceRow
+                    slice={s}
+                    kind={kind}
+                    flow={flow}
+                    base={base}
+                    chipAlpha={chipAlpha}
+                    maxVal={maxVal}
+                    total={total}
+                    active={on}
+                    expanded={expanded}
                     onClick={() => onRowTap(s)}
-                    className={cn(
-                      'flex w-full items-center gap-3 rounded-xl px-2 py-2 text-left',
-                      on ? 'bg-surface2' : 'hover:bg-surface2/60',
-                    )}
-                  >
-                    <span
-                      className="grid h-9 w-9 flex-shrink-0 place-items-center rounded-full text-base"
-                      style={{ backgroundColor: s.color + chipAlpha }}
-                    >
-                      {kind === 'category' ? (
-                        s.icon
-                      ) : (
-                        <TagIcon
-                          size={16}
-                          style={{ color: s.color }}
-                          className={cn(untagged && 'opacity-60')}
-                        />
-                      )}
-                    </span>
-                    <span className="min-w-0 flex-1">
-                      <span className="mb-1 flex items-center justify-between gap-2">
-                        <span className="truncate text-sm font-medium">
-                          {kind === 'label' && !untagged ? '#' + s.name : s.name}
-                        </span>
-                        <span
-                          className={cn(
-                            'flex-shrink-0 text-sm font-semibold tabular-nums',
-                            flow === 'expense' ? 'text-expense' : 'text-income',
-                          )}
-                        >
-                          {sign}
-                          {formatMoney(s.value, base)}
-                        </span>
-                      </span>
-                      <span className="flex items-center gap-2">
-                        <span className="h-1.5 flex-1 overflow-hidden rounded-full bg-surface2">
-                          <span
-                            className="block h-full rounded-full"
-                            style={{ width: `${maxVal > 0 ? (s.value / maxVal) * 100 : 0}%`, backgroundColor: s.color }}
-                          />
-                        </span>
-                        {/* Wide enough (and non-wrapping) for a 3-digit count —
-                            "901 tx · 80%" — which the Untagged row reliably has. */}
-                        <span className="w-20 flex-shrink-0 whitespace-nowrap text-right text-[0.6875rem] text-muted">
-                          {s.count} tx · {pct.toFixed(0)}%
-                        </span>
-                      </span>
-                    </span>
-                    <ChevronRightIcon
-                      size={16}
-                      className={cn(
-                        'flex-shrink-0 text-muted/50 transition-transform',
-                        expanded && 'rotate-90',
-                      )}
-                    />
-                  </button>
+                    rowRef={expanded ? expandedRowRef : undefined}
+                  />
                   {expanded && (
                     <CategoryDetailPanel categoryId={s.key} base={base} anchorISO={periodTo} />
                   )}
@@ -740,12 +711,14 @@ function CategoryChip({
     <button
       onClick={onClick}
       className={cn(
-        'flex flex-shrink-0 items-center gap-1.5 rounded-full border px-2.5 py-1.5 text-xs font-medium',
+        'flex min-w-0 items-center gap-1.5 rounded-full border px-2.5 py-1.5 text-xs font-medium',
         on ? 'border-primary bg-primary/10 text-primary' : 'border-border text-muted',
       )}
     >
-      {icon && <span>{icon}</span>}
-      {label}
+      {icon && <span className="flex-shrink-0">{icon}</span>}
+      {/* Truncates rather than overflowing: the chip names whichever category
+          is filtered, and category names are free-form user text. */}
+      <span className="truncate">{label}</span>
     </button>
   )
 }
