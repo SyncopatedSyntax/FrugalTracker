@@ -24,6 +24,7 @@ import {
   lastStartedIndex,
   savingsRate,
   sumFlow,
+  UNTAGGED_KEY,
   type Slice,
 } from './compute'
 
@@ -58,6 +59,9 @@ export default function InsightsScreen() {
   const [metric, setMetric] = useState<'wealth' | 'cashflow'>('wealth')
   const [selectedCat, setSelectedCat] = useState<string | null>(null)
   const [selectedLabel, setSelectedLabel] = useState<string | null>(null)
+  /** Labels view only: narrows the tag breakdown to one category ("of my
+   * #vacation spend, how much was Travel?"). null = all categories. */
+  const [labelCategory, setLabelCategory] = useState<string | null>(null)
   const [obOpen, setObOpen] = useState(false)
 
   const period = useMemo(
@@ -135,10 +139,31 @@ export default function InsightsScreen() {
     [periodTxs, flow, categoryMap],
   )
   const labelSlices = useMemo(
-    () => labelBreakdown(periodTxs, flow, categoryPalette(settings.appTheme)),
-    [periodTxs, flow, settings.appTheme],
+    () => labelBreakdown(periodTxs, flow, categoryPalette(settings.appTheme), labelCategory),
+    [periodTxs, flow, settings.appTheme, labelCategory],
   )
   const flowTotal = flow === 'expense' ? totalExpense : totalIncome
+  // The Labels donut is drawn against the whole of whatever is in view, so a
+  // category filter has to move the denominator with it — otherwise the ring
+  // stops filling and every percentage is measured against money the filter
+  // just excluded.
+  const labelTotal = useMemo(
+    () =>
+      labelCategory
+        ? sumFlow(
+            periodTxs.filter((t) => t.categoryId === labelCategory),
+            flow,
+          )
+        : flowTotal,
+    [periodTxs, labelCategory, flow, flowTotal],
+  )
+  // A category filter can outlive the data it was picked from — step to a
+  // period where that category has nothing and its chip disappears from the
+  // row, leaving the Labels view empty with no visible filter to explain why.
+  useEffect(() => {
+    if (labelCategory && !catSlices.some((c) => c.key === labelCategory)) setLabelCategory(null)
+  }, [catSlices, labelCategory])
+
   const selected = selectedCat ? catSlices.find((s) => s.key === selectedCat) : undefined
   const selectedLbl = selectedLabel ? labelSlices.find((s) => s.key === selectedLabel) : undefined
 
@@ -165,6 +190,7 @@ export default function InsightsScreen() {
             setView(v)
             setSelectedCat(null)
             setSelectedLabel(null)
+            setLabelCategory(null)
           }}
         />
         {/* The calendar view navigates by month on its own, so the
@@ -234,7 +260,7 @@ export default function InsightsScreen() {
             flow={flow}
             setFlow={setFlow}
             slices={labelSlices}
-            total={flowTotal}
+            total={labelTotal}
             base={base}
             chipAlpha={alphaHex(settings.categoryIconAlpha)}
             selectedKey={selectedLabel}
@@ -242,6 +268,9 @@ export default function InsightsScreen() {
             selected={selectedLbl}
             periodFrom={period.startISO}
             periodTo={period.endISO}
+            categoryOptions={catSlices}
+            categoryFilter={labelCategory}
+            onCategoryFilter={setLabelCategory}
           />
         )}
       </div>
@@ -465,6 +494,9 @@ function BreakdownView({
   selected,
   periodFrom,
   periodTo,
+  categoryOptions,
+  categoryFilter,
+  onCategoryFilter,
 }: {
   kind: 'category' | 'label'
   flow: TxType
@@ -478,10 +510,22 @@ function BreakdownView({
   selected?: Slice
   periodFrom: string
   periodTo: string
+  /** Labels view only: the categories offered as a filter above the donut.
+   * These are the category breakdown's own slices — same flow, same period,
+   * already ranked by size — so the chips list exactly what's in view. */
+  categoryOptions?: Slice[]
+  categoryFilter?: string | null
+  onCategoryFilter?: (id: string | null) => void
 }) {
   const navigate = useNavigate()
-  const maxVal = slices.length ? slices[0].value : 0
+  // Max of `value`, not `slices[0]`: label slices are ranked by `share`, so the
+  // first row isn't necessarily the one with the largest full total.
+  const maxVal = slices.reduce((m, s) => (s.value > m ? s.value : m), 0)
   const sign = flow === 'expense' ? '-' : ''
+  // Only worth explaining when something actually overlaps — on a period where
+  // no transaction carries two tags, values and shares agree and the caption
+  // would be noise.
+  const hasOverlap = slices.some((s) => Math.abs(s.value - s.share) > 0.005)
   // Category rows expand an inline detail section (12-month trend + MoM/YoY)
   // right where they sit — tap again to collapse. Label rows drill straight
   // into the transactions behind them (same flow + the selected timeframe).
@@ -498,7 +542,9 @@ function BreakdownView({
     onSelect(s.key)
     const params = new URLSearchParams()
     params.set('type', flow)
-    params.set('tag', s.name)
+    if (s.key === UNTAGGED_KEY) params.set('untagged', '1')
+    else params.set('tag', s.name)
+    if (categoryFilter) params.set('categoryId', categoryFilter)
     params.set('from', periodFrom)
     params.set('to', periodTo)
     navigate(`/transactions?${params.toString()}`)
@@ -530,26 +576,53 @@ function BreakdownView({
           onChange={(v) => {
             setFlow(v)
             onSelect(null)
+            // Expense and income categories are disjoint sets, so a filter
+            // picked for one flow can't survive the switch to the other.
+            onCategoryFilter?.(null)
           }}
           activeClass={cn('text-white shadow', flow === 'expense' ? 'bg-expense' : 'bg-income')}
         />
       </div>
 
+      {kind === 'label' && categoryOptions && categoryOptions.length > 0 && (
+        <div className="-mx-4 mt-3 overflow-x-auto px-4">
+          <div className="flex w-max gap-1.5">
+            <CategoryChip
+              label="All categories"
+              on={!categoryFilter}
+              onClick={() => onCategoryFilter?.(null)}
+            />
+            {categoryOptions.map((c) => (
+              <CategoryChip
+                key={c.key}
+                label={c.name}
+                icon={c.icon}
+                on={categoryFilter === c.key}
+                onClick={() => onCategoryFilter?.(categoryFilter === c.key ? null : c.key)}
+              />
+            ))}
+          </div>
+        </div>
+      )}
+
       {slices.length === 0 ? (
         <p className="py-16 text-center text-sm text-muted">
-          No {flow === 'expense' ? 'expenses' : 'income'} {kind === 'label' ? 'with tags ' : ''}in
-          this period.
+          No {flow === 'expense' ? 'expenses' : 'income'} in this period.
         </p>
       ) : (
         <>
           <div className="mt-4">
             <DonutChart
+              // `share`, not `value` — a multi-tag transaction is counted whole
+              // under each of its tags in `value`, so drawing that would
+              // overfill the ring past the period total. Shares split it, and
+              // together with the untagged slice come to exactly `total`.
               slices={slices.map((s) => ({
                 key: s.key,
                 label: s.name,
-                value: s.value,
+                value: s.share,
                 color: s.color,
-                icon: s.icon ?? (kind === 'label' ? '#' : undefined),
+                icon: s.icon ?? (kind === 'label' && s.key !== UNTAGGED_KEY ? '#' : undefined),
               }))}
               total={total}
               centerLabel={selected ? (kind === 'label' ? '#' + selected.name : selected.name) : 'Total'}
@@ -561,9 +634,13 @@ function BreakdownView({
 
           <div className="mt-4 space-y-1">
             {slices.map((s) => {
-              const pct = total > 0 ? (s.value / total) * 100 : 0
+              // From `share` so the row agrees with its own arc; the amount
+              // beside it stays the full total, which is what the transactions
+              // list will show.
+              const pct = total > 0 ? (s.share / total) * 100 : 0
               const on = selectedKey === s.key
               const expanded = kind === 'category' && on
+              const untagged = s.key === UNTAGGED_KEY
               return (
                 <Fragment key={s.key}>
                   <button
@@ -581,13 +658,17 @@ function BreakdownView({
                       {kind === 'category' ? (
                         s.icon
                       ) : (
-                        <TagIcon size={16} style={{ color: s.color }} />
+                        <TagIcon
+                          size={16}
+                          style={{ color: s.color }}
+                          className={cn(untagged && 'opacity-60')}
+                        />
                       )}
                     </span>
                     <span className="min-w-0 flex-1">
                       <span className="mb-1 flex items-center justify-between gap-2">
                         <span className="truncate text-sm font-medium">
-                          {kind === 'label' ? '#' + s.name : s.name}
+                          {kind === 'label' && !untagged ? '#' + s.name : s.name}
                         </span>
                         <span
                           className={cn(
@@ -606,7 +687,9 @@ function BreakdownView({
                             style={{ width: `${maxVal > 0 ? (s.value / maxVal) * 100 : 0}%`, backgroundColor: s.color }}
                           />
                         </span>
-                        <span className="w-16 flex-shrink-0 text-right text-[0.6875rem] text-muted">
+                        {/* Wide enough (and non-wrapping) for a 3-digit count —
+                            "901 tx · 80%" — which the Untagged row reliably has. */}
+                        <span className="w-20 flex-shrink-0 whitespace-nowrap text-right text-[0.6875rem] text-muted">
                           {s.count} tx · {pct.toFixed(0)}%
                         </span>
                       </span>
@@ -626,9 +709,44 @@ function BreakdownView({
               )
             })}
           </div>
+
+          {hasOverlap && (
+            <p className="mt-3 px-2 text-[0.6875rem] leading-relaxed text-muted">
+              Amounts count a transaction under every label it carries, so they add up to more
+              than the period total and match what you'll see in the transactions list. The ring
+              and percentages split a shared transaction evenly between its labels.
+            </p>
+          )}
         </>
       )}
     </>
+  )
+}
+
+/** Single-select chip for the Labels view's category filter — same pill
+ * styling as the transactions FilterSheet's category chips. */
+function CategoryChip({
+  label,
+  icon,
+  on,
+  onClick,
+}: {
+  label: string
+  icon?: string
+  on: boolean
+  onClick: () => void
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className={cn(
+        'flex flex-shrink-0 items-center gap-1.5 rounded-full border px-2.5 py-1.5 text-xs font-medium',
+        on ? 'border-primary bg-primary/10 text-primary' : 'border-border text-muted',
+      )}
+    >
+      {icon && <span>{icon}</span>}
+      {label}
+    </button>
   )
 }
 

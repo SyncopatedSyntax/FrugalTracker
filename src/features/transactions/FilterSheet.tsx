@@ -29,11 +29,19 @@ export default function FilterSheet({ open, onClose, filters, onApply }: Props) 
         : [...d.categoryIds, id],
     }))
 
+  // Picking a tag and "Untagged" are mutually exclusive — together they'd ask
+  // for transactions that both carry a tag and carry none, which is never
+  // anything — so each one clears the other rather than silently emptying the
+  // list.
   const toggleTag = (name: string) =>
     setDraft((d) => ({
       ...d,
+      untagged: false,
       tags: d.tags.includes(name) ? d.tags.filter((x) => x !== name) : [...d.tags, name],
     }))
+
+  const toggleUntagged = () =>
+    setDraft((d) => ({ ...d, untagged: !d.untagged, tags: [] }))
 
   const visibleCats = categories.filter((c) => draft.type === 'all' || c.type === draft.type)
 
@@ -77,10 +85,24 @@ export default function FilterSheet({ open, onClose, filters, onApply }: Props) 
           </div>
         </div>
 
-        {tags.length > 0 && (
+        {/* Also rendered when there are no tags at all but `untagged` is set
+            (arrived via ?untagged=1), so the filter stays visible and
+            clearable rather than being stuck on with no control for it. */}
+        {(tags.length > 0 || draft.untagged) && (
           <div>
             <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted">Tags</p>
             <div className="flex flex-wrap gap-1.5">
+              <button
+                onClick={toggleUntagged}
+                className={cn(
+                  'rounded-full border px-2.5 py-1.5 text-xs font-medium',
+                  draft.untagged
+                    ? 'border-primary bg-primary/10 text-primary'
+                    : 'border-border text-muted',
+                )}
+              >
+                Untagged
+              </button>
               {tags.map((t) => {
                 const on = draft.tags.includes(t.name)
                 return (

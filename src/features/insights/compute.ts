@@ -23,9 +23,28 @@ export interface Slice {
   name: string
   color: string
   icon?: string
+  /** Full total — every transaction carrying this key, counted whole. For
+   * labels a multi-tag transaction contributes its whole amount to each of its
+   * tags, so label values deliberately sum to more than the period total; this
+   * is the figure that matches the filtered transactions list. */
   value: number
+  /** Portion of the period total this slice is responsible for, splitting a
+   * multi-tag transaction evenly across its tags, so shares (together with the
+   * untagged slice) sum to exactly the flow's period total — this is what the
+   * donut draws and what the row percentages are derived from. Equals `value`
+   * for categories, where each transaction has exactly one. */
+  share: number
   count: number
 }
+
+/** Slate grey, used for slices that stand for an absence rather than a real
+ * choice — a deleted category, or spend carrying no tags at all. Deliberately
+ * outside every theme's category palette so it never collides with one. */
+const NEUTRAL = '#64748b'
+
+/** Key of the synthetic "no tags at all" slice on the Labels breakdown. Not a
+ * real tag, so it can't collide with one (tag keys are lowercased user text). */
+export const UNTAGGED_KEY = '__untagged__'
 
 export function categoryBreakdown(
   txs: Transaction[],
@@ -46,38 +65,83 @@ export function categoryBreakdown(
       return {
         key: id,
         name: c?.name ?? 'Uncategorized',
-        color: c?.color ?? '#64748b',
+        color: c?.color ?? NEUTRAL,
         icon: c?.icon ?? '❓',
         value,
+        share: value,
         count,
       }
     })
     .sort((a, b) => b.value - a.value)
 }
 
-/** Tags have no stored color (unlike categories), so each is colored by its
- * rank in the current theme's category palette — `palette` should be
+/** Breakdown of one flow's spend by tag, plus a synthetic `Untagged` slice for
+ * the transactions carrying none — without which the ring would silently hide
+ * most of the period (tags are optional, and in practice most spend has none).
+ *
+ * Because a transaction can carry *several* tags, each slice reports two
+ * different numbers (see `Slice`): `value` counts a transaction whole under
+ * every one of its tags — the figure that matches the transactions list — while
+ * `share` splits it evenly across them. Summing `value` would double-count the
+ * overlap, so it's `share` that reconciles: shares plus the untagged slice come
+ * to exactly `sumFlow(txs, flow)`. `count` stays whole (a fractional
+ * transaction count is meaningless), so counts likewise don't sum to the number
+ * of tagged transactions.
+ *
+ * Pass `categoryId` to narrow to a single category — "of my #vacation spend,
+ * how much was Travel?" — which narrows the untagged residual to match.
+ *
+ * Tags have no stored color (unlike categories), so each is colored by its rank
+ * in the current theme's category palette — `palette` should be
  * `categoryPalette(settings.appTheme)` from the caller. */
 export function labelBreakdown(
   txs: Transaction[],
   flow: TxType,
   palette: readonly string[],
+  categoryId?: string | null,
 ): Slice[] {
-  const agg = new Map<string, { value: number; count: number; display: string }>()
+  const agg = new Map<string, { value: number; share: number; count: number; display: string }>()
+  let untagged = 0
+  let untaggedCount = 0
   for (const t of txs) {
     if (t.type !== flow) continue
+    if (categoryId && t.categoryId !== categoryId) continue
+    if (t.tags.length === 0) {
+      untagged += t.baseAmount
+      untaggedCount++
+      continue
+    }
+    const split = t.baseAmount / t.tags.length
     for (const tag of t.tags) {
       const key = tag.toLowerCase()
-      const e = agg.get(key) ?? { value: 0, count: 0, display: tag }
+      const e = agg.get(key) ?? { value: 0, share: 0, count: 0, display: tag }
       e.value += t.baseAmount
+      e.share += split
       e.count++
       agg.set(key, e)
     }
   }
-  return [...agg.entries()]
-    .map(([key, { value, count, display }]) => ({ key, name: display, value, count }))
-    .sort((a, b) => b.value - a.value)
+  // Ranked by share, not value: the donut draws slices in array order, so
+  // ordering by the full (overlapping) totals could put a smaller arc before a
+  // larger one and make the ring look broken.
+  const slices: Slice[] = [...agg.entries()]
+    .map(([key, { value, share, count, display }]) => ({ key, name: display, value, share, count }))
+    .sort((a, b) => b.share - a.share)
     .map((s, i) => ({ ...s, color: palette[i % palette.length] }))
+
+  // Pinned last rather than sorted in by size: it's the residual left over, not
+  // a finding competing with the real tags, and it usually dwarfs all of them.
+  if (untagged > 0) {
+    slices.push({
+      key: UNTAGGED_KEY,
+      name: 'Untagged',
+      color: NEUTRAL,
+      value: untagged,
+      share: untagged,
+      count: untaggedCount,
+    })
+  }
+  return slices
 }
 
 const byDate = (a: Transaction, b: Transaction) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0)

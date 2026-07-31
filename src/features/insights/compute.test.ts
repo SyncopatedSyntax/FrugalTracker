@@ -5,8 +5,11 @@ import {
   dailyTotals,
   deltaVs,
   heatCeiling,
+  labelBreakdown,
   monthlySeriesFor,
   savingsRate,
+  sumFlow,
+  UNTAGGED_KEY,
 } from './compute'
 import type { Bucket } from './period'
 
@@ -192,5 +195,103 @@ describe('heatCeiling', () => {
     const values = [0, 0, 0, 0, 0, 0, 0, 0, 100, 200]
     // Only [100, 200] are positive → < 8 → falls back to their max.
     expect(heatCeiling(values)).toBe(200)
+  })
+})
+
+describe('labelBreakdown', () => {
+  const palette = ['#aaa', '#bbb', '#ccc'] as const
+  const get = (slices: ReturnType<typeof labelBreakdown>, key: string) =>
+    slices.find((s) => s.key === key)
+
+  it('splits a multi-tag transaction across its tags, but reports each full total', () => {
+    const txs = [tx({ baseAmount: 220, tags: ['holidays', 'family'] })]
+    const slices = labelBreakdown(txs, 'expense', palette)
+    // The full amount under each tag — what the transactions list shows.
+    expect(get(slices, 'holidays')?.value).toBe(220)
+    expect(get(slices, 'family')?.value).toBe(220)
+    // Halved for the ring, so the two together account for the $220 once.
+    expect(get(slices, 'holidays')?.share).toBe(110)
+    expect(get(slices, 'family')?.share).toBe(110)
+  })
+
+  it('splits three ways for a three-tag transaction', () => {
+    const txs = [tx({ baseAmount: 90, tags: ['a', 'b', 'c'] })]
+    const slices = labelBreakdown(txs, 'expense', palette)
+    expect(slices.map((s) => s.share)).toEqual([30, 30, 30])
+    expect(slices.every((s) => s.value === 90)).toBe(true)
+  })
+
+  it('shares plus untagged reconcile to the flow total, while values overshoot it', () => {
+    const txs = [
+      tx({ baseAmount: 220, tags: ['holidays', 'family'] }),
+      tx({ baseAmount: 300, tags: ['holidays'] }),
+      tx({ baseAmount: 500, tags: [] }),
+      tx({ type: 'income', baseAmount: 9999, tags: ['ignored'] }),
+    ]
+    const slices = labelBreakdown(txs, 'expense', palette)
+    const total = sumFlow(txs, 'expense')
+    expect(total).toBe(1020)
+    expect(slices.reduce((s, x) => s + x.share, 0)).toBeCloseTo(total, 10)
+    // Values double-count the $220 that carries two tags.
+    expect(slices.reduce((s, x) => s + x.value, 0)).toBe(total + 220)
+  })
+
+  it('counts stay whole — a two-tag transaction counts once under each tag', () => {
+    const txs = [tx({ baseAmount: 220, tags: ['holidays', 'family'] })]
+    const slices = labelBreakdown(txs, 'expense', palette)
+    expect(get(slices, 'holidays')?.count).toBe(1)
+    expect(get(slices, 'family')?.count).toBe(1)
+  })
+
+  it('pins untagged last even when it dwarfs every tag, and omits it when nothing is untagged', () => {
+    const withUntagged = labelBreakdown(
+      [tx({ baseAmount: 10, tags: ['small'] }), tx({ baseAmount: 5000, tags: [] })],
+      'expense',
+      palette,
+    )
+    expect(withUntagged.map((s) => s.key)).toEqual(['small', UNTAGGED_KEY])
+    expect(get(withUntagged, UNTAGGED_KEY)?.value).toBe(5000)
+
+    const allTagged = labelBreakdown([tx({ baseAmount: 10, tags: ['small'] })], 'expense', palette)
+    expect(allTagged.map((s) => s.key)).toEqual(['small'])
+  })
+
+  it('reports a fully untagged period as a single 100% untagged slice', () => {
+    const txs = [tx({ baseAmount: 40 }), tx({ baseAmount: 60 })]
+    const slices = labelBreakdown(txs, 'expense', palette)
+    expect(slices).toHaveLength(1)
+    expect(slices[0].key).toBe(UNTAGGED_KEY)
+    expect(slices[0].share).toBe(sumFlow(txs, 'expense'))
+  })
+
+  it('ranks tags by share, not by their overlapping full totals', () => {
+    const txs = [
+      // `shared` has the bigger full total (400) but only 200 of attributable
+      // spend, so `solo` must outrank it or the donut would draw out of order.
+      tx({ baseAmount: 400, tags: ['shared', 'other'] }),
+      tx({ baseAmount: 300, tags: ['solo'] }),
+    ]
+    const slices = labelBreakdown(txs, 'expense', palette)
+    expect(slices.map((s) => s.key)).toEqual(['solo', 'shared', 'other'])
+    expect(get(slices, 'shared')?.value).toBe(400)
+    expect(get(slices, 'shared')?.share).toBe(200)
+  })
+
+  it('narrows both the tags and the untagged residual to one category', () => {
+    const txs = [
+      tx({ categoryId: 'travel', baseAmount: 700, tags: ['vacation'] }),
+      tx({ categoryId: 'dining', baseAmount: 100, tags: ['vacation'] }),
+      tx({ categoryId: 'travel', baseAmount: 50, tags: [] }),
+      tx({ categoryId: 'dining', baseAmount: 900, tags: [] }),
+    ]
+    const slices = labelBreakdown(txs, 'expense', palette, 'travel')
+    expect(get(slices, 'vacation')?.value).toBe(700)
+    expect(get(slices, UNTAGGED_KEY)?.value).toBe(50)
+    // Still reconciles, now against the category's own total.
+    const catTotal = sumFlow(
+      txs.filter((t) => t.categoryId === 'travel'),
+      'expense',
+    )
+    expect(slices.reduce((s, x) => s + x.share, 0)).toBeCloseTo(catTotal, 10)
   })
 })

@@ -11,19 +11,23 @@ import TransactionRow from './TransactionRow'
 import FilterSheet from './FilterSheet'
 import { activeFilterCount, emptyFilters, filterTransactions, type Filters } from './filters'
 
-/** Insights' category/label rows link here with ?type=&categoryId=|tag=&from=&to=
- * to drill into the transactions behind a breakdown result. */
+/** Insights' category/label rows link here with
+ * ?type=&categoryId=|tag=|untagged=1&from=&to= to drill into the transactions
+ * behind a breakdown result. `untagged=1` backs the Labels view's "Untagged"
+ * slice. */
 function filtersFromSearchParams(params: URLSearchParams): Filters {
   const type = params.get('type')
   const categoryId = params.get('categoryId')
   const tag = params.get('tag')
+  const untagged = params.get('untagged')
   const from = params.get('from')
   const to = params.get('to')
-  if (!type && !categoryId && !tag && !from && !to) return emptyFilters
+  if (!type && !categoryId && !tag && !untagged && !from && !to) return emptyFilters
   return {
     type: (type as TxType | null) === 'expense' || type === 'income' ? (type as TxType) : 'all',
     categoryIds: categoryId ? [categoryId] : [],
     tags: tag ? [tag] : [],
+    untagged: untagged === '1',
     from: from || null,
     to: to || null,
   }
