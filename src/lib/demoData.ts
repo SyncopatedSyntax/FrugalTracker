@@ -97,8 +97,11 @@ const INCOME_CATS: SeedCat[] = [
 /**
  * Builds a ~26-month, realistic-but-deterministic sample dataset that
  * exercises every feature and graph state. Modeled as a *moderate saver*
- * (~25% of income): a fixed salary with a mid-history raise and a year-end
- * bonus; day-to-day spending that gently grows (lifestyle creep) and swings
+ * (~25% of income): a biweekly paycheck with a mid-history raise and a
+ * year-end bonus — 26 deposits a year, so most months carry two and a couple
+ * carry three, which is what gives the cash-flow bars and the savings-rate
+ * stat real month-to-month movement; day-to-day spending that grows
+ * (lifestyle creep) and swings
  * with the seasons (summer/winter utilities, summer + holiday travel, a
  * December gifts/dining bump, a January gym spike); a big August vacation
  * that pushes that month net-negative (so the wealth line dips and the
@@ -188,8 +191,16 @@ export function buildDemoDataset(baseCurrency: string, appTheme: AppTheme): Demo
     }
   }
 
+  /** Offset into the biweekly cycle that lands every payday on a Friday. The
+   * span always starts on the 1st of a month, whose weekday varies, so this
+   * is the distance from that day to the first Friday. */
+  const payAnchor = (5 - start.getDay() + 7) % 7
+
   let cursor = new Date(start)
   let tripIndex = 0
+  /** Days since the span's first day. Counted rather than derived from a
+   * timestamp difference so a DST shift can't knock the payday cadence off. */
+  let dayIndex = 0
   while (cursor <= today) {
     const iso = toISO(cursor)
     const day = cursor.getDate()
@@ -210,17 +221,35 @@ export function buildDemoDataset(baseCurrency: string, appTheme: AppTheme): Demo
     // date sampled across a 3-year sweep while keeping the overall savings
     // rate inside its moderate-saver band.
     const grow = Math.pow(1.35, me / 12)
-    const salary = me >= 12 ? 5200 : 4800 // a raise at the one-year mark
+    // Monthly-equivalent pay, with a raise at the one-year mark. Kept as a
+    // monthly figure because the rent-to-pay ratio and the year-end bonus are
+    // both easiest to reason about that way; the actual deposits are biweekly.
+    const monthlySalary = me >= 12 ? 5200 : 4800
+    // Paid every second Friday — 26 deposits a year, so each is a twelfth of
+    // the annual figure spread over 26 rather than 12. Biweekly (not
+    // semi-monthly) means most months carry two paychecks and a couple carry
+    // three, which is the real thing and gives the cash-flow bars and the
+    // savings-rate stat genuine month-to-month movement that a single fixed
+    // monthly deposit never produced.
+    const paycheck = round2((monthlySalary * 12) / 26)
 
-    // Monthly fixed items.
+    if (dayIndex % 14 === payAnchor) {
+      add('Salary', 'income', paycheck, iso, { note: 'Paycheck' })
+    }
     if (day === 1) {
-      add('Salary', 'income', salary, iso, { note: 'Monthly paycheck' })
       add('Rent', 'expense', 1450, iso, { note: 'Monthly rent' })
     }
     // Year-end bonus each December — a second recurring income tag + a December
     // income spike that keeps the holiday month positive despite the spending.
+    // Sized at 1.5x a month's pay so the annual savings rate still lands in its
+    // moderate-saver band: biweekly pay needs a much larger August vacation to
+    // stay net-negative (see below), and this is what offsets that extra spend
+    // without diluting the blowout month itself.
     if (month === 11 && day === 1) {
-      add('Salary', 'income', round2(salary * 0.5), iso, { note: 'Year-end bonus', tags: ['bonus'] })
+      add('Salary', 'income', round2(monthlySalary * 1.5), iso, {
+        note: 'Year-end bonus',
+        tags: ['bonus'],
+      })
     }
     if (day === 3) add('Utilities', 'expense', range(80, 150) * utilFactor(month), iso, { note: 'Electric + water' })
     if (day === 4) add('Health & Fitness', 'expense', 45, iso, { note: 'Gym membership', tags: ['health'] })
@@ -271,10 +300,17 @@ export function buildDemoDataset(baseCurrency: string, appTheme: AppTheme): Demo
     // The big August vacation — always happens, in three legs, with the hotel
     // booked abroad (locked-rate showcase). Large enough that August runs
     // net-negative: a visible wealth-line dip + a red savings-rate month.
+    //
+    // Sized against a *three-paycheck* August, not an average one. Biweekly pay
+    // means a couple of months a year carry three deposits instead of two, and
+    // at the old vacation size such an August came out up to ~$1.6k in surplus
+    // — quietly costing the demo its only red month on some run dates. These
+    // amounts keep it in deficit on every date sampled across a 2.5-year sweep,
+    // by ~$860 even in the worst case.
     if (month === 7 && day === 12) {
-      add('Travel', 'expense', range(700, 1000), iso, { note: 'Flights', tags: ['vacation'] })
-      add('Travel', 'expense', range(1100, 1500), iso, { note: 'Hotel', tags: ['vacation'], currency: secondaryCurrency, baseRate: secondaryRate })
-      add('Travel', 'expense', range(300, 600), iso, { note: 'Activities', tags: ['vacation'] })
+      add('Travel', 'expense', range(1500, 2000), iso, { note: 'Flights', tags: ['vacation'] })
+      add('Travel', 'expense', range(2000, 2500), iso, { note: 'Hotel', tags: ['vacation'], currency: secondaryCurrency, baseRate: secondaryRate })
+      add('Travel', 'expense', range(700, 1200), iso, { note: 'Activities', tags: ['vacation'] })
     }
     // A winter holiday trip — offset by the December bonus, so December still
     // reads positive (contrast with the deep-red August).
@@ -283,6 +319,7 @@ export function buildDemoDataset(baseCurrency: string, appTheme: AppTheme): Demo
     }
 
     cursor = addDays(cursor, 1)
+    dayIndex++
   }
 
   for (const c of categories) {

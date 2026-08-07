@@ -1152,3 +1152,18 @@ Searched the full date space instead for days that **discriminate**: old creep f
 **Verified:** full suite green, 231/231. Then deliberately broke the generator twice to confirm the pinned assertions still bite: reverting creep to `1.08` fails the trend test (`expected 2606.47 to be greater than 2845.23`), and setting it to `3.0` fails the savings band (`expected -0.2296 to be greater than 0.18`). Restored and re-ran — 231/231. Test-only change; `demoData.ts` untouched. Bumped to **v1.15.1**.
 
 **Not pinned, deliberately:** `period.test.ts`, `recurring.test.ts` and `githubBackup.test.ts` also read the wall clock, but only through relative helpers (`daysAgo(n)`, `todayISO()`, `Date.now() - 25h`) whose assertions are self-consistent on any day, so they carry none of this fragility.
+
+## 98. Demo data: biweekly paycheck instead of a monthly deposit
+
+> The demo data's paycheck should be bi-weekly instead of monthly
+
+**Result:** replaced the single `day === 1` salary deposit with a biweekly one — every 14 days, anchored so each payday lands on a **Friday** (`payAnchor` = distance from the span's first day to the first Friday; a counted `dayIndex` drives the cadence rather than a timestamp difference, so DST can't drift it). The amount is a twelfth of the annual figure spread over 26 rather than 12, keeping annual pay unchanged: **$2,215.38** before the one-year raise and **$2,400.00** after. `monthlySalary` is retained as the underlying figure because rent-to-pay ratio and the year-end bonus are both easier to reason about monthly. Rent stays monthly on the 1st; the note changed from "Monthly paycheck" to "Paycheck".
+
+**This broke a documented demo invariant, which took two further changes to restore.** Biweekly pay means a couple of months a year carry *three* deposits, and a 3-paycheck August out-earned the big vacation — leaving the demo with **no net-negative month at all** on ~3% of run dates, costing it the red savings-rate state and the wealth-line dip it exists to show. Measured the worst case at **+$1,563 surplus** for a 3-paycheck August, then:
+
+- **Grew the August vacation** to clear a 3-paycheck month, not an average one: flights `700–1000` → `1500–2000`, hotel `1100–1500` → `2000–2500` (foreign, locked rate), activities `300–600` → `700–1200`. August now runs in deficit on every sampled date, by **$860 even in the worst case**.
+- **Raised the year-end bonus** from `0.5x` to `1.5x` a month's pay, because the extra vacation spend alone dropped the savings floor to 0.173 — under the 0.18 guardrail on 4 dates. Swept multipliers to pick it: 1.2x barely clears the floor, 1.5x gives a balanced 0.200–0.300 band with ~0.02 margin at both ends. December stays positive, as intended.
+
+Both follow-ons are recorded in comments next to the values, since the magnitudes only make sense against a 3-paycheck month.
+
+**Verified:** full suite green (231/231), `npm run build` clean, `tsc` clean. Swept 304 run dates over 2.5 years: **paydays are strictly 14 days apart and always Friday**, net-negative months 304/304 (minimum 2 per dataset), savings rate 304/304 inside the band at 0.200–0.300, spend trend 304/304, worst-case August surplus −$860. In the running app, Activity → income shows **Fri 5 Jun → 19 Jun → 3 Jul → 17 Jul → 31 Jul** at $2,400.00 each, and the monthly paycheck distribution is 21 months with two, 4 months with three. Bumped to **v1.16.0**.
