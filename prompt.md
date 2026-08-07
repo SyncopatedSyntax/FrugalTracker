@@ -1118,3 +1118,23 @@ Fixed at the root by enabling Tailwind's **`future.hoverOnlyWhenSupported`** in 
 **Verified:** rebuilt and confirmed the generated CSS now emits `@media (hover: hover) and (pointer: fine){.hover\:border-primary:hover{…}}`. Then drove the real Add screen (Demo Mode, 11 recent tags wrapping to 4 lines) in two contexts, tapping the first chip on line 2 and leaving the pointer in place: **touch emulation** reports `(hover: none)`, shows no accent border while pressing and **none after the tap** — bug gone; **desktop mouse** still reports `(hover: hover) and (pointer: fine)` and hover still works normally, so the styling is not dead where it belongs. Bumped to **v1.14.1**.
 
 **Known-failing test, pre-existing and unrelated:** `demoData.test.ts > has an upward spend trend — Dining Out grows across the span` fails on the current date. Confirmed it fails on a clean tree (`git stash`) with this change reverted, so it is not caused by anything here. Measured: `first6` = 2694 vs `last6` = 2305 (2553 if the partial current month is excluded), so it is not merely a partial-month artifact — the lifestyle-creep lift genuinely is not present in the current 26-month window (Jul 2026 landed at 177, an unusually low month). Left alone rather than loosened, since it points at either the generator's creep model or an over-tight assertion and deserves its own change.
+
+## 96. Raise the demo data's lifestyle-creep rate so the trend is real
+
+> raise the creep rate
+
+**Result:** `buildDemoDataset` multiplied its day-to-day categories (Dining Out, Groceries, Coffee, Subscriptions) by `Math.pow(1.08, me / 12)` — ~+8%/yr. That signal is smaller than the generator's own randomness: Dining Out is drawn from `range(18, 85)` on a `chance(0.24)` daily roll, which swings ~14% month to month on a 6-month scale, while +8%/yr works out to only ~+13% between the midpoints of the first and last six months. Signal ≈ noise, so the "upward spend trend" was a coin flip that depended on the calendar — the demo window is anchored to `startOfMonth(today - 25 months)` … `today`, so it slides every day.
+
+Rather than guess a new number, swept candidate rates against **every** constraint the demo-data tests encode (trend, savings-rate band, a net-negative month, budget mix), evaluated at 366 simulated run dates spanning three years at 3-day resolution:
+
+| creep | trend passes | overall savings rate |
+| --- | --- | --- |
+| 1.08 (before) | **207 / 366** | 0.254–0.334 ✗ breaches the 0.32 cap |
+| 1.32 | 364 / 366 | 0.202–0.287 ✓ |
+| **1.35 (chosen)** | **366 / 366** | 0.195–0.281 ✓ |
+
+Raised it to `Math.pow(1.35, me / 12)` (~+35%/yr, ~+90% across the 26-month span) and rewrote the comment to record *why* it is deliberately steeper than real-life creep. This fixed two date-dependent failures at once: the trend assertion (previously failing at today's date, and on ~43% of dates) and the savings-rate ceiling, which the old rate breached at 0.334 on some dates.
+
+**Verified:** full suite green — 231/231, including `has an upward spend trend — Dining Out grows across the span`, which was the red test reported in entry #95. `npm run build` clean. In the running app (Demo Mode, headless Chromium 402×874): Insights → Categories → Dining Out now reports **+55% vs last month and +17% year-over-year** instead of ~0%; Overview still reads as a moderate saver at **23%** ($143,546.50 income vs $110,001.49 expenses) with the wealth line keeping its upward shape and summer drawdown.
+
+**Still date-fragile, pre-existing and untouched:** the budget-mix assertion (`some months over limit, at least one category always under`) fails on some run dates — e.g. a simulated 2026-12-09 — at both the old and new creep rates, so it is independent of this change. It wants the same treatment the trend test really deserves: pin the clock with `vi.setSystemTime()` so these assertions test the generator rather than the calendar.

@@ -197,9 +197,19 @@ export function buildDemoDataset(baseCurrency: string, appTheme: AppTheme): Demo
     const month = cursor.getMonth()
     // Whole months since the demo's start — drives the raise and lifestyle creep.
     const me = (cursor.getFullYear() - start.getFullYear()) * 12 + (month - start.getMonth())
-    // Gentle spending growth over the whole span (~+8%/yr) so category MoM/YoY
-    // deltas and the budget-form trend readout show real movement, not ~0%.
-    const grow = Math.pow(1.08, me / 12)
+    // Spending growth over the whole span so category MoM/YoY deltas and the
+    // budget-form trend readout show real movement, not ~0%.
+    //
+    // Deliberately steep (~+35%/yr, so ~+90% across the 26-month span). The
+    // day-to-day categories this multiplies are drawn from wide random ranges
+    // — Dining Out alone swings ~14% month to month on the 6-month scale — so
+    // a realistic few-percent creep is simply invisible underneath that noise:
+    // at the original +8%/yr the trend came out *backwards* on roughly 4 run
+    // dates in 10, because the demo window slides with the current date and
+    // the dice fall differently each day. This rate clears the noise on every
+    // date sampled across a 3-year sweep while keeping the overall savings
+    // rate inside its moderate-saver band.
+    const grow = Math.pow(1.35, me / 12)
     const salary = me >= 12 ? 5200 : 4800 // a raise at the one-year mark
 
     // Monthly fixed items.
