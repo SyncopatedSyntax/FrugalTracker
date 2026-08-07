@@ -2,6 +2,14 @@
 export default {
   content: ['./index.html', './src/**/*.{ts,tsx}'],
   darkMode: 'class',
+  // Compile `hover:` to `@media (hover: hover)`. Touch browsers emulate hover
+  // by leaving it applied to whatever sits under the last tap, so after a tap
+  // that reflows the layout — adding a recent tag removes its chip and pushes
+  // the grid down a line — the highlight lands on an unrelated chip and stays
+  // there. Touch feedback comes from `active:` instead, which is not sticky.
+  future: {
+    hoverOnlyWhenSupported: true,
+  },
   theme: {
     extend: {
       colors: {
