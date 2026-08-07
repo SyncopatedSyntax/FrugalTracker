@@ -1,7 +1,38 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { buildDemoDataset } from './demoData'
 
+/** The dataset is generated relative to "today" — `startOfMonth(today − 25
+ * months)` up to today — so the whole 26-month window slides forward every
+ * day, taking with it which months land in whatever bucket a test compares,
+ * and how much of the final (partial) month exists at all.
+ *
+ * The assertions below describe the generator's *shape*: a moderate savings
+ * rate, a visible upward trend, a mix of over- and under-budget categories.
+ * Left on the wall clock they were partly testing the calendar instead —
+ * several of them genuinely flipped depending on the day the suite ran, which
+ * is how a real regression once hid behind a green run and an unrelated change
+ * later "broke" them. Pinning the clock makes every run evaluate the same
+ * window, so a failure here means the generator changed.
+ *
+ * The date is not arbitrary: it was chosen so the assertions still bite. A
+ * pinned clock can quietly neuter a test by freezing it on a day where even a
+ * regression passes — picking the obvious "today" did exactly that, letting
+ * the pre-fix +8%/yr creep sail through the trend check. On this date that
+ * weaker creep fails it (last6/first6 = 0.92) while the current rate clears
+ * it with room (1.32), every other assertion here holds with margin, and the
+ * final month is only days old so the partial-month path stays covered.
+ * Only `Date` is faked — timers are left real. */
+const PINNED_NOW = new Date('2026-07-06T12:00:00Z')
+
 describe('buildDemoDataset', () => {
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(PINNED_NOW)
+  })
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
   it('is deterministic for the same currency and theme', () => {
     const a = buildDemoDataset('USD', 'sage')
     const b = buildDemoDataset('USD', 'sage')

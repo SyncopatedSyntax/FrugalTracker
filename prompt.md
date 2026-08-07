@@ -1138,3 +1138,17 @@ Raised it to `Math.pow(1.35, me / 12)` (~+35%/yr, ~+90% across the 26-month span
 **Verified:** full suite green — 231/231, including `has an upward spend trend — Dining Out grows across the span`, which was the red test reported in entry #95. `npm run build` clean. In the running app (Demo Mode, headless Chromium 402×874): Insights → Categories → Dining Out now reports **+55% vs last month and +17% year-over-year** instead of ~0%; Overview still reads as a moderate saver at **23%** ($143,546.50 income vs $110,001.49 expenses) with the wealth line keeping its upward shape and summer drawdown.
 
 **Still date-fragile, pre-existing and untouched:** the budget-mix assertion (`some months over limit, at least one category always under`) fails on some run dates — e.g. a simulated 2026-12-09 — at both the old and new creep rates, so it is independent of this change. It wants the same treatment the trend test really deserves: pin the clock with `vi.setSystemTime()` so these assertions test the generator rather than the calendar.
+
+## 97. Pin the clock in the demo-data tests
+
+> yes, pin the clock in those tests
+
+**Result:** `demoData.test.ts` asserts *shape* properties of the generated sample data — a moderate savings rate, a visible upward trend, a mix of over/under budgets — but the dataset is generated relative to `today` (`startOfMonth(today − 25 months)` … `today`), so the whole 26-month window slid forward daily and took those buckets with it. Added a `beforeEach`/`afterEach` pair pinning the clock with `vi.useFakeTimers({ toFake: ['Date'] })` + `vi.setSystemTime(PINNED_NOW)` for the whole describe block, so every run evaluates one fixed window. Only `Date` is faked; real timers are left alone.
+
+**Choosing the date turned out to be the substantive part.** The obvious choice — near the real current date — was actively harmful: pinning to `2026-09-15` made all 16 tests pass *even with the creep rate reverted to the old, broken +8%/yr*. A pinned clock can silently neuter an assertion by freezing it on a day where the regression happens to pass, which would have locked in a permanently green but meaningless trend test. Caught it by explicitly re-running the suite against the old generator rather than assuming the pin was harmless.
+
+Searched the full date space instead for days that **discriminate**: old creep fails, new creep passes with margin, and every other assertion holds. 36 qualified; picked **`2026-07-06`**, where the pre-fix +8%/yr creep fails the trend check (`last6/first6` = 0.92) while the current +35%/yr clears it at 1.32, savings sits mid-band at 0.234, there are 3 net-negative months and 7 foreign-currency transactions, and — being six days into the month — the partial-month path stays properly exercised. The comment in the test records this reasoning so the date is not "cleaned up" later.
+
+**Verified:** full suite green, 231/231. Then deliberately broke the generator twice to confirm the pinned assertions still bite: reverting creep to `1.08` fails the trend test (`expected 2606.47 to be greater than 2845.23`), and setting it to `3.0` fails the savings band (`expected -0.2296 to be greater than 0.18`). Restored and re-ran — 231/231. Test-only change; `demoData.ts` untouched. Bumped to **v1.15.1**.
+
+**Not pinned, deliberately:** `period.test.ts`, `recurring.test.ts` and `githubBackup.test.ts` also read the wall clock, but only through relative helpers (`daysAgo(n)`, `todayISO()`, `Date.now() - 25h`) whose assertions are self-consistent on any day, so they carry none of this fragility.
