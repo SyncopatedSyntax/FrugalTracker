@@ -18,7 +18,7 @@ import CalculatorSheet from './CalculatorSheet'
 import { useCalculator } from './useCalculator'
 import TypeSwitch, { TYPE_SWITCH_WIDTH } from './TypeSwitch'
 import CategoryFormSheet from '@/features/categories/CategoryFormSheet'
-import { useCategoriesByType, useSettings, useTags } from '@/hooks'
+import { useCategoriesByType, useRecentCategoryTags, useSettings, useTags } from '@/hooks'
 import { addTransaction } from '@/db/repo'
 import { runWrite } from '@/lib/write'
 import { currencyDecimals, currencySymbol } from '@/lib/currency'
@@ -26,6 +26,7 @@ import { formatTypedAmount } from '@/lib/amount'
 import { formatShortDate, todayISO } from '@/lib/date'
 import type { KeypadReach, TxType } from '@/db/types'
 import { cn } from '@/lib/cn'
+import { alphaHex } from '@/lib/palette'
 
 function dateLabel(iso: string): string {
   return iso === todayISO() ? 'Today' : formatShortDate(iso)
@@ -54,7 +55,7 @@ function prefersReducedMotion(): boolean {
 
 export default function AddScreen() {
   const settings = useSettings()
-  const tagSuggestions = useTags().map((t) => t.name)
+  const allTags = useTags()
   const { message, show } = useToast()
 
   const [type, setType] = useState<TxType>('expense')
@@ -105,6 +106,27 @@ export default function AddScreen() {
     () => [...cats].sort((a, b) => b.usageCount - a.usageCount || a.sortOrder - b.sortOrder),
     [cats],
   )
+
+  // Tags this category is usually given, newest use first. Shown ahead of the
+  // rest of the tag list and tinted with the category's own colour, so picking
+  // "Groceries" surfaces the handful you actually use there instead of making
+  // you hunt through every tag you have ever created.
+  const categoryTags = useRecentCategoryTags(categoryId)
+  const highlightedTags = useMemo(
+    () => new Set(categoryTags.map((t) => t.toLowerCase())),
+    [categoryTags],
+  )
+  const tagSuggestions = useMemo(
+    () => [
+      ...categoryTags,
+      ...allTags.map((t) => t.name).filter((n) => !highlightedTags.has(n.toLowerCase())),
+    ],
+    [categoryTags, allTags, highlightedTags],
+  )
+  const highlightBg = useMemo(() => {
+    const c = cats.find((x) => x.id === categoryId)
+    return c ? c.color + alphaHex(settings.categoryIconAlpha) : undefined
+  }, [cats, categoryId, settings.categoryIconAlpha])
 
   // Clear selection if the chosen category isn't in the current type list.
   useEffect(() => {
@@ -358,7 +380,14 @@ export default function AddScreen() {
                   <span className="truncate">{dateLabel(date)}</span>
                 </button>
               </div>
-              <TagInput fill tags={tags} onChange={setTags} suggestions={tagSuggestions} />
+              <TagInput
+                fill
+                tags={tags}
+                onChange={setTags}
+                suggestions={tagSuggestions}
+                highlighted={highlightedTags}
+                highlightBg={highlightBg}
+              />
             </div>
             <div className="flex-shrink-0 px-4 pb-2 pt-2">
               <button
@@ -407,6 +436,8 @@ export default function AddScreen() {
           tags={tags}
           onChange={setTags}
           suggestions={tagSuggestions}
+          highlighted={highlightedTags}
+          highlightBg={highlightBg}
           showAll
           autoFocus
           fixedHeight

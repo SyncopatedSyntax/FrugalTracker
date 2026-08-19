@@ -125,6 +125,36 @@ export function useAllTransactions() {
   )
 }
 
+/** Tag names seen on this category's `limit` most recent transactions, ordered
+ * by how recently each was last used (most recent first), de-duped
+ * case-insensitively.
+ *
+ * Tags only record *global* usage (`Tag.lastUsedAt`), with nothing per
+ * category, so "what do I usually tag Groceries with" has to be read back off
+ * the transactions themselves. The `categoryId` index keeps that to one
+ * category's rows instead of the whole table, and the window bounds the work
+ * regardless of how long the history is. Empty when no category is selected. */
+export function useRecentCategoryTags(categoryId: string | null, limit = 30): string[] {
+  return (
+    useLiveQuery(async () => {
+      if (!categoryId) return []
+      const rows = await db.transactions.where('categoryId').equals(categoryId).toArray()
+      rows.sort(sortByRecency)
+      const out: string[] = []
+      const seen = new Set<string>()
+      for (const t of rows.slice(0, limit)) {
+        for (const tag of t.tags) {
+          const key = tag.toLowerCase()
+          if (seen.has(key)) continue
+          seen.add(key)
+          out.push(tag)
+        }
+      }
+      return out
+    }, [categoryId, limit]) ?? []
+  )
+}
+
 /** Transactions whose date falls within [startISO, endISO] inclusive. */
 export function useTransactionsInRange(startISO: string, endISO: string) {
   return (

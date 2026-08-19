@@ -1167,3 +1167,17 @@ Searched the full date space instead for days that **discriminate**: old creep f
 Both follow-ons are recorded in comments next to the values, since the magnitudes only make sense against a 3-paycheck month.
 
 **Verified:** full suite green (231/231), `npm run build` clean, `tsc` clean. Swept 304 run dates over 2.5 years: **paydays are strictly 14 days apart and always Friday**, net-negative months 304/304 (minimum 2 per dataset), savings rate 304/304 inside the band at 0.200–0.300, spend trend 304/304, worst-case August surplus −$860. In the running app, Activity → income shows **Fri 5 Jun → 19 Jun → 3 Jul → 17 Jul → 31 Jul** at $2,400.00 each, and the monthly paycheck distribution is 21 months with two, 4 months with three. Bumped to **v1.16.0**.
+
+## 99. Add screen: surface the tags you actually use for the chosen category
+
+> For the tags in the input screen, once the user chose the category, arrange the most recently used tags in that category to be showing first, and make those tags in a different color background to distinguish them from the tags that hasn't been used recently in that category.
+>
+> Answers: promote tags **from that category's last N transactions**, highlight **all that qualify** (no cap), tinted with **the category's own colour**.
+
+**Result:** picking a category now reorders the recent-tag grid so the tags that category is actually given come first, tinted with that category's colour, ahead of the rest of the tag vocabulary.
+
+Tags only record *global* usage (`Tag.usageCount` / `Tag.lastUsedAt`) with nothing per category, so "recently used in this category" has to be read back off the transactions. Added **`useRecentCategoryTags(categoryId, limit = 30)`** to `src/hooks/index.ts`: it queries via the existing `categoryId` index (one category's rows, not the whole table), sorts by the shared `sortByRecency`, takes the most recent 30 transactions and collects their tags in order of first appearance — which is exactly most-recently-used-first — de-duped case-insensitively. The window bounds the work no matter how long the history gets.
+
+`AddScreen` puts those first and appends every other tag in the existing global-recency order, so nothing disappears. `TagInput` gained two props — `highlighted` (a lowercased `Set`) and `highlightBg` — applied to both suggestion lists, so the step-3 grid *and* the "Add tag" sheet behave the same. The tint is `category.color + alphaHex(settings.categoryIconAlpha)`, the same idiom already used for icon chips on six screens, so it inherits the user's icon-alpha setting and gives each category its own hue; highlighted chips also drop the muted text and border for full-contrast text on the fill.
+
+**Verified:** 231/231 tests, `tsc` and build clean. Drove Demo Mode in headless Chromium (402×874), reading each chip's computed background: **Dining Out** promotes `#work-lunch`, `#date-night` tinted `rgba(202,138,4,.25)` (its gold); **Travel** promotes `#vacation`, `#holidays` tinted `rgba(13,148,136,.25)` (its teal) — so the highlight really does track the chosen category; **Groceries**, which demo data never tags, promotes nothing and renders the full list plain. In all three the tinted chips come strictly before the plain ones. Bumped to **v1.17.0**.

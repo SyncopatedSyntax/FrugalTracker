@@ -38,6 +38,15 @@ interface Props {
    * real device can shove the input behind the on-screen keyboard. A fixed
    * height keeps the input's position constant regardless of what's typed. */
   fixedHeight?: boolean
+  /** Suggestion names, lowercased, to render tinted and (by the caller's
+   * ordering) first — the tags recently used in the currently selected
+   * category, so the ones you actually reach for in this context stand apart
+   * from your whole tag vocabulary. */
+  highlighted?: Set<string>
+  /** Background for those tinted suggestions — pass
+   * `category.color + alphaHex(settings.categoryIconAlpha)` so the highlight
+   * carries the chosen category's own colour, matching the icon chips. */
+  highlightBg?: string
 }
 
 export default function TagInput({
@@ -49,6 +58,8 @@ export default function TagInput({
   showAll,
   autoFocus,
   fixedHeight,
+  highlighted,
+  highlightBg,
 }: Props) {
   const [text, setText] = useState('')
 
@@ -58,6 +69,13 @@ export default function TagInput({
   }
 
   const remove = (t: string) => onChange(tags.filter((x) => x !== t))
+
+  /** Tinted when this tag is one the selected category is usually tagged with.
+   * Border and text come from classes; only the fill is dynamic, since the
+   * colour belongs to the category rather than the theme. */
+  const hot = (s: string) => !!highlightBg && !!highlighted?.has(s.toLowerCase())
+  const hotStyle = (s: string) =>
+    hot(s) ? { backgroundColor: highlightBg } : undefined
 
   const unused = suggestions.filter(
     (s) => !tags.some((t) => t.toLowerCase() === s.toLowerCase()),
@@ -92,7 +110,11 @@ export default function TagInput({
                   <button
                     key={s}
                     onClick={() => add(s)}
-                    className="rounded-full border border-border px-3 py-1 text-sm text-muted active:scale-95 hover:border-primary hover:text-primary"
+                    style={hotStyle(s)}
+                    className={cn(
+                      'rounded-full border px-3 py-1 text-sm active:scale-95 hover:border-primary hover:text-primary',
+                      hot(s) ? 'border-transparent text-content' : 'border-border text-muted',
+                    )}
                   >
                     #{s}
                   </button>
@@ -167,9 +189,10 @@ export default function TagInput({
         <button
           key={s}
           onClick={() => add(s)}
+          style={hotStyle(s)}
           className={cn(
-            'rounded-full border border-border px-2.5 py-1 text-xs text-muted',
-            'hover:border-primary hover:text-primary',
+            'rounded-full border px-2.5 py-1 text-xs hover:border-primary hover:text-primary',
+            hot(s) ? 'border-transparent text-content' : 'border-border text-muted',
           )}
         >
           #{s}
