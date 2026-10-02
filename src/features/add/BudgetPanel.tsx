@@ -1,9 +1,11 @@
-import { memo, type ReactNode } from 'react'
+import { memo, useState, type ReactNode } from 'react'
 import { useBudgets, useCategoryMap, useSettings, useTransactionsInRange } from '@/hooks'
 import type { TxType } from '@/db/types'
 import { formatMoneyCompact } from '@/lib/currency'
 import { toISO, todayISO } from '@/lib/date'
 import { cn } from '@/lib/cn'
+import { InfoIcon } from '@/components/icons'
+import BudgetInfoSheet, { type RingBasis } from './BudgetInfoSheet'
 import {
   periodRange,
   prorateMonthly,
@@ -79,6 +81,7 @@ function ExpenseCompare({
   base: string
   firstDayOfWeek: 0 | 1
 }) {
+  const [infoOpen, setInfoOpen] = useState(false)
   const now = new Date()
   const category = categoryId ? categoryMap.get(categoryId) : undefined
   const budget = budgets.find((b) => b.categoryId === categoryId)
@@ -124,6 +127,7 @@ function ExpenseCompare({
             {isAvg ? 'Avg · 12mo' : 'Budget'}
           </span>
         )}
+        <InfoButton onClick={() => setInfoOpen(true)} />
       </div>
 
       <div className="grid grid-cols-3 gap-3">
@@ -149,6 +153,16 @@ function ExpenseCompare({
           No budget or spending history to compare yet
         </p>
       )}
+
+      <BudgetInfoSheet
+        open={infoOpen}
+        onClose={() => setInfoOpen(false)}
+        mode="expense"
+        basis={(hasComparison ? (isAvg ? 'average' : 'budget') : 'none') as RingBasis}
+        monthly={monthly}
+        base={base}
+        scope={category ? category.name : 'All categories'}
+      />
     </div>
   )
 }
@@ -162,6 +176,7 @@ function IncomeCompare({
   base: string
   firstDayOfWeek: 0 | 1
 }) {
+  const [infoOpen, setInfoOpen] = useState(false)
   const now = new Date()
   const rings = TIMEFRAMES.map((tf) => {
     const range = periodRange(tf, now, firstDayOfWeek)
@@ -183,6 +198,7 @@ function IncomeCompare({
         <span className="flex-shrink-0 rounded-full bg-surface2 px-2.5 py-1 text-[0.6875rem] font-semibold uppercase tracking-wide text-muted">
           vs last year
         </span>
+        <InfoButton onClick={() => setInfoOpen(true)} />
       </div>
 
       <div className="grid grid-cols-3 gap-3">
@@ -205,7 +221,30 @@ function IncomeCompare({
           No income recorded this time last year
         </p>
       )}
+
+      <BudgetInfoSheet
+        open={infoOpen}
+        onClose={() => setInfoOpen(false)}
+        mode="income"
+        base={base}
+      />
     </div>
+  )
+}
+
+/** The rings show a bare percentage against a target that is never spelled
+ * out on screen, so each panel carries its own "what is this measuring?"
+ * affordance rather than relying on the user to find an explanation. */
+function InfoButton({ onClick }: { onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label="How these rings work"
+      className="grid h-8 w-8 flex-shrink-0 place-items-center rounded-full text-muted active:scale-95"
+    >
+      <InfoIcon size={18} />
+    </button>
   )
 }
 

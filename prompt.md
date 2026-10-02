@@ -1181,3 +1181,20 @@ Tags only record *global* usage (`Tag.usageCount` / `Tag.lastUsedAt`) with nothi
 `AddScreen` puts those first and appends every other tag in the existing global-recency order, so nothing disappears. `TagInput` gained two props — `highlighted` (a lowercased `Set`) and `highlightBg` — applied to both suggestion lists, so the step-3 grid *and* the "Add tag" sheet behave the same. The tint is `category.color + alphaHex(settings.categoryIconAlpha)`, the same idiom already used for icon chips on six screens, so it inherits the user's icon-alpha setting and gives each category its own hue; highlighted chips also drop the muted text and border for full-contrast text on the fill.
 
 **Verified:** 231/231 tests, `tsc` and build clean. Drove Demo Mode in headless Chromium (402×874), reading each chip's computed background: **Dining Out** promotes `#work-lunch`, `#date-night` tinted `rgba(202,138,4,.25)` (its gold); **Travel** promotes `#vacation`, `#holidays` tinted `rgba(13,148,136,.25)` (its teal) — so the highlight really does track the chosen category; **Groceries**, which demo data never tags, promotes nothing and renders the full list plain. In all three the tinted chips come strictly before the plain ones. Bumped to **v1.17.0**.
+
+## 100. Explain the Add screen's budget rings in a dismissible tooltip
+
+> The "Add" screen's vs budget circles on top is always a little confusing to me, add a pop up tool tip to explain what is it comparing to and the math. Also include a X button to close the tool tip when done.
+
+**Result:** the rings showed a bare percentage against a target that was never spelled out anywhere, so a reading like "478%" looked alarming without the context that it is measured against a *prorated slice* of a month rather than a whole one. Added an ⓘ button to the panel header (both the expense and income variants) opening a dismissible explainer built on the existing `Sheet`, which already carries an X, a backdrop click and Escape.
+
+New `src/features/add/BudgetInfoSheet.tsx`. The content is generated from the panel's actual state rather than being generic boilerplate, so it explains *your* numbers:
+
+- **Expense, budgeted** — names the category and substitutes the real monthly budget into all three formulas: Week = `budget × (days into this week ÷ days in this month)`, Month = `budget × (today's date ÷ days in this month)`, Year = `budget × (whole months finished this year + today's date ÷ days in this month)` — matching `prorateMonthly` exactly, including the detail that the weekly target is denominated in *days of this month*, which is the single most confusing part of the panel.
+- **Expense, unbudgeted** — explains the `rollingMonthlyAverage` fallback instead: the 12 *complete* months it averages, why the current month is excluded, and that the window shrinks to available history.
+- **Expense, neither** — explains why the rings read as dashes and what to do about it.
+- **Income** — a different comparison entirely (`sameRangeLastYear`), so it gets its own copy: both ends of the range shift back a year preserving day-of-month, ≥100% turns green because more is the good outcome here, and a dash means no income in that stretch last year.
+
+Each variant also covers the 80%/100% amber-and-red thresholds and the fact that the ring caps at one lap while the centre number keeps counting — the other thing that made a large percentage look like a rendering bug. Added `InfoIcon` to `icons.tsx`.
+
+**Verified:** 231/231 tests, `tsc` and build clean. Drove Demo Mode in headless Chromium (402×874) through all four variants, asserting on the rendered sheet text: **All categories** opens and the X closes it; **Dining Out** (budgeted) shows "Your budget for Dining Out: $450.00" and no fallback wording; **Travel** (unbudgeted) shows the "No budget is set" / "12 complete months" wording instead; **Income** shows the last-year comparison and none of the budget wording. Backdrop click also dismisses. Screenshotted each. Bumped to **v1.18.0**.

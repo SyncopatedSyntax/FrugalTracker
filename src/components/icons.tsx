@@ -226,3 +226,10 @@ export const RepeatIcon = (p: IconProps) => (
     <path d="M21 13v2a4 4 0 0 1-4 4H3" />
   </Base>
 )
+
+export const InfoIcon = (p: IconProps) => (
+  <Base {...p}>
+    <circle cx="12" cy="12" r="9" />
+    <path d="M12 11v5M12 8h.01" />
+  </Base>
+)
