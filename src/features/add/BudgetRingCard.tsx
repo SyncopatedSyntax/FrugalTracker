@@ -11,7 +11,7 @@ const TITLES: Record<Timeframe, string> = {
 
 function Shell({ title, onClose, children }: { title: string; onClose: () => void; children: React.ReactNode }) {
   return (
-    <div className="mt-3 rounded-xl bg-surface2 p-3">
+    <div className="mt-3 rounded-xl border border-border bg-surface2 p-3 shadow-xl">
       <div className="mb-2 flex items-start justify-between gap-2">
         <p className="text-sm font-bold">{title}</p>
         <button

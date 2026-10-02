@@ -1,4 +1,4 @@
-import { memo, useState, type ReactNode } from 'react'
+import { memo, useEffect, useRef, useState, type ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useBudgets, useCategoryMap, useSettings, useTransactionsInRange } from '@/hooks'
 import type { TxType } from '@/db/types'
@@ -26,6 +26,24 @@ interface Props {
   categoryId: string | null
 }
 
+/** Closes the floating ring card when a pointer goes down anywhere outside
+ * the rings. Deliberately passive — no backdrop — so the tap still reaches
+ * whatever it landed on (a keypad key, say) instead of being swallowed. */
+function useDismissOnOutside(
+  ref: React.RefObject<HTMLDivElement | null>,
+  active: boolean,
+  onDismiss: () => void,
+) {
+  useEffect(() => {
+    if (!active) return
+    const onDown = (e: PointerEvent) => {
+      if (!ref.current?.contains(e.target as Node)) onDismiss()
+    }
+    document.addEventListener('pointerdown', onDown)
+    return () => document.removeEventListener('pointerdown', onDown)
+  }, [ref, active, onDismiss])
+}
+
 function BudgetPanel({ type, categoryId }: Props) {
   const settings = useSettings()
   const base = settings.baseCurrency
@@ -39,7 +57,7 @@ function BudgetPanel({ type, categoryId }: Props) {
   const categoryMap = useCategoryMap()
 
   return (
-    <div className="mx-4 mt-2 rounded-[1.375rem] bg-surface p-5">
+    <div className="relative z-20 mx-4 mt-2 rounded-[1.375rem] bg-surface p-5">
       {type === 'income' ? (
         <IncomeCompare txs={txs} base={base} firstDayOfWeek={settings.firstDayOfWeek} />
       ) : (
@@ -86,6 +104,8 @@ function ExpenseCompare({
 }) {
   const [infoOpen, setInfoOpen] = useState(false)
   const [openTf, setOpenTf] = useState<Timeframe | null>(null)
+  const ringsRef = useRef<HTMLDivElement>(null)
+  useDismissOnOutside(ringsRef, openTf !== null, () => setOpenTf(null))
   const navigate = useNavigate()
   const now = new Date()
   const category = categoryId ? categoryMap.get(categoryId) : undefined
@@ -143,6 +163,7 @@ function ExpenseCompare({
         <InfoButton onClick={() => setInfoOpen(true)} />
       </div>
 
+      <div ref={ringsRef} className="relative">
       <div className="grid grid-cols-3 gap-3">
         {rings.map(({ tf, spent, target, ratio }) => (
           <RingStat
@@ -164,6 +185,7 @@ function ExpenseCompare({
       </div>
 
       {openRing && (
+        <div className="absolute inset-x-0 top-full z-10">
         <ExpenseRingCard
           timeframe={openRing.tf}
           spent={openRing.spent}
@@ -177,7 +199,9 @@ function ExpenseCompare({
           onClose={() => setOpenTf(null)}
           onOpenBudgets={() => navigate('/more/budgets')}
         />
+        </div>
       )}
+      </div>
 
       {!hasComparison && (
         <p className="mt-3 text-center text-xs text-muted">
@@ -209,6 +233,8 @@ function IncomeCompare({
 }) {
   const [infoOpen, setInfoOpen] = useState(false)
   const [openTf, setOpenTf] = useState<Timeframe | null>(null)
+  const ringsRef = useRef<HTMLDivElement>(null)
+  useDismissOnOutside(ringsRef, openTf !== null, () => setOpenTf(null))
   const now = new Date()
   const rings = TIMEFRAMES.map((tf) => {
     const range = periodRange(tf, now, firstDayOfWeek)
@@ -235,6 +261,7 @@ function IncomeCompare({
         <InfoButton onClick={() => setInfoOpen(true)} />
       </div>
 
+      <div ref={ringsRef} className="relative">
       <div className="grid grid-cols-3 gap-3">
         {rings.map(({ tf, current, hasLastYear, ratio }) => (
           <RingStat
@@ -253,6 +280,7 @@ function IncomeCompare({
       </div>
 
       {openRing && (
+        <div className="absolute inset-x-0 top-full z-10">
         <IncomeRingCard
           timeframe={openRing.tf}
           current={openRing.current}
@@ -263,7 +291,9 @@ function IncomeCompare({
           base={base}
           onClose={() => setOpenTf(null)}
         />
+        </div>
       )}
+      </div>
 
       {noHistory && (
         <p className="mt-3 text-center text-xs text-muted">

@@ -1218,3 +1218,15 @@ New `src/features/add/BudgetRingCard.tsx`:
 The "BUDGET" / "Avg · 12mo" badge became a button routing to `/more/budgets`. Income's "vs last year" stays a plain label, as there is no budget behind it.
 
 **Verified:** 231/231 tests, `tsc` and build clean. Drove Demo Mode in headless Chromium (402×874): all three Dining Out cards reconcile exactly against the rings on screen — 200%, 142% and 148% match `$145.48 ÷ $72.58`, `$41.31 ÷ $29.03` and `$6,018.27 ÷ $4,079.03` — tapping the same ring closes it, the X closes it, the badge lands on `/more/budgets`, Travel (unbudgeted) shows the `$616.86 a month` average wording, and income's year card shows `$50,386.10 ÷ $46,022.84 = 109%` against `1 Jan – 2 Oct` last year with its badge inert. Also corrected a claim in the copy that was false on the Year card (spending can exceed a full year's allowance, so the text no longer asserts otherwise). Bumped to **v1.19.0**.
+
+## 102. Float the ring cards instead of letting them push the keypad down
+
+> The current cards for the circle squeeze the number pad, the cards should be floating on top and should not squeeze anything.
+
+**Result:** the card was rendered in normal flow inside the panel, so opening one grew the panel and pushed the amount row, keypad and Next button down the screen. Took it out of the flow: the rings and the card now share a `relative` wrapper, and the card is `absolute inset-x-0 top-full`, so it hangs below the rings and overlays whatever is beneath without occupying any layout space.
+
+To make sure it paints *above* the content it now covers, the panel root became `relative z-20`, giving it a stacking context that sits above the statically-positioned amount row and step track below it. The card also gained a border and `shadow-xl` so it reads as a floating layer rather than a flat block sitting on the keypad.
+
+With no backdrop, a tap on the keypad underneath would otherwise leave the card hanging around. Added `useDismissOnOutside`, a passive `pointerdown` listener that closes the card when a tap lands outside the rings — deliberately not a backdrop, so that tap still reaches the key it hit instead of being swallowed by a dismiss layer.
+
+**Verified:** 231/231 tests, `tsc` and build clean. Measured the real layout in headless Chromium (402×874) with the keypad on screen, before and after opening a card: panel height identical at 238px, the keypad did not move, and the card spans 276–561px — well past the panel's 283px bottom edge, so it genuinely overlays. `elementFromPoint` at the card's lower edge returns a node inside the card, confirming it paints on top rather than behind. Tapping a keypad key dismisses the card *and* registers on the key. Bumped to **v1.19.1**.
