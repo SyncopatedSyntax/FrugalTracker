@@ -1198,3 +1198,23 @@ New `src/features/add/BudgetInfoSheet.tsx`. The content is generated from the pa
 Each variant also covers the 80%/100% amber-and-red thresholds and the fact that the ring caps at one lap while the centre number keeps counting — the other thing that made a large percentage look like a rendering bug. Added `InfoIcon` to `icons.tsx`.
 
 **Verified:** 231/231 tests, `tsc` and build clean. Drove Demo Mode in headless Chromium (402×874) through all four variants, asserting on the rendered sheet text: **All categories** opens and the X closes it; **Dining Out** (budgeted) shows "Your budget for Dining Out: $450.00" and no fallback wording; **Travel** (unbudgeted) shows the "No budget is set" / "12 complete months" wording instead; **Income** shows the last-year comparison and none of the budget wording. Backdrop click also dismisses. Screenshotted each. Bumped to **v1.18.0**.
+
+## 101. Per-ring explainer cards, and make the budget badge navigate
+
+> I don't mean to use one card to explain everything, what I mean is when the user is tapping on each circle or the number below, a card specific to that circle and number will pop up and explain how the numbers are calculated, and what the budget is. Also if the user is tapping the "budget" on the top of the card, go to the budget screen.
+>
+> Answers: badge → the **budgets overview list**; "Avg · 12mo" also goes there while income's "vs last year" stays inert; card appears as a **compact card under the rings**; keep the ⓘ button for now.
+
+**Result:** each ring is now its own tappable target — circle, label and the figure underneath are one button — opening a compact card directly beneath the rings, so the ring being explained stays visible above it. Tapping the same ring again closes it, as does the card's X.
+
+The card shows that ring's own arithmetic with its real numbers substituted, not a prose formula. To guarantee the displayed sum can never drift from the sum actually performed, pulled the elapsed-time pieces out of `prorateMonthly` into a new exported **`prorationParts(now, firstDayOfWeek)`** in `src/lib/budgetMath.ts`; `prorateMonthly` now consumes it, so both read from one source. Verified behaviour is unchanged (all 167 lib tests still pass).
+
+New `src/features/add/BudgetRingCard.tsx`:
+- **Expense** — spent (with the date it counts from), the target, then the substituted sum: `$450.00 × 5 of 31 days = $72.58`, `$450.00 × 2 of 31 days = $29.03`, `$450.00 × (9 months + 2 of 31 days) = $4,079.03`. Then `spent ÷ target = N%`, and a footer naming the monthly figure that links through to the budgets list. The Week card additionally explains why it is counted in *days of this month* rather than as a quarter of one — the panel's least obvious detail.
+- **Unbudgeted** — the same card, but the footer explains the 12-complete-month rolling average standing in for a budget, with a "View budgets" link.
+- **Neither budget nor history** — explains why the ring reads as a dash and offers "Set a budget", rather than leaving the tap a dead end.
+- **Income** — earned so far vs the same stretch last year (both ranges spelled out), the division, and why ≥100% is green here. When last year is empty it says so instead of showing a ratio.
+
+The "BUDGET" / "Avg · 12mo" badge became a button routing to `/more/budgets`. Income's "vs last year" stays a plain label, as there is no budget behind it.
+
+**Verified:** 231/231 tests, `tsc` and build clean. Drove Demo Mode in headless Chromium (402×874): all three Dining Out cards reconcile exactly against the rings on screen — 200%, 142% and 148% match `$145.48 ÷ $72.58`, `$41.31 ÷ $29.03` and `$6,018.27 ÷ $4,079.03` — tapping the same ring closes it, the X closes it, the badge lands on `/more/budgets`, Travel (unbudgeted) shows the `$616.86 a month` average wording, and income's year card shows `$50,386.10 ÷ $46,022.84 = 109%` against `1 Jan – 2 Oct` last year with its badge inert. Also corrected a claim in the copy that was false on the Year card (spending can exceed a full year's allowance, so the text no longer asserts otherwise). Bumped to **v1.19.0**.

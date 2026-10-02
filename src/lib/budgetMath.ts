@@ -30,6 +30,30 @@ export function periodRange(timeframe: Timeframe, now: Date, firstDayOfWeek: 0 |
   return { startISO: `${now.getFullYear()}-01-01`, endISO }
 }
 
+/** The elapsed-time pieces `prorateMonthly` multiplies by, broken out so the
+ * UI can show the arithmetic it actually performed — "$450 x 19/31 days"
+ * rather than a prose formula that could drift away from the code. */
+export interface ProrationParts {
+  /** Days in the current calendar month: the denominator everything scales by. */
+  daysInCurrentMonth: number
+  /** Today's day of the month — the month numerator, and the year's fraction. */
+  dayOfMonth: number
+  /** Days of the current week elapsed, today included. */
+  elapsedWeekDays: number
+  /** Whole months of this calendar year already finished. */
+  fullMonthsElapsed: number
+}
+
+export function prorationParts(now: Date, firstDayOfWeek: 0 | 1): ProrationParts {
+  const start = startOfWeek(now, firstDayOfWeek)
+  return {
+    daysInCurrentMonth: daysInMonth(now),
+    dayOfMonth: now.getDate(),
+    elapsedWeekDays: Math.round((now.getTime() - start.getTime()) / 86_400_000) + 1,
+    fullMonthsElapsed: now.getMonth(), // months before the current one
+  }
+}
+
 /**
  * Scale a monthly amount (a budget, or a monthly average) to match how much
  * of the period has elapsed, so WTD/MTD/YTD all read on the same footing as
@@ -42,18 +66,15 @@ export function prorateMonthly(
   now: Date,
   firstDayOfWeek: 0 | 1,
 ): number {
-  const dim = daysInMonth(now)
-  const dayFraction = now.getDate() / dim
+  const p = prorationParts(now, firstDayOfWeek)
+  const dayFraction = p.dayOfMonth / p.daysInCurrentMonth
   if (timeframe === 'week') {
-    const start = startOfWeek(now, firstDayOfWeek)
-    const elapsedDays = Math.round((now.getTime() - start.getTime()) / 86_400_000) + 1
-    return monthlyAmount * (elapsedDays / dim)
+    return monthlyAmount * (p.elapsedWeekDays / p.daysInCurrentMonth)
   }
   if (timeframe === 'month') {
     return monthlyAmount * dayFraction
   }
-  const fullMonthsElapsed = now.getMonth() // months before the current one
-  return monthlyAmount * (fullMonthsElapsed + dayFraction)
+  return monthlyAmount * (p.fullMonthsElapsed + dayFraction)
 }
 
 /** Shift both boundaries of a range back exactly one year, preserving day-of-month. */

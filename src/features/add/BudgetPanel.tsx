@@ -1,4 +1,5 @@
 import { memo, useState, type ReactNode } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useBudgets, useCategoryMap, useSettings, useTransactionsInRange } from '@/hooks'
 import type { TxType } from '@/db/types'
 import { formatMoneyCompact } from '@/lib/currency'
@@ -6,9 +7,11 @@ import { toISO, todayISO } from '@/lib/date'
 import { cn } from '@/lib/cn'
 import { InfoIcon } from '@/components/icons'
 import BudgetInfoSheet, { type RingBasis } from './BudgetInfoSheet'
+import { ExpenseRingCard, IncomeRingCard } from './BudgetRingCard'
 import {
   periodRange,
   prorateMonthly,
+  prorationParts,
   rollingMonthlyAverage,
   sameRangeLastYear,
   sumInRange,
@@ -82,6 +85,8 @@ function ExpenseCompare({
   firstDayOfWeek: 0 | 1
 }) {
   const [infoOpen, setInfoOpen] = useState(false)
+  const [openTf, setOpenTf] = useState<Timeframe | null>(null)
+  const navigate = useNavigate()
   const now = new Date()
   const category = categoryId ? categoryMap.get(categoryId) : undefined
   const budget = budgets.find((b) => b.categoryId === categoryId)
@@ -102,13 +107,16 @@ function ExpenseCompare({
   }
 
   const categoryColor = category?.color ?? 'rgb(var(--c-primary))'
+  const parts = prorationParts(now, firstDayOfWeek)
   const rings = TIMEFRAMES.map((tf) => {
     const range = periodRange(tf, now, firstDayOfWeek)
     const spent = sumInRange(txs, range, 'expense', categoryId)
     const target = hasComparison ? prorateMonthly(monthly, tf, now, firstDayOfWeek) : 0
     const ratio = target > 0 ? spent / target : 0
-    return { tf, spent, target, ratio }
+    return { tf, spent, target, ratio, range }
   })
+  const openRing = openTf ? rings.find((r) => r.tf === openTf) : undefined
+  const scope = category ? category.name : 'All categories'
 
   return (
     <div>
@@ -123,9 +131,14 @@ function ExpenseCompare({
           {category ? category.name : 'All categories'}
         </span>
         {hasComparison && (
-          <span className="flex-shrink-0 rounded-full bg-surface2 px-2.5 py-1 text-[0.6875rem] font-semibold uppercase tracking-wide text-muted">
+          <button
+            type="button"
+            onClick={() => navigate('/more/budgets')}
+            aria-label="View budgets"
+            className="flex-shrink-0 rounded-full bg-surface2 px-2.5 py-1 text-[0.6875rem] font-semibold uppercase tracking-wide text-muted active:scale-95"
+          >
             {isAvg ? 'Avg · 12mo' : 'Budget'}
-          </span>
+          </button>
         )}
         <InfoButton onClick={() => setInfoOpen(true)} />
       </div>
@@ -144,9 +157,27 @@ function ExpenseCompare({
                 : formatMoneyCompact(spent, base)
             }
             pct={hasComparison ? Math.round(ratio * 100) : null}
+            selected={openTf === tf}
+            onClick={() => setOpenTf((cur) => (cur === tf ? null : tf))}
           />
         ))}
       </div>
+
+      {openRing && (
+        <ExpenseRingCard
+          timeframe={openRing.tf}
+          spent={openRing.spent}
+          target={openRing.target}
+          monthly={monthly}
+          basis={hasComparison ? (isAvg ? 'average' : 'budget') : 'none'}
+          scope={scope}
+          base={base}
+          parts={parts}
+          range={openRing.range}
+          onClose={() => setOpenTf(null)}
+          onOpenBudgets={() => navigate('/more/budgets')}
+        />
+      )}
 
       {!hasComparison && (
         <p className="mt-3 text-center text-xs text-muted">
@@ -161,7 +192,7 @@ function ExpenseCompare({
         basis={(hasComparison ? (isAvg ? 'average' : 'budget') : 'none') as RingBasis}
         monthly={monthly}
         base={base}
-        scope={category ? category.name : 'All categories'}
+        scope={scope}
       />
     </div>
   )
@@ -177,15 +208,18 @@ function IncomeCompare({
   firstDayOfWeek: 0 | 1
 }) {
   const [infoOpen, setInfoOpen] = useState(false)
+  const [openTf, setOpenTf] = useState<Timeframe | null>(null)
   const now = new Date()
   const rings = TIMEFRAMES.map((tf) => {
     const range = periodRange(tf, now, firstDayOfWeek)
+    const lastRange = sameRangeLastYear(range)
     const current = sumInRange(txs, range, 'income', null)
-    const lastYear = sumInRange(txs, sameRangeLastYear(range), 'income', null)
+    const lastYear = sumInRange(txs, lastRange, 'income', null)
     const hasLastYear = lastYear > 0
     const ratio = hasLastYear ? current / lastYear : 0
-    return { tf, current, hasLastYear, ratio }
+    return { tf, current, lastYear, hasLastYear, ratio, range, lastRange }
   })
+  const openRing = openTf ? rings.find((r) => r.tf === openTf) : undefined
   const noHistory = rings.every((r) => !r.hasLastYear)
 
   return (
@@ -212,9 +246,24 @@ function IncomeCompare({
             overClass="text-income"
             caption={formatMoneyCompact(current, base)}
             pct={hasLastYear ? Math.round(ratio * 100) : null}
+            selected={openTf === tf}
+            onClick={() => setOpenTf((cur) => (cur === tf ? null : tf))}
           />
         ))}
       </div>
+
+      {openRing && (
+        <IncomeRingCard
+          timeframe={openRing.tf}
+          current={openRing.current}
+          lastYear={openRing.lastYear}
+          hasLastYear={openRing.hasLastYear}
+          range={openRing.range}
+          lastRange={openRing.lastRange}
+          base={base}
+          onClose={() => setOpenTf(null)}
+        />
+      )}
 
       {noHistory && (
         <p className="mt-3 text-center text-xs text-muted">
@@ -256,6 +305,8 @@ function RingStat({
   overClass = 'text-expense',
   caption,
   pct,
+  selected,
+  onClick,
 }: {
   label: string
   ratio: number
@@ -264,17 +315,32 @@ function RingStat({
   overClass?: string
   caption: string
   pct: number | null
+  selected: boolean
+  onClick: () => void
 }) {
+  // The whole stat is the target, not just the circle — the number underneath
+  // is as likely to be what someone taps to ask "what is this measuring?".
   return (
-    <div className="flex min-w-0 flex-col items-center">
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label={`${label}: explain this figure`}
+      aria-expanded={selected}
+      className={cn(
+        'flex min-w-0 flex-col items-center rounded-xl py-1 active:scale-[0.98]',
+        selected && 'bg-surface2',
+      )}
+    >
       <ProgressRing ratio={ratio} color={color}>
         <span className={cn('text-lg font-bold tabular-nums sm:text-xl', over && overClass)}>
           {pct === null ? '–' : `${pct}%`}
         </span>
       </ProgressRing>
-      <span className="mt-2 text-xs font-semibold text-muted">{label}</span>
+      <span className={cn('mt-2 text-xs font-semibold', selected ? 'text-content' : 'text-muted')}>
+        {label}
+      </span>
       <span className="mt-0.5 max-w-full truncate text-xs tabular-nums text-muted">{caption}</span>
-    </div>
+    </button>
   )
 }
 
